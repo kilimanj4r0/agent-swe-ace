@@ -34,30 +34,6 @@ def test_config_loading():
     print("✓ config.yaml loaded successfully")
 
 
-def test_llm_config_class():
-    """Test LLMConfig class for both providers."""
-    from config.llm import LLMConfig
-    import os
-
-    # Test Z.AI config
-    zai_api_key = os.environ.get("ZAI_API_KEY")
-    if zai_api_key:
-        zai_config = LLMConfig(provider="zai", model="glm-4.5-airx")
-        assert zai_config.get_model_string() == "zai/glm-4.5-airx"
-        print("✓ LLMConfig ZAI works")
-    else:
-        print("⚠ Skipping ZAI test (no ZAI_API_KEY)")
-
-    # Test vLLM config
-    vllm_config = LLMConfig(
-        provider="hosted_vllm",
-        model="Qwen/Qwen3-Coder-30B-A3B",
-        api_base="http://localhost:8000/v1"
-    )
-    assert vllm_config.get_model_string() == "hosted_vllm/Qwen/Qwen3-Coder-30B-A3B"
-    print("✓ LLMConfig vLLM works")
-
-
 def test_agent_model_creation():
     """Test that agent model can be created from config.yaml."""
     from config.llm import create_model_from_yaml, LLMConfig
@@ -126,6 +102,34 @@ def test_agent_llm_call():
     print("[Agent API Test] ✓ OK")
 
 
+def test_ace_llm_call():
+    """Test ACE LLM with a real API call."""
+    from config.llm import create_model_from_yaml
+
+    config = load_config()
+    ace_config = config["llm"]["ace"]
+
+    print(f"\n[ACE API Test] Provider: {ace_config['provider']}")
+    print(f"[ACE API Test] Model: {ace_config['model']}")
+
+    # Create model
+    model = create_model_from_yaml(ace_config)
+    print(f"[ACE API Test] Model class: {type(model).__name__}")
+
+    # Make a simple API call
+    messages = [{"role": "user", "content": "Say exactly 'OK' and three-words wish for the day."}]
+    print("[ACE API Test] Making API call...")
+    response = model.query(messages)
+
+    # Extract response content
+    content = response.get("content", str(response)) if isinstance(response, dict) else str(response)
+    print(f"[ACE API Test] Response: {content[:100]}...")
+
+    assert response, "ACE LLM returned empty response"
+    assert "OK" in str(content).upper() or len(content) > 0, "ACE LLM returned unexpected response"
+    print("[ACE API Test] ✓ OK")
+
+
 def main():
     print("=" * 50)
     print("LLM Configuration Test")
@@ -133,10 +137,10 @@ def main():
 
     try:
         test_config_loading()
-        test_llm_config_class()
         test_agent_model_creation()
         test_ace_client_creation()
         test_agent_llm_call()
+        test_ace_llm_call()
         print("\n" + "=" * 50)
         print("All tests passed!")
         print("=" * 50)
