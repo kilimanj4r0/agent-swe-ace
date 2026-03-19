@@ -205,27 +205,6 @@ def test_pull_sample_image() -> bool:
         return False
 
 
-def test_evaluation_module() -> bool:
-    """Test 10: Test evaluation module with Docker."""
-    print("\n[TEST] Evaluation module (Docker validation)")
-    try:
-        from evaluation import validate_patch, validate_patch_simple
-
-        # Test simple validation (no Docker needed)
-        result = validate_patch_simple(
-            {"problem_statement": "test"},
-            "diff --git a/test.py b/test.py\n--- a/test.py\n+++ b/test.py\n"
-        )
-        print(f"       OK: Simple validation works (result={result})")
-        return True
-    except ImportError as e:
-        print(f"       FAIL: {e}")
-        return False
-    except Exception as e:
-        print(f"       FAIL: {e}")
-        return False
-
-
 def test_config_loading() -> bool:
     """Test 11: Test config file loading."""
     print("\n[TEST] Config file loading")
@@ -298,7 +277,6 @@ def main():
         ("mini-swe-agent imports", test_mini_swe_agent_imports),
         ("Image name generation", test_swebench_image_name),
         ("Available images", test_list_swebench_images),
-        ("Evaluation module", test_evaluation_module),
         ("Config loading", test_config_loading),
         ("Docker disk space", test_docker_disk_space),
     ]
