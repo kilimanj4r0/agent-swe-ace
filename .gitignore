@@ -1,0 +1,51 @@
+# User-defined
+opik/
+.other/
+data/
+
+# Secrets
+.env
+
+# Temporary files
+_*
+*.tmp
+
+# Results (large output files)
+results/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+.env/
+*.egg-info/
+dist/
+build/
+
+# uv
+.uv/
+uv.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code
+.claude/
+
+# Git worktrees
+.worktrees/
