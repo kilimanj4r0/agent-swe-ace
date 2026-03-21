@@ -1,16 +1,16 @@
 # src/phases/learn.py
 """Phase 3: Update skillbook from failed attempts."""
 
-import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from ace_next import Skillbook
+from ace_next.deduplication import DeduplicationManager
+from ace_next.protocols.deduplication import DeduplicationConfig
+from loguru import logger
 
 from data_io.writers import save_skillbook
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -44,6 +44,7 @@ class LearnPhase:
         run_name: str = "default",
         benchmark: str = "swebench-lite",
         skillbook_mode: str = "per_instance",  # "per_instance" or "per_run"
+        dedup_config: Optional[Dict[str, Any]] = None,
     ):
         """
         Initialize learn phase.
@@ -55,6 +56,7 @@ class LearnPhase:
             run_name: Name of the experiment run
             benchmark: Benchmark name for output path
             skillbook_mode: "per_instance" or "per_run"
+            dedup_config: Optional deduplication config dict
         """
         self.reflector = reflector
         self.skill_manager = skill_manager
@@ -62,6 +64,14 @@ class LearnPhase:
         self.run_name = run_name
         self.benchmark = benchmark
         self.skillbook_mode = skillbook_mode
+
+        # Setup deduplication manager
+        if dedup_config:
+            cfg = DeduplicationConfig(**dedup_config)
+            self.dedup_manager = DeduplicationManager(cfg)
+            logger.info(f"[Learn] Deduplication enabled with threshold {cfg.similarity_threshold}")
+        else:
+            self.dedup_manager = None
 
     def run(
         self,
@@ -93,7 +103,7 @@ class LearnPhase:
         messages = trajectory.get("messages", [])
 
         # Build agent output for ACE
-        from ace.roles import AgentOutput
+        from ace_next.core.outputs import AgentOutput
         agent_output = AgentOutput(
             reasoning="\n".join([m.get("content", "") for m in messages if m.get("role") == "assistant"]),
             final_answer=patch or "",
@@ -148,6 +158,14 @@ class LearnPhase:
                 skills_updated = 0
 
             logger.info(f"[Learn] Added {skills_added} skills, updated {skills_updated} skills")
+
+            # Run deduplication if enabled
+            if self.dedup_manager:
+                similarity_report = self.dedup_manager.get_similarity_report(skillbook)
+                if similarity_report:
+                    logger.info("[Learn] Found similar skills, consolidating")
+                    # Log the report for debugging
+                    logger.debug(f"[Learn] Similarity report:\n{similarity_report}")
         except Exception as e:
             logger.error(f"[Learn] Skill update failed: {e}")
             skills_added = 0

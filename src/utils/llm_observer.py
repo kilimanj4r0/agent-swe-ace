@@ -16,10 +16,9 @@ Usage:
     # runner = ACE.from_roles(..., extra_steps=[opik_step])
 """
 
-import logging
 from typing import Optional, Any, Dict
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 # Track observability state
 _enabled = False
