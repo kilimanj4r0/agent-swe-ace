@@ -278,19 +278,18 @@ class ExperimentLoop:
                 result.final_resolved = True
                 return result
 
-            # Run learn phase for unresolved baseline
-            if self.max_attempts > 1:
-                logger.info(f"[{instance_id}] Baseline iter_0 not resolved, learning from failure...")
+            # Run learn phase for unresolved baseline (always, to update skillbook)
+            logger.info(f"[{instance_id}] Baseline iter_0 not resolved, learning from failure...")
 
-                learn_result = self.learn.run(
-                    skillbook=skillbook,
-                    instance=instance,
-                    trajectory=baseline_data.trajectory,
-                    patch=baseline_data.patch,
-                    iteration=0,
-                )
-                iter_result.learn_result = learn_result
-                self.update_skillbook(repo, skillbook)
+            learn_result = self.learn.run(
+                skillbook=skillbook,
+                instance=instance,
+                trajectory=baseline_data.trajectory,
+                patch=baseline_data.patch,
+                iteration=0,
+            )
+            iter_result.learn_result = learn_result
+            self.update_skillbook(repo, skillbook)
 
             # Continue from iter_1
             start_iteration = 1
