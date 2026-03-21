@@ -1,221 +1,111 @@
-#!/usr/bin/env python
-"""
-Docker Setup Test Script
+# src/tests/test_docker_setup.py
+"""Tests for Docker setup verification."""
 
-Verifies that the experiment can run with Docker mode correctly.
-Run from: src/tests/
-
-Usage:
-    python test_docker_setup.py
-    python test_docker_setup.py --pull-image  # Also test pulling a SWE-bench image
-"""
-
-import argparse
 import subprocess
-import sys
 from pathlib import Path
-
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+import pytest
 
 
-def run_command(cmd: list, description: str) -> tuple[bool, str]:
-    """Run a command and return (success, output)."""
-    print(f"\n[TEST] {description}")
-    print(f"       Running: {' '.join(cmd)}")
-    try:
+class TestDockerInstallation:
+    """Tests for Docker installation and basic functionality."""
+
+    def test_docker_installed(self):
+        """Test that Docker is installed."""
         result = subprocess.run(
-            cmd,
+            ["docker", "--version"],
             capture_output=True,
             text=True,
-            timeout=60
+            timeout=30,
         )
-        success = result.returncode == 0
-        output = result.stdout + result.stderr
-        return success, output
-    except subprocess.TimeoutExpired:
-        return False, "Command timed out"
-    except Exception as e:
-        return False, str(e)
+        assert result.returncode == 0, "Docker is not installed"
+        assert "Docker" in result.stdout
+
+    def test_docker_daemon_running(self):
+        """Test that Docker daemon is running."""
+        result = subprocess.run(
+            ["docker", "info", "--format", "{{.ServerVersion}}"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert result.returncode == 0, "Docker daemon is not running"
+
+    def test_docker_permissions(self):
+        """Test that user can run Docker commands."""
+        result = subprocess.run(
+            ["docker", "ps"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert result.returncode == 0, "Permission denied for Docker"
 
 
-def test_docker_installed() -> bool:
-    """Test 1: Check if Docker is installed."""
-    success, output = run_command(["docker", "--version"], "Docker is installed")
-    if success:
-        print(f"       OK: {output.strip()}")
-    else:
-        print(f"       FAIL: {output}")
-    return success
+class TestPythonDockerPackage:
+    """Tests for Python docker package."""
 
+    def test_docker_package_installed(self):
+        """Test that docker Python package is installed."""
+        import docker
+        assert docker is not None
 
-def test_docker_running() -> bool:
-    """Test 2: Check if Docker daemon is running."""
-    success, output = run_command(["docker", "info", "--format", "{{.ServerVersion}}"], "Docker daemon is running")
-    if success:
-        print(f"       OK: Docker server version {output.strip()}")
-    else:
-        print(f"       FAIL: Docker daemon not running. Start Docker Desktop or dockerd.")
-    return success
-
-
-def test_docker_permissions() -> bool:
-    """Test 3: Check if user can run Docker commands."""
-    success, output = run_command(["docker", "ps"], "Docker permissions")
-    if success:
-        print(f"       OK: Can list containers")
-    else:
-        print(f"       FAIL: Permission denied. Add user to docker group or run with sudo.")
-    return success
-
-
-def test_python_docker_package() -> bool:
-    """Test 4: Check if docker Python package is installed."""
-    print("\n[TEST] Python docker package")
-    try:
+    def test_docker_client_creation(self):
+        """Test that Docker client can be created."""
         import docker
         client = docker.from_env()
-        print(f"       OK: docker package version {docker.__version__}")
-        return True
-    except ImportError:
-        print("       FAIL: docker package not installed. Run: pip install docker")
-        return False
-    except Exception as e:
-        print(f"       FAIL: {e}")
-        return False
+        assert client is not None
 
 
-def test_swebench_imports() -> bool:
-    """Test 5: Check if swebench can be imported."""
-    print("\n[TEST] SWE-bench imports")
-    try:
+class TestSWEBenchImports:
+    """Tests for SWE-bench and mini-swe-agent imports."""
+
+    def test_swebench_imports(self):
+        """Test that swebench can be imported."""
         from swebench.harness.run_evaluation import run_instance
         from swebench.harness.test_spec.test_spec import make_test_spec
-        print("       OK: swebench imports successful")
-        return True
-    except ImportError as e:
-        print(f"       FAIL: {e}")
-        print("       Run: pip install swebench")
-        return False
+        assert run_instance is not None
+        assert make_test_spec is not None
 
-
-def test_mini_swe_agent_imports() -> bool:
-    """Test 6: Check if mini-swe-agent can be imported."""
-    print("\n[TEST] mini-swe-agent imports")
-    try:
+    def test_mini_swe_agent_imports(self):
+        """Test that mini-swe-agent can be imported."""
         from minisweagent.agents.default import DefaultAgent
         from minisweagent.environments.docker import DockerEnvironment
         from minisweagent.run.extra.swebench import get_swebench_docker_image_name
-        print("       OK: mini-swe-agent imports successful")
-        return True
-    except ImportError as e:
-        print(f"       FAIL: {e}")
-        print("       Run: pip install git+https://github.com/SWE-agent/mini-swe-agent.git@v1")
-        return False
+        assert DefaultAgent is not None
+        assert DockerEnvironment is not None
+        assert get_swebench_docker_image_name is not None
 
 
-def test_swebench_image_name() -> bool:
-    """Test 7: Check SWE-bench Docker image name generation."""
-    print("\n[TEST] SWE-bench image name generation")
-    try:
+class TestSWEBenchImageGeneration:
+    """Tests for SWE-bench Docker image name generation."""
+
+    def test_image_name_generation(self):
+        """Test SWE-bench Docker image name generation."""
         from minisweagent.run.extra.swebench import get_swebench_docker_image_name
 
-        # Test with a sample instance
         test_instance = {
             "instance_id": "django__django-12345",
             "repo": "django/django",
             "version": "3.0",
         }
         image_name = get_swebench_docker_image_name(test_instance)
-        print(f"       OK: Generated image name: {image_name}")
-        return True
-    except Exception as e:
-        print(f"       FAIL: {e}")
-        return False
+        assert "swebench" in image_name
+        assert "django" in image_name
 
 
-def test_list_swebench_images() -> bool:
-    """Test 8: List available SWE-bench Docker images."""
-    print("\n[TEST] SWE-bench Docker images")
+class TestConfigLoading:
+    """Tests for configuration file loading."""
 
-    success, output = run_command(
-        ["docker", "images", "--filter=reference=swebench/*", "--format", "{{.Repository}}:{{.Tag}}"],
-        "Listing swebench images"
-    )
+    def test_config_file_exists(self):
+        """Test that config.yaml exists."""
+        config_path = Path(__file__).parent.parent.parent / "config.yaml"
+        assert config_path.exists(), f"config.yaml not found at {config_path}"
 
-    if success:
-        images = [line for line in output.strip().split('\n') if line]
-        if images:
-            print(f"       OK: Found {len(images)} SWE-bench image(s):")
-            for img in images[:5]:  # Show first 5
-                print(f"         - {img}")
-            if len(images) > 5:
-                print(f"         ... and {len(images) - 5} more")
-        else:
-            print("       WARNING: No SWE-bench images found locally")
-            print("       Images will be pulled on first run (this may take time)")
-        return True
-    return False
-
-
-def test_pull_sample_image() -> bool:
-    """Test 9: Pull a real SWE-bench Lite image (optional, slow)."""
-    print("\n[TEST] Pull sample SWE-bench Lite image (this may take a few minutes)")
-
-    try:
-        from datasets import load_dataset
-        from minisweagent.run.extra.swebench import get_swebench_docker_image_name
-
-        # Load SWE-bench Lite dataset and get the first instance
-        print("       Loading SWE-bench Lite dataset...")
-        dataset = load_dataset("princeton-nlp/SWE-bench_Lite", split="test")
-        sample_instance = dataset[0]
-        instance_id = sample_instance["instance_id"]
-
-        # Get the Docker image name for this instance
-        image_name = get_swebench_docker_image_name(sample_instance)
-        print(f"       Selected instance: {instance_id}")
-        print(f"       Image: {image_name}")
-
-        # Try to pull the image (increase timeout for large images)
-        result = subprocess.run(
-            ["docker", "pull", image_name],
-            capture_output=True,
-            text=True,
-            timeout=600  # 10 minutes for large images
-        )
-
-        if result.returncode == 0:
-            print(f"       OK: Image pulled successfully")
-            return True
-        else:
-            error = result.stderr or result.stdout
-            print(f"       FAIL: Could not pull image")
-            print(f"       Error: {error[:500]}")
-            return False
-
-    except subprocess.TimeoutExpired:
-        print("       FAIL: Image pull timed out (10 min limit)")
-        return False
-    except ImportError as e:
-        print(f"       FAIL: Missing dependency - {e}")
-        return False
-    except Exception as e:
-        print(f"       FAIL: {e}")
-        return False
-
-
-def test_config_loading() -> bool:
-    """Test 11: Test config file loading."""
-    print("\n[TEST] Config file loading")
-
-    config_path = Path(__file__).parent.parent.parent / "config.yaml"
-    if not config_path.exists():
-        print(f"       FAIL: config.yaml not found at {config_path}")
-        return False
-
-    try:
+    def test_config_file_loading(self):
+        """Test that config.yaml can be loaded with expected structure."""
         import yaml
+
+        config_path = Path(__file__).parent.parent.parent / "config.yaml"
         with open(config_path) as f:
             config = yaml.safe_load(f)
 
@@ -223,97 +113,63 @@ def test_config_loading() -> bool:
         env_type = config.get('environment', {}).get('type', 'docker')
         eval_docker = config.get('evaluation', {}).get('use_docker', True)
 
-        print(f"       OK: Config loaded")
-        print(f"       Environment type: {env_type}")
-        print(f"       Evaluation use_docker: {eval_docker}")
-        return True
-    except Exception as e:
-        print(f"       FAIL: {e}")
-        return False
+        assert env_type == 'docker' or env_type is not None
+        assert isinstance(eval_docker, bool)
 
 
-def test_docker_disk_space() -> bool:
-    """Test 12: Check Docker disk space."""
-    print("\n[TEST] Docker disk space")
+class TestDockerDiskSpace:
+    """Tests for Docker disk space."""
 
-    success, output = run_command(
-        ["docker", "system", "df", "--format", "{{.Type}}: {{.Size}}"],
-        "Checking Docker disk usage"
-    )
-
-    if success:
-        print(f"       OK: Docker disk info:")
-        for line in output.strip().split('\n'):
-            if line:
-                print(f"         {line}")
-        return True
-    return False
+    def test_docker_disk_info(self):
+        """Test that Docker disk info can be retrieved."""
+        result = subprocess.run(
+            ["docker", "system", "df", "--format", "{{.Type}}: {{.Size}}"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert result.returncode == 0
+        assert len(result.stdout) > 0
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Test Docker setup for experiments")
-    parser.add_argument(
-        "--pull-image",
-        action="store_true",
-        help="Also test pulling a SWE-bench Docker image (slow)"
-    )
-    parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="Show verbose output"
-    )
-    args = parser.parse_args()
+class TestSWEBenchImages:
+    """Tests for SWE-bench Docker images."""
 
-    print("=" * 60)
-    print("Docker Setup Test for ACE + mini-swe-agent Experiment")
-    print("=" * 60)
-
-    tests = [
-        ("Docker installed", test_docker_installed),
-        ("Docker daemon running", test_docker_running),
-        ("Docker permissions", test_docker_permissions),
-        ("Python docker package", test_python_docker_package),
-        ("SWE-bench imports", test_swebench_imports),
-        ("mini-swe-agent imports", test_mini_swe_agent_imports),
-        ("Image name generation", test_swebench_image_name),
-        ("Available images", test_list_swebench_images),
-        ("Config loading", test_config_loading),
-        ("Docker disk space", test_docker_disk_space),
-    ]
-
-    if args.pull_image:
-        tests.append(("Pull sample image", test_pull_sample_image))
-
-    results = []
-    for name, test_func in tests:
-        try:
-            success = test_func()
-            results.append((name, success))
-        except Exception as e:
-            print(f"\n       ERROR: {e}")
-            results.append((name, False))
-
-    # Summary
-    print("\n" + "=" * 60)
-    print("SUMMARY")
-    print("=" * 60)
-
-    passed = sum(1 for _, s in results if s)
-    total = len(results)
-
-    for name, success in results:
-        status = "OK" if success else "FAIL"
-        print(f"  [{status:^4}] {name}")
-
-    print(f"\nTotal: {passed}/{total} tests passed")
-
-    if passed == total:
-        print("\nAll tests passed! Ready to run experiments with Docker.")
-        return 0
-    else:
-        print("\nSome tests failed. Fix the issues above before running experiments.")
-        return 1
+    def test_list_swebench_images(self):
+        """Test listing SWE-bench Docker images."""
+        result = subprocess.run(
+            ["docker", "images", "--filter=reference=swebench/*", "--format", "{{.Repository}}:{{.Tag}}"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert result.returncode == 0
+        # Note: This test passes even if no images exist (they'll be pulled on first run)
+        # The test just verifies the command works
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+@pytest.mark.skip(reason="Slow test - run manually with --pull-image flag")
+class TestImagePull:
+    """Tests for pulling SWE-bench images (slow, run manually)."""
+
+    def test_pull_sample_image(self):
+        """Test pulling a sample SWE-bench Lite image."""
+        from datasets import load_dataset
+        from minisweagent.run.extra.swebench import get_swebench_docker_image_name
+
+        # Load SWE-bench Lite dataset and get the first instance
+        dataset = load_dataset("princeton-nlp/SWE-bench_Lite", split="test")
+        sample_instance = dataset[0]
+
+        # Get the Docker image name for this instance
+        image_name = get_swebench_docker_image_name(sample_instance)
+
+        # Try to pull the image
+        result = subprocess.run(
+            ["docker", "pull", image_name],
+            capture_output=True,
+            text=True,
+            timeout=600,  # 10 minutes for large images
+        )
+
+        assert result.returncode == 0, f"Failed to pull image: {result.stderr}"

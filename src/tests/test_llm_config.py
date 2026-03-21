@@ -1,156 +1,165 @@
-"""
-Simple LLM Configuration Test
+# src/tests/test_llm_config.py
+"""Tests for LLM configuration.
 
 Tests that config.yaml settings work for both agent and ace LLMs.
-Makes at least 1 real API call to verify connectivity.
-
-Run: uv run python src/tests/test_llm_config.py
+Some tests make real API calls to verify connectivity.
 """
 
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from dotenv import load_dotenv
 
-def load_config():
+load_dotenv()
+
+import litellm
+
+litellm.suppress_debug_info = True
+
+
+@pytest.fixture
+def config():
     """Load config.yaml."""
     config_path = Path(__file__).parent.parent.parent / "config.yaml"
     with open(config_path) as f:
         return yaml.safe_load(f)
 
 
-def test_config_loading():
-    """Test that config.yaml can be loaded."""
-    config = load_config()
-
-    assert "llm" in config, "Missing 'llm' section in config.yaml"
-    assert "agent" in config["llm"], "Missing 'agent' section in llm config"
-    assert "ace" in config["llm"], "Missing 'ace' section in llm config"
-
-    print("✓ config.yaml loaded successfully")
+@pytest.fixture
+def agent_config(config):
+    """Get agent LLM configuration."""
+    return config["llm"]["agent"]
 
 
-def test_agent_model_creation():
-    """Test that agent model can be created from config.yaml."""
-    from config.llm import create_model_from_yaml, LLMConfig
-
-    config = load_config()
-    agent_config = config["llm"]["agent"]
-
-    print(f"\n[Agent] Provider: {agent_config['provider']}")
-    print(f"[Agent] Model: {agent_config['model']}")
-
-    # Create LLMConfig to verify model string
-    llm_config = LLMConfig.from_dict(agent_config)
-    print(f"[Agent] Model string: {llm_config.get_model_string()}")
-
-    # Create model
-    model = create_model_from_yaml(agent_config)
-    print(f"[Agent] Model class: {type(model).__name__}")
-    print("[Agent] ✓ OK")
+@pytest.fixture
+def ace_config(config):
+    """Get ACE LLM configuration."""
+    return config["llm"]["ace"]
 
 
-def test_ace_client_creation():
-    """Test that ACE client can be created from config.yaml."""
-    from config.llm import create_ace_client, LLMConfig
+class TestConfigLoading:
+    """Tests for configuration file loading."""
 
-    config = load_config()
-    ace_config = config["llm"]["ace"]
+    def test_config_has_llm_section(self, config):
+        """Test that config.yaml has llm section."""
+        assert "llm" in config, "Missing 'llm' section in config.yaml"
 
-    print(f"\n[ACE] Provider: {ace_config['provider']}")
-    print(f"[ACE] Model: {ace_config['model']}")
+    def test_config_has_agent_section(self, config):
+        """Test that config.yaml has agent section."""
+        assert "agent" in config["llm"], "Missing 'agent' section in llm config"
 
-    # Create LLMConfig to verify model string
-    llm_config = LLMConfig.from_dict(ace_config)
-    print(f"[ACE] Model string: {llm_config.get_model_string()}")
-
-    # Create client
-    client = create_ace_client(ace_config)
-    print(f"[ACE] Client class: {type(client).__name__}")
-    print("[ACE] ✓ OK")
+    def test_config_has_ace_section(self, config):
+        """Test that config.yaml has ace section."""
+        assert "ace" in config["llm"], "Missing 'ace' section in llm config"
 
 
-def test_agent_llm_call():
-    """Test agent LLM with a real API call."""
-    from config.llm import create_model_from_yaml
+class TestAgentModelCreation:
+    """Tests for agent model creation from config."""
 
-    config = load_config()
-    agent_config = config["llm"]["agent"]
+    def test_agent_llm_config_creation(self, agent_config):
+        """Test that LLMConfig can be created from agent config."""
+        from config.llm import LLMConfig
 
-    print(f"\n[Agent API Test] Provider: {agent_config['provider']}")
-    print(f"[Agent API Test] Model: {agent_config['model']}")
+        llm_config = LLMConfig.from_dict(agent_config)
+        assert llm_config is not None
+        assert llm_config.get_model_string() is not None
 
-    # Create model
-    model = create_model_from_yaml(agent_config)
-    print(f"[Agent API Test] Model class: {type(model).__name__}")
+    def test_agent_model_creation(self, agent_config):
+        """Test that model can be created from agent config."""
+        from config.llm import create_model_from_yaml
 
-    # Make a simple API call
-    messages = [{"role": "user", "content": "Say exactly 'OK' and three-words wish for the day."}]
-    print("[Agent API Test] Making API call...")
-    response = model.query(messages)
+        model = create_model_from_yaml(agent_config)
+        assert model is not None
 
-    # Extract response content
-    content = response.get("content", str(response)) if isinstance(response, dict) else str(response)
-    print(f"[Agent API Test] Response: {content[:100]}...")
-
-    assert response, "Agent LLM returned empty response"
-    assert "OK" in str(content).upper() or len(content) > 0, "Agent LLM returned unexpected response"
-    print("[Agent API Test] ✓ OK")
+    def test_agent_model_has_required_fields(self, agent_config):
+        """Test that agent config has required fields."""
+        assert "provider" in agent_config
+        assert "model" in agent_config
 
 
-def test_ace_llm_call():
-    """Test ACE LLM with a real API call."""
-    from config.llm import create_model_from_yaml
+class TestACEClientCreation:
+    """Tests for ACE client creation from config."""
 
-    config = load_config()
-    ace_config = config["llm"]["ace"]
+    def test_ace_llm_config_creation(self, ace_config):
+        """Test that LLMConfig can be created from ACE config."""
+        from config.llm import LLMConfig
 
-    print(f"\n[ACE API Test] Provider: {ace_config['provider']}")
-    print(f"[ACE API Test] Model: {ace_config['model']}")
+        llm_config = LLMConfig.from_dict(ace_config)
+        assert llm_config is not None
+        assert llm_config.get_model_string() is not None
 
-    # Create model
-    model = create_model_from_yaml(ace_config)
-    print(f"[ACE API Test] Model class: {type(model).__name__}")
+    def test_ace_client_creation(self, ace_config):
+        """Test that client can be created from ACE config."""
+        from config.llm import create_ace_client
 
-    # Make a simple API call
-    messages = [{"role": "user", "content": "Say exactly 'OK' and three-words wish for the day."}]
-    print("[ACE API Test] Making API call...")
-    response = model.query(messages)
+        client = create_ace_client(ace_config)
+        assert client is not None
 
-    # Extract response content
-    content = response.get("content", str(response)) if isinstance(response, dict) else str(response)
-    print(f"[ACE API Test] Response: {content[:100]}...")
-
-    assert response, "ACE LLM returned empty response"
-    assert "OK" in str(content).upper() or len(content) > 0, "ACE LLM returned unexpected response"
-    print("[ACE API Test] ✓ OK")
+    def test_ace_config_has_required_fields(self, ace_config):
+        """Test that ACE config has required fields."""
+        assert "provider" in ace_config
+        assert "model" in ace_config
 
 
-def main():
-    print("=" * 50)
-    print("LLM Configuration Test")
-    print("=" * 50)
+@pytest.mark.integration
+class TestAgentLLMCall:
+    """Tests for agent LLM with real API calls."""
 
-    try:
-        test_config_loading()
-        test_agent_model_creation()
-        test_ace_client_creation()
-        test_agent_llm_call()
-        test_ace_llm_call()
-        print("\n" + "=" * 50)
-        print("All tests passed!")
-        print("=" * 50)
-        return 0
-    except Exception as e:
-        print(f"\n✗ FAILED: {e}")
-        import traceback
-        traceback.print_exc()
-        return 1
+    def test_agent_llm_returns_response(self, agent_config):
+        """Test that agent LLM returns a non-empty response."""
+        from config.llm import create_model_from_yaml
+
+        model = create_model_from_yaml(agent_config)
+        messages = [{"role": "user", "content": "Say exactly 'OK' and nothing else."}]
+
+        response = model.query(messages)
+
+        assert response is not None, "Agent LLM returned empty response"
+
+    def test_agent_llm_response_has_content(self, agent_config):
+        """Test that agent LLM response has content."""
+        from config.llm import create_model_from_yaml
+
+        model = create_model_from_yaml(agent_config)
+        messages = [{"role": "user", "content": "Say exactly 'OK' and nothing else."}]
+
+        response = model.query(messages)
+
+        # Extract response content
+        content = response.get("content", str(response)) if isinstance(response, dict) else str(response)
+        assert len(content) > 0, "Agent LLM returned empty content"
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+@pytest.mark.integration
+class TestACELLMCall:
+    """Tests for ACE LLM with real API calls."""
+
+    def test_ace_llm_returns_response(self, ace_config):
+        """Test that ACE LLM returns a non-empty response."""
+        from config.llm import create_model_from_yaml
+
+        model = create_model_from_yaml(ace_config)
+        messages = [{"role": "user", "content": "Say exactly 'OK' and nothing else."}]
+
+        response = model.query(messages)
+
+        assert response is not None, "ACE LLM returned empty response"
+
+    def test_ace_llm_response_has_content(self, ace_config):
+        """Test that ACE LLM response has content."""
+        from config.llm import create_model_from_yaml
+
+        model = create_model_from_yaml(ace_config)
+        messages = [{"role": "user", "content": "Say exactly 'OK' and nothing else."}]
+
+        response = model.query(messages)
+
+        # Extract response content
+        content = response.get("content", str(response)) if isinstance(response, dict) else str(response)
+        assert len(content) > 0, "ACE LLM returned empty content"
