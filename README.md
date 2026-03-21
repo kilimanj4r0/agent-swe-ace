@@ -10,21 +10,37 @@ The system learns from failed attempts by reflecting on trajectories and updatin
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Experiment Loop                           │
-│                                                              │
-│  ┌──────────┐    ┌──────────┐    ┌──────────┐              │
-│  │ Predict  │───▶│ Evaluate │───▶│  Learn   │──┐           │
-│  │ (Agent)  │    │(SWE-bench)│   │  (ACE)   │  │           │
-│  └──────────┘    └──────────┘    └──────────┘  │           │
-│       ▲              │ Resolved?                │           │
-│       │              └──────────────────────────┘           │
-│       │                      No                             │
-│       └──────────────────────────────────┐                 │
-│                                          │                  │
-│                          With updated    │                  │
-│                          skillbook       │                  │
-│                                          ▼                  │
-│                                   Max attempts?             │
+│                    Experiment Loop                          │
+│                                                             │
+│   ┌─────────────────────────┐                               │
+│   │ Start (or load baseline)│                               │
+│   └───────────┬─────────────┘                               │
+│               ▼                                             │
+│   ┌───────────────────┐                                     │
+│   │     Predict       │  Agent + Skillbook → Patch          │
+│   └─────────┬─────────┘                                     │
+│             ▼                                               │
+│   ┌───────────────────┐                                     │
+│   │     Evaluate      │  SWE-bench Docker → Resolved?       │
+│   └─────────┬─────────┘                                     │
+│             │                                               │
+│             ▼                                               │
+│       ┌─────────────┐                                       │
+│       │  Resolved?  │───Yes──▶ Done (resolved)              │
+│       └──────┬──────┘                                       │
+│              │No                                            │
+│              ▼                                              │
+│       ┌─────────────┐                                       │
+│       │Max attempts?│───Yes──▶ Done (unresolved)            │
+│       └──────┬──────┘                                       │
+│              │No                                            │
+│              ▼                                              │
+│       ┌─────────────┐                                       │
+│       │    Learn    │  ACE Reflector → Update Skillbook     │
+│       └──────┬──────┘                                       │
+│              │                                              │
+│              └──────────────────────▶ Predict (next iter)   │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -54,6 +70,47 @@ uv run python -m src.cli.commands
 
 # Limit instances and attempts
 uv run python -m src.cli.commands --max-instances 50 --max-attempts 3
+
+# Run with observability (creates unique Opik project per run)
+uv run python -m src.cli.commands --observe
+```
+
+### Resume from Baseline
+
+You can skip predict/evaluate for iter_0 by providing a baseline run directory with existing results:
+
+```bash
+# Run experiment starting from baseline iter_0 results
+uv run python -m src.cli.commands \
+    --config config.yaml \
+    --baseline-dir data/run_baseline_qwen3coder \
+    --max-attempts 3 \
+    --observe
+```
+
+This will:
+1. Load existing iter_0 trajectories/results from the baseline directory
+2. Skip predict/evaluate for iter_0 (saves time and API costs)
+3. For resolved instances: mark as resolved and skip further iterations
+4. For unresolved instances: run learn phase, then continue with iter_1, iter_2, etc.
+
+The baseline directory must have the following structure:
+```
+data/run_baseline_qwen3coder/
+├── config.json
+├── statistics.json
+└── princeton-nlp__SWE-bench_Lite/
+    ├── trajectories/
+    │   └── {instance_id}/
+    │       └── iter_0.json
+    └── results/
+        └── {instance_id}/
+            └── iter_0.json
+```
+
+Use the provided transformation script to convert baseline data:
+```bash
+uv run python scripts/transform_baseline_to_run_format.py --in-place
 ```
 
 ### Individual Phases
@@ -137,7 +194,7 @@ data/
 data/
 └── run_20260319_143052/              # run_<compact_timestamp>
     ├── config.json                    # Config used for this run
-    ├── statistics.json                # Counts, resolved/unresolved lists, skills
+    ├── statistics.json                # Counts, resolved/unresolved lists, observability URL
     ├── experiment.log                 # Run-specific log file
     └── princeton-nlp__SWE-bench_Lite/ # Benchmark from config
         ├── trajectories/
@@ -152,6 +209,27 @@ data/
             └── django__django-12345/
                 ├── iter_0.json        # Empty (initial), includes skill_count
                 └── iter_1.json        # After learning
+```
+
+### statistics.json Format
+
+```json
+{
+  "run_name": "mini-swe-v1-skillbook-learning",
+  "timestamp": "2026-03-22T05:45:00.000000",
+  "total_instances": 300,
+  "resolved_count": 52,
+  "unresolved_count": 248,
+  "resolution_rate": 0.173,
+  "resolved_ids": ["django__django-11039", ...],
+  "unresolved_ids": ["astropy__astropy-12907", ...],
+  "config": {
+    "max_attempts": 3,
+    "skillbook_mode": "per_instance"
+  },
+  "observability_project_url": "http://localhost:5173/projects/run_20260322_054500",
+  "baseline_dir": "data/run_baseline_qwen3coder"  // Only if --baseline-dir was used
+}
 ```
 
 ## Dependencies

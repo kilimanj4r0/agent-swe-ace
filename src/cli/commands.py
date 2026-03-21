@@ -92,6 +92,12 @@ def main():
     parser.add_argument("--patch", help="Patch string (for evaluate)")
     parser.add_argument("--log-level", default="INFO", help="Log level")
     parser.add_argument("--observe", action="store_true", help="Enable Opik observability")
+    parser.add_argument(
+        "--baseline-dir",
+        type=Path,
+        help="Path to baseline run directory with existing iter_0 results. "
+        "Skips predict/evaluate for iter_0, loads existing data, and continues from iter_1.",
+    )
 
     args = parser.parse_args()
 
@@ -112,13 +118,8 @@ def main():
     if args.output:
         config.setdefault("output", {})["dir"] = args.output
 
-    # Enable observability if --observe flag or config.observability.enabled
-    observability_config = config.get("observability", {})
-    if args.observe or observability_config.get("enabled", False):
-        project_name = observability_config.get("project_name", "agent-swe-ace")
-        enable_observability(project_name=project_name)
-
     # Run appropriate phase
+    # Note: Observability is enabled inside run_full_experiment with run_id as project name
     if args.phase == "all":
         run_full_experiment(config, args)
     elif args.phase == "predict":
@@ -147,6 +148,15 @@ def run_full_experiment(config: dict, args):
 
     # Save config
     save_config(config=config, run_dir=output_dir)
+
+    # Enable observability with run_id as project name (if enabled)
+    # This creates a unique Opik project per run for better traceability
+    observability_config = config.get("observability", {})
+    if args.observe or observability_config.get("enabled", False):
+        # Use the run directory name (e.g., "run_20260321_143052") as the project name
+        project_base_name = observability_config.get("project_name", "agent-swe-ace")
+        run_id = output_dir.name
+        enable_observability(project_name=f"{project_base_name}_{run_id}")
 
     # Create LLM configs
     agent_config = LLMConfig.from_dict(config["llm"]["agent"])
@@ -196,6 +206,7 @@ def run_full_experiment(config: dict, args):
             sys.exit(1)
 
     # Run experiment
+    baseline_dir = getattr(args, 'baseline_dir', None)
     loop = ExperimentLoop(
         predict_phase=predict_phase,
         evaluate_phase=evaluate_phase,
@@ -204,6 +215,8 @@ def run_full_experiment(config: dict, args):
         run_name=run_name,
         max_attempts=config["experiment"].get("max_attempts", 2),
         skillbook_mode=config["experiment"].get("skillbook_mode", "per_instance"),
+        baseline_dir=baseline_dir,
+        benchmark=benchmark,
     )
 
     loop.run(instances, config)
