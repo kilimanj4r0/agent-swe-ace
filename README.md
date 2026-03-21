@@ -35,13 +35,13 @@ The system learns from failed attempts by reflecting on trajectories and updatin
 uv sync
 
 # Run experiment
-uv run python -m scripts.run_experiment --max-instances 10
+uv run python -m src.cli.commands --max-instances 10
 
 # Run specific instance
-uv run python -m scripts.run_experiment --instance django__django-12345
+uv run python -m src.cli.commands --instance django__django-12345
 
 # Run with observability
-uv run python -m scripts.run_experiment --observe
+uv run python -m src.cli.commands --observe
 ```
 
 ## Usage
@@ -50,29 +50,29 @@ uv run python -m scripts.run_experiment --observe
 
 ```bash
 # Run on all instances with 2 attempts each
-uv run python -m scripts.run_experiment
+uv run python -m src.cli.commands
 
 # Limit instances and attempts
-uv run python -m scripts.run_experiment --max-instances 50 --max-attempts 3
+uv run python -m src.cli.commands --max-instances 50 --max-attempts 3
 ```
 
 ### Individual Phases
 
 ```bash
 # Phase 1: Predict (run agent)
-uv run python -m scripts.run_experiment \
+uv run python -m src.cli.commands \
     --phase predict \
     --instance django__django-12345 \
     --skillbook data/skillbooks/run_001/iter_0.json
 
 # Phase 2: Evaluate (test patch)
-uv run python -m scripts.run_experiment \
+uv run python -m src.cli.commands \
     --phase evaluate \
     --instance django__django-12345 \
     --trajectory data/trajectories/run_001/django__django-12345/iter_0.json
 
 # Phase 3: Learn (update skillbook)
-uv run python -m scripts.run_experiment \
+uv run python -m src.cli.commands \
     --phase learn \
     --instance django__django-12345 \
     --trajectory data/trajectories/run_001/django__django-12345/iter_0.json
@@ -84,14 +84,14 @@ See `config.yaml` for all options:
 
 ```yaml
 experiment:
-  name: "mini-swe-skillbook"
+  name: "mini-swe-v1-skillbook-learning"
   max_attempts: 2
-  skillbook_mode: "per_instance"  # per_instance, per_repo, global
+  skillbook_mode: "per_instance"  # per_instance, per_run
 
 llm:
   agent:
-    provider: "zai"
-    model: "glm-4.5-airx"
+    provider: "hosted_vllm"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
   ace:
     provider: "zai"
     model: "glm-4.5-airx"
@@ -99,7 +99,16 @@ llm:
 benchmark:
   dataset: "princeton-nlp/SWE-bench_Lite"
   max_instances: null  # all instances
+
+# Skill deduplication settings
+deduplication:
+  enabled: true
+  similarity_threshold: 0.85
+  embedding_provider: "sentence_transformers"
+  local_model_name: "all-MiniLM-L6-v2"
 ```
+
+Copy `.env.example` to `.env` and add your API keys.
 
 ## Project Structure
 
@@ -110,16 +119,16 @@ src/
 ├── agents/          # mini-swe-agent wrapper
 ├── data_io/         # Data loading/saving
 ├── config/          # LLM configuration
-├── cli/             # CLI commands
-└── scripts/         # Entry points
+├── cli/             # CLI commands (entry point)
+├── evaluation/      # SWE-bench evaluation
+├── environments/    # Docker environment
+└── tests/           # Test suite
 
 data/
-├── instances/       # Cached SWE-bench instances
-├── trajectories/    # Agent trajectories
-├── skillbooks/      # Learned skillbooks
-└── results/         # Evaluation results
-
-logs/                # Per-run logs
+├── <run_timestamp>/ # Output per run
+│   ├── trajectories/
+│   ├── results/
+│   └── skillbooks/
 ```
 
 ## Output Structure
@@ -129,11 +138,11 @@ data/
 └── run_20260319_143052/              # run_<compact_timestamp>
     ├── config.json                    # Config used for this run
     ├── statistics.json                # Counts, resolved/unresolved lists, skills
-    ├── experiment.log                 # Main log file
+    ├── experiment.log                 # Run-specific log file
     └── princeton-nlp__SWE-bench_Lite/ # Benchmark from config
         ├── trajectories/
         │   └── django__django-12345/
-        │       ├── iter_0.json
+        │       ├── iter_0.json        # Includes message_count, assistant_message_count
         │       └── iter_1.json
         ├── results/
         │   └── django__django-12345/
@@ -141,7 +150,7 @@ data/
         │       └── iter_1.json
         └── skillbooks/
             └── django__django-12345/
-                ├── iter_0.json        # Empty (initial)
+                ├── iter_0.json        # Empty (initial), includes skill_count
                 └── iter_1.json        # After learning
 ```
 
