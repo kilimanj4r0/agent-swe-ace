@@ -2,12 +2,11 @@
 """Data saving functions."""
 
 import json
-import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 def extract_benchmark_name(dataset: str) -> str:
@@ -99,14 +98,16 @@ def save_skillbook(
     output_path = output_dir / f"iter_{iteration}.json"
 
     # Convert skillbook to dict
+    skills_list = skillbook.skills()
     data = {
         "iteration": iteration,
         "timestamp": datetime.now().isoformat(),
         "instance_id": instance_id,
+        "skill_count": len(skills_list),
         "skills": {},
     }
 
-    for skill in skillbook.skills():
+    for skill in skills_list:
         data["skills"][skill.id] = {
             "id": skill.id,
             "section": getattr(skill, "section", "general"),
@@ -214,37 +215,3 @@ def save_statistics(
         json.dump(statistics, f, indent=2, default=str)
     logger.info(f"Saved statistics to {output_path}")
     return output_path
-
-
-def setup_run_logging(run_dir: Path, log_level: str = "INFO") -> logging.Logger:
-    """
-    Setup logging for a run.
-
-    Args:
-        run_dir: Run directory
-        log_level: Log level string
-
-    Returns:
-        Configured logger
-    """
-    log_file = run_dir / "experiment.log"
-
-    logger = logging.getLogger("experiment")
-    logger.setLevel(getattr(logging, log_level.upper()))
-    logger.handlers.clear()
-
-    # File handler
-    fh = logging.FileHandler(log_file)
-    fh.setLevel(logging.DEBUG)
-    fh.setFormatter(logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    ))
-    logger.addHandler(fh)
-
-    # Console handler
-    ch = logging.StreamHandler()
-    ch.setLevel(getattr(logging, log_level.upper()))
-    ch.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
-    logger.addHandler(ch)
-
-    return logger

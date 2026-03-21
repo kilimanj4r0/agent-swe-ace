@@ -1,11 +1,9 @@
 """SWE-bench patch validation using Docker harness."""
 
-import logging
 from typing import Dict
 
 import docker
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 def validate_patch_docker(instance: dict, patch: str, timeout: int = 1800) -> bool:

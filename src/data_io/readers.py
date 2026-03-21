@@ -2,11 +2,10 @@
 """Data loading functions."""
 
 import json
-import logging
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 def extract_benchmark_name(dataset: str) -> str:

@@ -1,16 +1,14 @@
 # src/phases/predict.py
 """Phase 1: Run mini-swe-agent with skillbook injection."""
 
-import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from ace_next import Skillbook
+from loguru import logger
 
 from data_io.writers import save_trajectory
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -92,6 +90,10 @@ class PredictPhase:
                 "submission": result.patch,
                 "iteration": iteration,
                 "instance_id": instance_id,
+                "message_count": len(result.trajectory),
+                "assistant_message_count": sum(
+                    1 for m in result.trajectory if m.get("role") == "assistant"
+                ),
             },
             "messages": result.trajectory,
         }

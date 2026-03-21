@@ -1,15 +1,13 @@
 # src/phases/evaluate.py
 """Phase 2: Evaluate patch using SWE-bench harness."""
 
-import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from evaluation import validate_patch
+from loguru import logger
 from data_io.writers import save_result
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass

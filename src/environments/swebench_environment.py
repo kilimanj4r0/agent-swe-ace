@@ -1,12 +1,10 @@
 """SWEBenchEnvironment - TaskEnvironment for SWE-bench evaluation."""
 
-import logging
 from typing import Optional
 
-from ace.adaptation import TaskEnvironment, EnvironmentResult, Sample
-from ace.roles import AgentOutput
-
-logger = logging.getLogger(__name__)
+from ace_next import TaskEnvironment, EnvironmentResult, Sample
+from ace_next.core.outputs import AgentOutput
+from loguru import logger
 
 
 class SWEBenchEnvironment(TaskEnvironment):

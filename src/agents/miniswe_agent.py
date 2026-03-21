@@ -1,17 +1,15 @@
 """MiniSWEAgent - Runs mini-swe-agent with skillbook injection."""
 
-import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, List, Any
 
 from ace_next import Skillbook
+from loguru import logger
 
 from phases.predict import build_system_template, build_instance_template
 from environments.docker_env import create_docker_environment, create_local_environment
 from utils.platform import get_platform_info
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass

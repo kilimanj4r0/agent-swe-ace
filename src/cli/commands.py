@@ -3,7 +3,6 @@
 
 import argparse
 import json
-import logging
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -12,6 +11,7 @@ from typing import Optional
 import yaml
 from datasets import load_dataset
 from dotenv import load_dotenv
+from loguru import logger
 
 # Setup path for imports
 _src_dir = Path(__file__).parent.parent
@@ -26,18 +26,24 @@ from phases.learn import LearnPhase
 from runners.main_loop import ExperimentLoop
 from data_io.readers import load_skillbook, load_trajectory
 from data_io.writers import save_config, save_statistics, get_run_dir
+from utils.logging import setup_logging
+from utils.llm_observer import enable_observability
 
 load_dotenv()
 
-logger = logging.getLogger(__name__)
+import litellm
 
 
-def setup_logging(log_level: str = "INFO"):
-    """Setup logging."""
-    logging.basicConfig(
-        level=getattr(logging, log_level.upper()),
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    )
+def _setup_console_logging(log_level: str = "INFO"):
+    """Setup console-only logging (before run_dir is created)."""
+    setup_logging(run_dir=None, log_level=log_level)
+
+
+def apply_litellm_config(config: dict):
+    """Apply LiteLLM settings from config."""
+    litellm_settings = config.get("litellm", {})
+    if litellm_settings.get("suppress_debug_info", False):
+        litellm.suppress_debug_info = True
 
 
 def load_config(config_path: str) -> dict:
@@ -89,11 +95,14 @@ def main():
 
     args = parser.parse_args()
 
-    # Setup logging
-    setup_logging(args.log_level)
+    # Setup console logging (file logging added after run_dir is created)
+    _setup_console_logging(args.log_level)
 
     # Load config
     config = load_config(args.config)
+
+    # Apply LiteLLM settings
+    apply_litellm_config(config)
 
     # Override config with CLI args
     if args.max_instances:
@@ -102,6 +111,12 @@ def main():
         config.setdefault("experiment", {})["max_attempts"] = args.max_attempts
     if args.output:
         config.setdefault("output", {})["dir"] = args.output
+
+    # Enable observability if --observe flag or config.observability.enabled
+    observability_config = config.get("observability", {})
+    if args.observe or observability_config.get("enabled", False):
+        project_name = observability_config.get("project_name", "agent-swe-ace")
+        enable_observability(project_name=project_name)
 
     # Run appropriate phase
     if args.phase == "all":
@@ -122,6 +137,10 @@ def run_full_experiment(config: dict, args):
     base_dir = Path(config.get("output", {}).get("dir", "data"))
     output_dir = get_run_dir(base_dir, timestamp)
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Setup run-specific logging to experiment.log
+    log_level = config.get("output", {}).get("log_level", "INFO")
+    setup_logging(run_dir=output_dir, log_level=log_level)
 
     logger.info(f"Run: {run_name}")
     logger.info(f"Output: {output_dir}")
@@ -163,6 +182,7 @@ def run_full_experiment(config: dict, args):
         run_name=run_name,
         benchmark=benchmark,
         skillbook_mode=config["experiment"].get("skillbook_mode", "per_instance"),
+        dedup_config=config.get("deduplication"),
     )
 
     # Get instances
