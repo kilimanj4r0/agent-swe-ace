@@ -7,13 +7,12 @@ experiment:
   max_attempts: 10                     # Max retry attempts per instance
   skillbook_mode: "per_instance"      # "per_instance" or "per_run"
   random_seed: 42                     # For reproducibility
-  cleanup_interval: 5                # Clean Docker images every N instances (0 to disable)
-  use_swe_reflector: false           # Use SWE-optimized reflector (anti-patterns) vs default
+  custom_swe_learn: false         # Use SWE-optimized Reflector + SkillManager (anti-patterns, type prefixes) vs default
 
 # Environment Settings
 environment:
   type: "docker"                      # "docker" (default) or "local"
-  image_namespace: "swebench"         # Namespace for SWE-bench Docker images
+  namespace: "ghcr.io/epoch-research/"  # Docker registry namespace (set to null for local images)
 
 # Mini SWE-Agent Settings
 agent:
