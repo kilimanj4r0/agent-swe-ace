@@ -82,10 +82,13 @@ You can skip predict/evaluate for iter_0 by providing a baseline run directory w
 ```bash
 # Run experiment starting from baseline iter_0 results
 uv run python -m src.cli.commands \
-    --config config.yaml \
+    --config configs/agent-qwen-ace-qwen.yaml \
     --baseline-dir data/run_baseline_qwen3coder \
-    --max-attempts 3 \
+    --max-attempts 10 \
+    --max-instances 1 \
+    --custom_swe_learn \
     --observe
+    # --instance astropy__astropy-14182 \
 ```
 
 This will:
