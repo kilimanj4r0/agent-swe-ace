@@ -1,0 +1,81 @@
+# Experiment Configuration
+# All settings can be overridden via CLI arguments
+
+experiment:
+  name: "agent-glm-ace-glm"
+  description: "ACE skillbook learning experiment on SWE-bench Lite"
+  max_attempts: 10                     # Max retry attempts per instance
+  skillbook_mode: "per_instance"      # "per_instance" or "per_run"
+  random_seed: 42                     # For reproducibility
+  cleanup_interval: 5                # Clean Docker images every N instances (0 to disable)
+  use_swe_reflector: false           # Use SWE-optimized reflector (anti-patterns) vs default
+
+# Environment Settings
+environment:
+  type: "docker"                      # "docker" (default) or "local"
+  image_namespace: "swebench"         # Namespace for SWE-bench Docker images
+
+# Mini SWE-Agent Settings
+agent:
+  step_limit: 250                    # Max agent steps per attempt
+  cost_limit: 0.0                    # Effectively disabled for local vLLM (no real cost)
+
+# LLM Configuration
+# API keys are loaded from .env file (not stored here)
+llm:
+  # Agent LLM (runs mini-swe-agent)
+  agent:
+    provider: "hosted_vllm"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://localhost:8800/v1"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+    temperature: 0.7
+    max_tokens: 4096
+
+  # ACE LLM (runs Reflector/SkillManager)
+  ace:
+    provider: "zai"
+    model: "glm-5"
+    api_key_env: "ZAI_API_KEY"
+    temperature: 0.7
+    max_tokens: 4096
+
+# Benchmark Configuration
+benchmark:
+  dataset: "princeton-nlp/SWE-bench_Lite"
+  split: "test"
+  max_instances: null                 # null = all instances, or set number
+
+# Evaluation Settings
+evaluation:
+  use_docker: true                    # Use Docker for evaluation (default)
+  timeout: 1800                       # Seconds per patch evaluation (30 min)
+  parallel: 1                         # Number of parallel evaluations
+
+# Output Settings
+output:
+  dir: "data"
+  save_trajectories: true
+  save_skillbooks: true
+  save_logs: true
+  log_level: "INFO"                   # DEBUG, INFO, WARNING, ERROR
+
+# LiteLLM Settings
+litellm:
+  suppress_debug_info: true           # Suppress LiteLLM debug output
+
+# Skill Deduplication Settings
+deduplication:
+  enabled: true
+  similarity_threshold: 0.85          # Cosine similarity threshold
+  embedding_provider: "sentence_transformers"  # or "litellm"
+  local_model_name: "all-MiniLM-L6-v2"  # Light local model
+  within_section_only: true           # Only compare skills in same section
+  min_pairs_to_report: 1              # Min pairs to trigger consolidation
+
+# Observability Settings (optional)
+# Enable Opik tracing via ACE framework
+# Run with --observe flag or set enabled: true
+observability:
+  enabled: true                      # Enable Opik tracing
+  project_name: "agent-swe-ace"       # Opik project name
