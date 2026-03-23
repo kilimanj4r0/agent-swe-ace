@@ -384,60 +384,81 @@ class ExperimentLoop:
         unresolved_ids: List[str] = []
         baseline_resolved_ids: List[str] = []
         baseline_unresolved_ids: List[str] = []
+        error_info: Optional[str] = None
 
-        # Process each instance
-        for i, instance in enumerate(instances):
-            instance_id = instance.get("instance_id", f"unknown-{i}")
-            logger.info(f"\n[{i+1}/{len(instances)}] Processing {instance_id}")
+        try:
+            # Process each instance
+            for i, instance in enumerate(instances):
+                instance_id = instance.get("instance_id", f"unknown-{i}")
+                logger.info(f"\n[{i+1}/{len(instances)}] Processing {instance_id}")
 
-            result = self.run_instance(instance)
-            all_results[instance_id] = result
+                result = self.run_instance(instance)
+                all_results[instance_id] = result
 
-            if result.final_resolved:
-                resolved_ids.append(instance_id)
+                if result.final_resolved:
+                    resolved_ids.append(instance_id)
+                else:
+                    unresolved_ids.append(instance_id)
+
+        except Exception as e:
+            import traceback
+            error_info = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
+            logger.error(f"Experiment interrupted: {e}")
+            logger.error(traceback.format_exc())
+
+        finally:
+            # Always save statistics, even if interrupted
+            total_processed = len(all_results)
+            total_planned = len(instances)
+            resolved_count = len(resolved_ids)
+            resolution_rate = resolved_count / total_processed if total_processed > 0 else 0.0
+
+            # Get observability project URL if enabled
+            observability_project_url = None
+            if is_observability_enabled():
+                observability_project_url = get_project_url()
+
+            statistics = {
+                "run_name": self.run_name,
+                "timestamp": datetime.now().isoformat(),
+                "total_instances": total_planned,
+                "processed_instances": total_processed,
+                "resolved_count": resolved_count,
+                "unresolved_count": len(unresolved_ids),
+                "resolution_rate": resolution_rate,
+                "resolved_ids": resolved_ids,
+                "unresolved_ids": unresolved_ids,
+                "config": {
+                    "max_attempts": self.max_attempts,
+                    "skillbook_mode": self.skillbook_mode,
+                },
+            }
+
+            # Add error info if interrupted
+            if error_info:
+                statistics["status"] = "interrupted"
+                statistics["error"] = error_info
             else:
-                unresolved_ids.append(instance_id)
+                statistics["status"] = "completed"
 
-        # Calculate statistics
-        total = len(instances)
-        resolved_count = len(resolved_ids)
-        resolution_rate = resolved_count / total if total > 0 else 0.0
+            # Add baseline info if using baseline mode
+            if self.baseline_dir:
+                statistics["baseline_dir"] = str(self.baseline_dir)
 
-        # Get observability project URL if enabled
-        observability_project_url = None
-        if is_observability_enabled():
-            observability_project_url = get_project_url()
+            # Add observability project URL if available
+            if observability_project_url:
+                statistics["observability_project_url"] = observability_project_url
 
-        statistics = {
-            "run_name": self.run_name,
-            "timestamp": datetime.now().isoformat(),
-            "total_instances": total,
-            "resolved_count": resolved_count,
-            "unresolved_count": len(unresolved_ids),
-            "resolution_rate": resolution_rate,
-            "resolved_ids": resolved_ids,
-            "unresolved_ids": unresolved_ids,
-            "config": {
-                "max_attempts": self.max_attempts,
-                "skillbook_mode": self.skillbook_mode,
-            },
-        }
+            # Save statistics
+            save_statistics(statistics=statistics, run_dir=self.output_dir)
 
-        # Add baseline info if using baseline mode
-        if self.baseline_dir:
-            statistics["baseline_dir"] = str(self.baseline_dir)
-
-        # Add observability project URL if available
-        if observability_project_url:
-            statistics["observability_project_url"] = observability_project_url
-
-        # Save statistics
-        save_statistics(statistics=statistics, run_dir=self.output_dir)
-
-        logger.info(f"\n{'='*60}")
-        logger.info("Experiment Complete!")
-        logger.info(f"Resolved: {resolved_count}/{total} ({resolution_rate:.1%})")
-        logger.info(f"{'='*60}")
+            logger.info(f"\n{'='*60}")
+            if error_info:
+                logger.info("Experiment Interrupted!")
+            else:
+                logger.info("Experiment Complete!")
+            logger.info(f"Resolved: {resolved_count}/{total_processed} ({resolution_rate:.1%})")
+            logger.info(f"{'='*60}")
 
         return statistics
 
