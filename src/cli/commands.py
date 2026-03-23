@@ -98,6 +98,11 @@ def main():
         help="Path to baseline run directory with existing iter_0 results. "
         "Skips predict/evaluate for iter_0, loads existing data, and continues from iter_1.",
     )
+    parser.add_argument(
+        "--custom-swe-learn",
+        action="store_true",
+        help="Use SWE-optimized Reflector + SkillManager (extracts anti-patterns, preserves type prefixes).",
+    )
 
     args = parser.parse_args()
 
@@ -117,6 +122,8 @@ def main():
         config.setdefault("experiment", {})["max_attempts"] = args.max_attempts
     if args.output:
         config.setdefault("output", {})["dir"] = args.output
+    if args.custom_swe_learn:
+        config.setdefault("experiment", {})["custom_swe_learn"] = True
 
     # Run appropriate phase
     # Note: Observability is enabled inside run_full_experiment with run_id as project name
@@ -174,20 +181,33 @@ def run_full_experiment(config: dict, args):
         output_dir=output_dir,
     )
 
-    from ace_next import Reflector, SkillManager
+    from ace_next import SkillManager, Reflector as DefaultReflector
+
+    # Check config for custom SWE learning (reflector + skill manager)
+    custom_swe_learn = config.get("experiment", {}).get("custom_swe_learn", False)
+    if custom_swe_learn:
+        from prompts import SWEReflector, SWESkillManager
+        reflector = SWEReflector(ace_client)
+        skill_manager = SWESkillManager(ace_client)
+        logger.info("Using SWE-optimized Reflector and SkillManager")
+    else:
+        reflector = DefaultReflector(ace_client)
+        skill_manager = SkillManager(ace_client)
+        logger.info("Using default ACE Reflector")
 
     benchmark = config["benchmark"]["dataset"].replace("/", "__")
     predict_phase = PredictPhase(agent=agent, output_dir=output_dir, run_name=run_name, benchmark=benchmark)
     evaluate_phase = EvaluatePhase(
         use_docker=config.get("evaluation", {}).get("use_docker", True),
         timeout=config.get("evaluation", {}).get("timeout", 1800),
+        rm_image=config.get("evaluation", {}).get("rm_image", True),
         output_dir=output_dir,
         run_name=run_name,
         benchmark=benchmark,
     )
     learn_phase = LearnPhase(
-        reflector=Reflector(ace_client),
-        skill_manager=SkillManager(ace_client),
+        reflector=reflector,
+        skill_manager=skill_manager,
         output_dir=output_dir,
         run_name=run_name,
         benchmark=benchmark,
@@ -295,6 +315,7 @@ def run_evaluate_cmd(config: dict, args):
     phase = EvaluatePhase(
         use_docker=config.get("evaluation", {}).get("use_docker", True),
         timeout=config.get("evaluation", {}).get("timeout", 1800),
+        rm_image=config.get("evaluation", {}).get("rm_image", True),
         output_dir=output_dir,
         run_name=run_name,
         benchmark=benchmark,
@@ -323,13 +344,25 @@ def run_learn_cmd(config: dict, args):
     ace_config = LLMConfig.from_dict(config["llm"]["ace"])
     ace_client = create_ace_client(ace_config.to_dict())
 
-    from ace_next import Reflector, SkillManager, Skillbook
+    from ace_next import SkillManager, Skillbook, Reflector as DefaultReflector
+
+    # Check config for custom SWE learning (reflector + skill manager)
+    custom_swe_learn = config.get("experiment", {}).get("custom_swe_learn", False)
+    if custom_swe_learn:
+        from prompts import SWEReflector, SWESkillManager
+        reflector = SWEReflector(ace_client)
+        skill_manager = SWESkillManager(ace_client)
+        logger.info("Using SWE-optimized Reflector and SkillManager")
+    else:
+        reflector = DefaultReflector(ace_client)
+        skill_manager = SkillManager(ace_client)
+        logger.info("Using default ACE Reflector")
 
     # Run learn
     benchmark = config["benchmark"]["dataset"].replace("/", "__")
     phase = LearnPhase(
-        reflector=Reflector(ace_client),
-        skill_manager=SkillManager(ace_client),
+        reflector=reflector,
+        skill_manager=skill_manager,
         output_dir=output_dir,
         run_name=run_name,
         benchmark=benchmark,
