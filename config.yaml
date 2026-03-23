@@ -12,7 +12,7 @@ experiment:
 # Environment Settings
 environment:
   type: "docker"                      # "docker" (default) or "local"
-  image_namespace: "swebench"         # Namespace for SWE-bench Docker images
+  namespace: "ghcr.io/epoch-research/"  # Docker registry namespace (set to null for local images)
 
 # Mini SWE-Agent Settings
 agent:
