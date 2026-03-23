@@ -158,7 +158,7 @@ _MINI_SWE_CONFIG = None
 
 
 def _load_mini_swe_config() -> dict:
-    """Load mini-swe-agent's default config from YAML file (cached)."""
+    """Load mini-swe-agent's swebench config from YAML file (cached)."""
     global _MINI_SWE_CONFIG
     if _MINI_SWE_CONFIG is not None:
         return _MINI_SWE_CONFIG
@@ -166,26 +166,19 @@ def _load_mini_swe_config() -> dict:
     import yaml
     from pathlib import Path
 
-    # Try to find the config in minisweagent package
+    # Try to find the swebench config in minisweagent package
     try:
         import minisweagent
         package_dir = Path(minisweagent.__file__).parent
-        config_path = package_dir / "config" / "default.yaml"
+        # Use swebench.yaml for proper git diff submission
+        config_path = package_dir / "config" / "extra" / "swebench.yaml"
         if config_path.exists():
             with open(config_path) as f:
                 _MINI_SWE_CONFIG = yaml.safe_load(f)
+                logger.debug(f"Loaded mini-swe-agent config from: {config_path}")
                 return _MINI_SWE_CONFIG
     except Exception as e:
-        logger.debug(f"Could not load minisweagent config: {e}")
-
-    # Fallback to default template
-    _MINI_SWE_CONFIG = {
-        "agent": {
-            "system_template": "You are a helpful software engineering assistant.",
-            "instance_template": "{{ problem_statement }}\n\nPlease fix this issue.",
-        }
-    }
-    return _MINI_SWE_CONFIG
+        logger.debug(f"Could not load minisweagent swebench config: {e}")
 
 
 def build_system_template() -> str:
@@ -263,6 +256,13 @@ def build_instance_template(skillbook: Optional[Skillbook] = None) -> str:
 These are strategies learned from previous attempts. Use them to guide your approach:
 
 {skillbook_context}
+
+⚠️ **CRITICAL REMINDERS:**
+1. These skills describe approaches, NOT complete solutions. You MUST implement actual code changes.
+2. Do NOT put multiple bash commands in one response - use ONE command per response.
+3. Before submitting, verify your patch exists with: `git diff --cached`
+4. If you think you've "successfully implemented" but git diff is empty, you haven't actually edited any files.
+5. The source code in /testbed IS writable - do not claim you "cannot modify installed packages".
 
 When you apply a strategy successfully, reference it with [skill-id] notation in your reasoning."""
 

@@ -86,6 +86,13 @@ class MiniSWEAgent:
             instance_id = instance["instance_id"]
             logger.debug(f"Starting agent run for instance: {instance_id}")
 
+            # Reset model counters (step_limit/cost_limit are tracked on the model object)
+            # Without this, counters accumulate across iterations and cause immediate LimitsExceeded
+            if hasattr(self.llm_model, 'n_calls'):
+                self.llm_model.n_calls = 0
+            if hasattr(self.llm_model, 'cost'):
+                self.llm_model.cost = 0.0
+
             # Create environment
             logger.debug(f"Creating {'Docker' if self.use_docker else 'local'} environment...")
             if self.use_docker:
