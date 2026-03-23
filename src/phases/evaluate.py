@@ -41,6 +41,7 @@ class EvaluatePhase:
         output_dir: Optional[Path] = None,
         run_name: str = "default",
         benchmark: str = "swebench-lite",
+        namespace: Optional[str] = None,
     ):
         """
         Initialize evaluate phase.
@@ -52,6 +53,7 @@ class EvaluatePhase:
             output_dir: Base directory for outputs
             run_name: Name of the experiment run
             benchmark: Benchmark name for output path
+            namespace: Optional Docker registry namespace prefix (e.g., "ghcr.io/epoch-research/")
         """
         self.use_docker = use_docker
         self.timeout = timeout
@@ -59,6 +61,7 @@ class EvaluatePhase:
         self.output_dir = Path(output_dir) if output_dir else Path("data")
         self.run_name = run_name
         self.benchmark = benchmark
+        self.namespace = namespace
 
     def run(
         self,
@@ -113,6 +116,7 @@ class EvaluatePhase:
                 timeout=self.timeout,
                 rm_image=self.rm_image,
                 output_dir=self.output_dir,
+                namespace=self.namespace,
             )
         except Exception as e:
             logger.error(f"[Evaluate] Error evaluating {instance_id}: {e}")
@@ -164,6 +168,7 @@ def run_evaluate(
     use_docker: bool = True,
     timeout: int = 1800,
     rm_image: bool = True,
+    namespace: Optional[str] = None,
 ) -> EvaluateResult:
     """
     Convenience function to run evaluate phase.
@@ -178,6 +183,7 @@ def run_evaluate(
         use_docker: Use Docker evaluation
         timeout: Evaluation timeout
         rm_image: Remove Docker image after evaluation
+        namespace: Optional Docker registry namespace prefix
 
     Returns:
         EvaluateResult
@@ -189,5 +195,6 @@ def run_evaluate(
         output_dir=output_dir,
         run_name=run_name,
         benchmark=benchmark,
+        namespace=namespace,
     )
     return phase.run(instance=instance, patch=patch, iteration=iteration)

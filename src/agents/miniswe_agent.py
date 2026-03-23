@@ -40,6 +40,7 @@ class MiniSWEAgent:
         step_limit: int = 100,
         cost_limit: float = 5.0,
         output_dir: Optional[Path] = None,
+        namespace: Optional[str] = None,
     ):
         """
         Args:
@@ -48,12 +49,14 @@ class MiniSWEAgent:
             step_limit: Maximum agent steps per attempt
             cost_limit: Maximum cost per attempt
             output_dir: Directory for agent-generated files (local mode)
+            namespace: Optional Docker registry namespace prefix (e.g., "ghcr.io/epoch-research/")
         """
         self.llm_model = llm_model
         self.use_docker = use_docker
         self.step_limit = step_limit
         self.cost_limit = cost_limit
         self.output_dir = output_dir or Path("results")
+        self.namespace = namespace
 
     def run(
         self,
@@ -96,7 +99,7 @@ class MiniSWEAgent:
             # Create environment
             logger.debug(f"Creating {'Docker' if self.use_docker else 'local'} environment...")
             if self.use_docker:
-                env = create_docker_environment(instance)
+                env = create_docker_environment(instance, namespace=self.namespace)
             else:
                 work_dir = self.output_dir / "agent_generated_files" / instance_id
                 env = create_local_environment(work_dir)

@@ -179,6 +179,7 @@ def run_full_experiment(config: dict, args):
         step_limit=config.get("agent", {}).get("step_limit", 100),
         cost_limit=config.get("agent", {}).get("cost_limit", 5.0),
         output_dir=output_dir,
+        namespace=config.get("environment", {}).get("namespace"),
     )
 
     from ace_next import SkillManager, Reflector as DefaultReflector
@@ -204,6 +205,7 @@ def run_full_experiment(config: dict, args):
         output_dir=output_dir,
         run_name=run_name,
         benchmark=benchmark,
+        namespace=config.get("environment", {}).get("namespace"),
     )
     learn_phase = LearnPhase(
         reflector=reflector,
@@ -261,6 +263,7 @@ def run_predict_cmd(config: dict, args):
         step_limit=config.get("agent", {}).get("step_limit", 100),
         cost_limit=config.get("agent", {}).get("cost_limit", 5.0),
         output_dir=output_dir,
+        namespace=config.get("environment", {}).get("namespace"),
     )
 
     # Load instance
@@ -319,6 +322,7 @@ def run_evaluate_cmd(config: dict, args):
         output_dir=output_dir,
         run_name=run_name,
         benchmark=benchmark,
+        namespace=config.get("environment", {}).get("namespace"),
     )
     result = phase.run(instance=instance, patch=patch, iteration=args.iteration)
 

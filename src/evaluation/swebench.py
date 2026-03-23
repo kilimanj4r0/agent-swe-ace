@@ -13,6 +13,7 @@ def validate_patch_docker(
     timeout: int = 1800,
     rm_image: bool = True,
     output_dir: Optional[Path] = None,
+    namespace: Optional[str] = None,
 ) -> bool:
     """
     Validate patch using SWE-bench Docker harness directly.
@@ -23,6 +24,7 @@ def validate_patch_docker(
         timeout: Timeout in seconds (default 30 min)
         rm_image: Remove Docker image after evaluation (default True, saves disk space)
         output_dir: Optional output directory for SWE-bench logs
+        namespace: Optional Docker registry namespace prefix (e.g., "ghcr.io/epoch-research/")
 
     Returns:
         True if patch resolves all tests
@@ -41,7 +43,11 @@ def validate_patch_docker(
 
     try:
         client = docker.from_env()
-        test_spec = make_test_spec(instance)
+        # Strip trailing slash from namespace to avoid double slashes
+        normalized_namespace = namespace.rstrip("/") if namespace else None
+        test_spec = make_test_spec(instance, namespace=normalized_namespace)
+        logger.info(f"Using image: {test_spec.instance_image_key}")
+
         pred = {
             "instance_id": instance_id,
             "model_patch": patch,
