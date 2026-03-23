@@ -37,6 +37,7 @@ class EvaluatePhase:
         self,
         use_docker: bool = True,
         timeout: int = 1800,
+        rm_image: bool = True,
         output_dir: Optional[Path] = None,
         run_name: str = "default",
         benchmark: str = "swebench-lite",
@@ -47,12 +48,14 @@ class EvaluatePhase:
         Args:
             use_docker: Use Docker harness (recommended)
             timeout: Evaluation timeout in seconds
+            rm_image: Remove Docker image after evaluation (saves disk space)
             output_dir: Base directory for outputs
             run_name: Name of the experiment run
             benchmark: Benchmark name for output path
         """
         self.use_docker = use_docker
         self.timeout = timeout
+        self.rm_image = rm_image
         self.output_dir = Path(output_dir) if output_dir else Path("data")
         self.run_name = run_name
         self.benchmark = benchmark
@@ -107,6 +110,9 @@ class EvaluatePhase:
                 instance=instance,
                 patch=patch,
                 use_docker=self.use_docker,
+                timeout=self.timeout,
+                rm_image=self.rm_image,
+                output_dir=self.output_dir,
             )
         except Exception as e:
             logger.error(f"[Evaluate] Error evaluating {instance_id}: {e}")
@@ -157,6 +163,7 @@ def run_evaluate(
     iteration: int = 0,
     use_docker: bool = True,
     timeout: int = 1800,
+    rm_image: bool = True,
 ) -> EvaluateResult:
     """
     Convenience function to run evaluate phase.
@@ -170,6 +177,7 @@ def run_evaluate(
         iteration: Iteration number
         use_docker: Use Docker evaluation
         timeout: Evaluation timeout
+        rm_image: Remove Docker image after evaluation
 
     Returns:
         EvaluateResult
@@ -177,6 +185,7 @@ def run_evaluate(
     phase = EvaluatePhase(
         use_docker=use_docker,
         timeout=timeout,
+        rm_image=rm_image,
         output_dir=output_dir,
         run_name=run_name,
         benchmark=benchmark,

@@ -7,6 +7,7 @@ experiment:
   max_attempts: 3                     # Max retry attempts per instance
   skillbook_mode: "per_instance"      # "per_instance" or "per_run"
   random_seed: 42                     # For reproducibility
+  custom_swe_learn: false         # Use SWE-optimized Reflector + SkillManager (anti-patterns, type prefixes) vs default
 
 # Environment Settings
 environment:
@@ -48,7 +49,7 @@ benchmark:
 evaluation:
   use_docker: true                    # Use Docker for evaluation (default)
   timeout: 1800                       # Seconds per patch evaluation (30 min)
-  parallel: 1                         # Number of parallel evaluations
+  rm_image: true                      # Remove Docker image after evaluation (saves disk space)
 
 # Output Settings
 output:
@@ -75,5 +76,5 @@ deduplication:
 # Enable Opik tracing via ACE framework
 # Run with --observe flag or set enabled: true
 observability:
-  enabled: true                      # Enable Opik tracing
+  enabled: false                      # Enable Opik tracing
   project_name: "agent-swe-ace"       # Opik project name
