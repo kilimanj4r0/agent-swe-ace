@@ -50,6 +50,10 @@ The system learns from failed attempts by reflecting on trajectories and updatin
 # Install dependencies
 uv sync
 
+# Prepare Docker images (required for evaluation)
+uv run python scripts/prepare_images.py                    # All instances
+uv run python scripts/prepare_images.py --instances django__django-11099  # Specific
+
 # Run experiment
 uv run python -m src.cli.commands --max-instances 10
 
@@ -59,6 +63,24 @@ uv run python -m src.cli.commands --instance django__django-12345
 # Run with observability
 uv run python -m src.cli.commands --observe
 ```
+
+### Docker Image Preparation
+
+Evaluation requires SWE-bench Docker images. Prepare them with:
+
+```bash
+# Prepare all images (reads namespace from config.yaml)
+uv run python scripts/prepare_images.py
+
+# Prepare specific instances
+uv run python scripts/prepare_images.py --instances django__django-11099 django__django-12345
+
+# Options
+uv run python scripts/prepare_images.py --workers 8     # Parallel builds
+uv run python scripts/prepare_images.py --force         # Rebuild
+```
+
+The default registry is `ghcr.io/epoch-research/` (optimized images from [epoch-research/swe-bench](https://github.com/epoch-research/swe-bench)). Set `environment.namespace` in `config.yaml` to use a different registry.
 
 ## Usage
 
@@ -84,9 +106,9 @@ You can skip predict/evaluate for iter_0 by providing a baseline run directory w
 uv run python -m src.cli.commands \
     --config configs/agent-qwen-ace-qwen.yaml \
     --baseline-dir data/run_baseline_qwen3coder \
-    --max-attempts 10 \
-    --max-instances 1 \
-    --custom_swe_learn \
+    --max-attempts 5 \
+    --max-instances 3 \
+    --custom-swe-learn \
     --observe
     # --instance astropy__astropy-14182 \
 ```
