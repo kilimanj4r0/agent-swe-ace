@@ -3,6 +3,7 @@ opik/
 .other/
 data/
 logs/
+.docs/
 
 # Secrets
 .env

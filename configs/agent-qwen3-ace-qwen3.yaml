@@ -1,7 +1,7 @@
 experiment:
-  name: "agent-glm-ace-glm"
+  name: "agent-qwen3-ace-qwen3"
   description: "ACE skillbook learning experiment on SWE-bench Lite"
-  max_attempts: 2                    # Max retry attempts per instance
+  max_attempts: 3                    # Max retry attempts per instance
   skillbook_mode: "per_instance"      # "per_instance" or "per_run"
   custom_swe_learn: true         # Use SWE-optimized Reflector + SkillManager (anti-patterns, type prefixes) vs default
 
@@ -11,22 +11,24 @@ agent:
 
 llm:
   agent:
-    provider: "zai"
-    model: "glm-4.5-airx"
-    api_key_env: "ZAI_API_KEY"
+    provider: "hosted_vllm"
+    model: "Qwen/Qwen3-Coder-Next-FP8"
+    api_base: "http://localhost:8800/v1"
+    api_key_env: "HOSTED_VLLM_API_KEY"
     temperature: 0.7
     max_tokens: 4096
   ace:
-    provider: "zai"
-    model: "glm-4.5-airx"
-    api_key_env: "ZAI_API_KEY"
+    provider: "hosted_vllm"
+    model: "Qwen/Qwen3-Coder-Next-FP8"
+    api_base: "http://localhost:8800/v1"
+    api_key_env: "HOSTED_VLLM_API_KEY"
     temperature: 0.7
     max_tokens: 4096
 
 benchmark:
   dataset: "princeton-nlp/SWE-bench_Lite"
   split: "test"
-  max_instances: 100                 # null = all instances, or set number
+  max_instances: null                 # null = all instances, or set number
 
 evaluation:
   use_docker: true                    # Use Docker for evaluation (default)
@@ -45,4 +47,4 @@ deduplication:
   similarity_threshold: 0.85          # Cosine similarity threshold
 
 observability:
-  enabled: false
+  enabled: true

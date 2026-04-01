@@ -51,7 +51,7 @@ def main():
         cmd.extend(["--instance_ids", *args.instances])
 
     if args.force:
-        cmd.append("--force_rebuild")
+        cmd.extend(["--force_rebuild", "true"])
 
     print(f"Running: {' '.join(cmd)}")
     subprocess.run(cmd, check=True)

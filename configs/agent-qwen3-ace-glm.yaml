@@ -1,5 +1,5 @@
 experiment:
-  name: "agent-glm-ace-glm"
+  name: "agent-qwen3-ace-glm"
   description: "ACE skillbook learning experiment on SWE-bench Lite"
   max_attempts: 2                    # Max retry attempts per instance
   skillbook_mode: "per_instance"      # "per_instance" or "per_run"
@@ -11,14 +11,15 @@ agent:
 
 llm:
   agent:
-    provider: "zai"
-    model: "glm-4.5-airx"
-    api_key_env: "ZAI_API_KEY"
+    provider: "hosted_vllm"
+    model: "Qwen/Qwen3-Coder-Next-FP8"
+    api_base: "http://localhost:8800/v1"
+    api_key_env: "HOSTED_VLLM_API_KEY"
     temperature: 0.7
     max_tokens: 4096
   ace:
     provider: "zai"
-    model: "glm-4.5-airx"
+    model: "glm-5"
     api_key_env: "ZAI_API_KEY"
     temperature: 0.7
     max_tokens: 4096
@@ -45,4 +46,4 @@ deduplication:
   similarity_threshold: 0.85          # Cosine similarity threshold
 
 observability:
-  enabled: false
+  enabled: true

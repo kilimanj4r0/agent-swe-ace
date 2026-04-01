@@ -54,11 +54,14 @@ uv sync
 uv run python scripts/prepare_images.py                    # All instances
 uv run python scripts/prepare_images.py --instances django__django-11099  # Specific
 
-# Run experiment
+# Run experiment (uses config.yaml as base)
 uv run python -m src.cli.commands --max-instances 10
 
-# Run specific instance
-uv run python -m src.cli.commands --instance django__django-12345
+# Run with override config (deep-merged on top of config.yaml)
+uv run python -m src.cli.commands --config configs/agent-glm-ace-glm.yaml
+
+# Run with override config + CLI args (CLI args take precedence)
+uv run python -m src.cli.commands --config configs/agent-glm-ace-glm.yaml --max-instances 10
 
 # Run with observability
 uv run python -m src.cli.commands --observe
@@ -80,7 +83,9 @@ uv run python scripts/prepare_images.py --workers 8     # Parallel builds
 uv run python scripts/prepare_images.py --force         # Rebuild
 ```
 
-The default registry is `ghcr.io/epoch-research/` (optimized images from [epoch-research/swe-bench](https://github.com/epoch-research/swe-bench)). Set `environment.namespace` in `config.yaml` to use a different registry.
+The default registry is `ghcr.io/epoch-research/`. Set `environment.namespace` in `config.yaml` to use a different registry.
+
+**7 instances are excluded** from experiments due to unfixable upstream build failures (see `benchmark.exclude_instances` in `config.yaml`). Details in [swe-bench-lite_exclude.md](../swe-bench-lite_exclude.md). A plan to patch these exists at [docs/plan_swebench_build_patches.md](docs/plan_swebench_build_patches.md).
 
 ## Usage
 
@@ -104,10 +109,10 @@ You can skip predict/evaluate for iter_0 by providing a baseline run directory w
 ```bash
 # Run experiment starting from baseline iter_0 results
 uv run python -m src.cli.commands \
-    --config configs/agent-qwen-ace-qwen.yaml \
+    --config configs/agent-qwen3-ace-qwen3.yaml \
     --baseline-dir data/run_baseline_qwen3coder \
-    --max-attempts 5 \
-    --max-instances 3 \
+    --max-attempts 2 \
+    --max-instances 50 \
     --custom-swe-learn \
     --observe
     # --instance astropy__astropy-14182 \
@@ -162,7 +167,33 @@ uv run python -m src.cli.commands \
 
 ## Configuration
 
-See `config.yaml` for all options:
+Configuration is loaded in layers (later overrides earlier):
+
+1. **`config.yaml`** — base defaults (always loaded)
+2. **`--config <file>`** — override config, deep-merged on top of base
+3. **CLI arguments** — override specific values
+
+Override configs (in `configs/`) only need to specify keys they change:
+
+```yaml
+# configs/agent-glm-ace-glm.yaml — overrides LLM and step limit only
+experiment:
+  name: "agent-glm-ace-glm"
+  max_attempts: 5
+
+agent:
+  step_limit: 250
+
+llm:
+  agent:
+    provider: "zai"
+    model: "glm-4.7-flash"
+  ace:
+    provider: "zai"
+    model: "glm-4.7-flash"
+```
+
+Full options in `config.yaml`:
 
 ```yaml
 experiment:
@@ -180,7 +211,19 @@ llm:
 
 benchmark:
   dataset: "princeton-nlp/SWE-bench_Lite"
-  max_instances: null  # all instances
+  max_instances: null              # null = all instances
+  exclude_instances:               # Instances with broken Docker images
+    - pylint-dev__pylint-7114
+    - sympy__sympy-20590
+    # ... see config.yaml for full list
+
+environment:
+  namespace: "ghcr.io/epoch-research/"  # Docker registry prefix
+
+evaluation:
+  use_docker: true
+  timeout: 1800                     # Seconds per patch evaluation
+  rm_image: false                   # Keep images (avoids rebuilds)
 
 # Skill deduplication settings
 deduplication:

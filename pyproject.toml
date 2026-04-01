@@ -19,6 +19,7 @@ dependencies = [
     "python-dotenv",
     "litellm",
     "loguru",
+    "vllm>=0.18.0",
 ]
 
 [tool.uv.sources]
