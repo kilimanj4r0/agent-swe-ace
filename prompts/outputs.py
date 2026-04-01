@@ -4,7 +4,7 @@
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
-from ace_next.core.outputs import ExtractedLearning
+from ace.core.outputs import ExtractedLearning
 
 
 class AntiPattern(BaseModel):

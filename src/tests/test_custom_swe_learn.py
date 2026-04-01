@@ -150,60 +150,28 @@ class TestSWEReflectorOutput:
 class TestSWESkillManager:
     """Tests for SWESkillManager class."""
 
+    def test_skill_manager_subclasses_ace(self):
+        """SWESkillManager should subclass ace.SkillManager."""
+        from ace import SkillManager
+        from prompts import SWESkillManager
+
+        assert issubclass(SWESkillManager, SkillManager)
+
     def test_skill_manager_uses_custom_prompt(self):
         """SWESkillManager should use CUSTOM_SKILL_MANAGER_PROMPT by default."""
         from prompts import SWESkillManager
         from prompts.skill_manager_prompt import CUSTOM_SKILL_MANAGER_PROMPT
 
-        mock_llm = MagicMock()
-        manager = SWESkillManager(mock_llm)
+        manager = SWESkillManager("zai/glm-4.5-airx")
 
-        assert manager.prompt_template == CUSTOM_SKILL_MANAGER_PROMPT
+        assert manager._prompt_template == CUSTOM_SKILL_MANAGER_PROMPT
 
-    def test_skill_manager_handles_swe_reflector_output(self):
-        """SWESkillManager should handle SWEReflectorOutput correctly."""
-        from prompts import SWESkillManager, SWEReflectorOutput, AntiPattern
+    def test_skill_manager_has_update_skills(self):
+        """SWESkillManager should inherit update_skills from ace.SkillManager."""
+        from prompts import SWESkillManager
 
-        mock_llm = MagicMock()
-        mock_llm.complete_structured.return_value = MagicMock()
-
-        manager = SWESkillManager(mock_llm)
-
-        # Create SWEReflectorOutput
-        output = SWEReflectorOutput(
-            reasoning="test reasoning",
-            error_identification="test error",
-            root_cause_analysis="test cause",
-            correct_approach="test approach",
-            key_insight="test insight",
-            anti_patterns=[
-                AntiPattern(pattern="AP1", why_harmful="h1", atomicity_score=0.9, evidence="e1")
-            ],
-            discoveries=[],
-            unvalidated_hypotheses=[],
-        )
-
-        mock_skillbook = MagicMock()
-        mock_skillbook.stats.return_value = {"total": 0}
-        mock_skillbook.as_prompt.return_value = "(empty skillbook)"
-
-        manager.update_skills(
-            reflections=(output,),
-            skillbook=mock_skillbook,
-            question_context="test context",
-            progress="test progress",
-        )
-
-        # Verify complete_structured was called
-        assert mock_llm.complete_structured.called
-
-        # Get the prompt that was used
-        call_args = mock_llm.complete_structured.call_args
-        prompt = call_args[0][0]
-
-        # Verify the prompt contains the extracted learning with prefix
-        assert "[ANTI-PATTERN]" in prompt
-        assert "AP1" in prompt
+        manager = SWESkillManager("zai/glm-4.5-airx")
+        assert hasattr(manager, 'update_skills')
 
 
 class TestCustomSWELearnFlag:
@@ -233,50 +201,35 @@ class TestCustomSWELearnFlag:
 class TestSWEReflector:
     """Tests for SWEReflector class."""
 
+    def test_swe_reflector_subclasses_ace(self):
+        """SWEReflector should subclass ace.Reflector."""
+        from ace import Reflector
+        from prompts import SWEReflector
+
+        assert issubclass(SWEReflector, Reflector)
+
     def test_swe_reflector_has_custom_prompt(self):
         """SWEReflector should use CUSTOM_REFLECTOR_PROMPT by default."""
         from prompts import SWEReflector
         from prompts.reflector_prompt import CUSTOM_REFLECTOR_PROMPT
 
-        mock_llm = MagicMock()
-        reflector = SWEReflector(mock_llm)
+        reflector = SWEReflector("zai/glm-4.5-airx")
 
-        assert reflector.prompt_template == CUSTOM_REFLECTOR_PROMPT
+        assert reflector._prompt_template == CUSTOM_REFLECTOR_PROMPT
 
-    def test_swe_reflector_uses_structured_output(self):
-        """SWEReflector should use complete_structured with SWEReflectorOutput."""
+    def test_swe_reflector_has_reflect(self):
+        """SWEReflector should inherit reflect from ace.Reflector."""
+        from prompts import SWEReflector
+
+        reflector = SWEReflector("zai/glm-4.5-airx")
+        assert hasattr(reflector, 'reflect')
+
+    def test_swe_reflector_output_type(self):
+        """SWEReflector should use SWEReflectorOutput as output type."""
         from prompts import SWEReflector, SWEReflectorOutput
 
-        mock_llm = MagicMock()
-        mock_llm.complete_structured.return_value = SWEReflectorOutput(
-            reasoning="test",
-            error_identification="test",
-            root_cause_analysis="test",
-            correct_approach="test",
-            key_insight="test",
-            anti_patterns=[],
-            discoveries=[],
-            unvalidated_hypotheses=[],
-        )
-
-        reflector = SWEReflector(mock_llm)
-
-        from ace_next.core.outputs import AgentOutput
-        from ace_next import Skillbook
-
-        result = reflector.reflect(
-            question="test question",
-            agent_output=AgentOutput(
-                reasoning="test reasoning",
-                final_answer="test answer",
-                skill_ids=[],
-                raw={}
-            ),
-            skillbook=Skillbook(),
-        )
-
-        assert isinstance(result, SWEReflectorOutput)
-        assert mock_llm.complete_structured.called
+        reflector = SWEReflector("zai/glm-4.5-airx")
+        assert reflector._agent._output_type is SWEReflectorOutput
 
 
 class TestLearningTypePreservation:

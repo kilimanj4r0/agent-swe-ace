@@ -159,41 +159,16 @@ def create_model_from_yaml(config_dict: dict):
 
 def create_ace_client(config_dict: dict):
     """
-    Create ace-framework's LLM client from YAML configuration.
+    Create ace-framework model string from YAML configuration.
 
-    Uses wrap_with_instructor to provide structured output support
-    (complete_structured method) required by ACE's Reflector
-    and SkillManager.
+    In ACE v0.9.1+, Reflector and SkillManager accept a model string
+    directly (they handle LLM calls internally via PydanticAI).
 
     Args:
         config_dict: Dictionary from config.yaml llm.ace section
 
     Returns:
-        Configured ace-framework LLM client with instructor support
+        Model string for ACE components (e.g. "zai/glm-5")
     """
-    try:
-        from ace_next import LiteLLMClient, wrap_with_instructor
-    except ImportError:
-        raise ImportError(
-            "ace-framework not installed. Run: pip install ace-framework"
-        )
-
     config = LLMConfig.from_dict(config_dict)
-
-    # Build API base for the underlying LiteLLM call
-    api_base = config.api_base
-    if config.provider == "zai":
-        # Z.AI OpenAI-compatible endpoint for direct calls
-        api_base = api_base or "https://open.bigmodel.cn/api/paas/v4/"
-
-    # Create LiteLLMClient first
-    lite_client = LiteLLMClient(
-        model=config.get_model_string(),
-        api_base=api_base,
-        api_key=config.api_key,
-        temperature=config.temperature,
-        max_tokens=config.max_tokens,
-    )
-
-    # Wrap with instructor for structured output support
-    return wrap_with_instructor(lite_client)
+    return config.get_model_string()

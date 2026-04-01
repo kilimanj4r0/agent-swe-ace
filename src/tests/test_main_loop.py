@@ -135,7 +135,7 @@ class TestSkillbookModes:
     def test_per_instance_mode(self, tmp_path):
         """Test per-instance skillbook mode (default)."""
         from runners.main_loop import ExperimentLoop
-        from ace_next import Skillbook
+        from ace import Skillbook
 
         mock_predict = Mock()
         mock_evaluate = Mock()
@@ -157,7 +157,7 @@ class TestSkillbookModes:
     def test_global_mode(self, tmp_path):
         """Test global skillbook mode."""
         from runners.main_loop import ExperimentLoop
-        from ace_next import Skillbook, Skill
+        from ace import Skillbook, Skill
 
         mock_predict = Mock()
         mock_evaluate = Mock()

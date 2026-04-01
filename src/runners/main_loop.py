@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ace_next import Skillbook
+from ace import Skillbook
 from loguru import logger
 
 from data_io.writers import save_statistics, save_config

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from ace_next import Skillbook
+from ace import Skillbook
 from loguru import logger
 
 from data_io.writers import save_trajectory
@@ -209,6 +209,12 @@ def wrap_skillbook_context(skillbook: Skillbook) -> str:
         sections.append(section)
 
     return "\n\n".join(sections)
+
+
+def build_action_observation_template() -> str:
+    """Get mini-swe-agent's action observation template with output truncation."""
+    config = _load_mini_swe_config()
+    return config["agent"]["action_observation_template"]
 
 
 def build_instance_template(skillbook: Optional[Skillbook] = None) -> str:

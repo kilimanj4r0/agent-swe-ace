@@ -4,10 +4,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, List, Any
 
-from ace_next import Skillbook
+from ace import Skillbook
 from loguru import logger
 
-from phases.predict import build_system_template, build_instance_template
+from phases.predict import build_system_template, build_instance_template, build_action_observation_template
 from environments.docker_env import create_docker_environment, create_local_environment
 from utils.platform import get_platform_info
 
@@ -109,6 +109,7 @@ class MiniSWEAgent:
             logger.debug("Building templates...")
             system_template = build_system_template()
             instance_template = build_instance_template(skillbook)
+            action_observation_template = build_action_observation_template()
             logger.debug(f"Templates built, instance_template length: {len(instance_template)}")
 
             # Create agent config
@@ -117,6 +118,7 @@ class MiniSWEAgent:
                 step_limit=self.step_limit,
                 cost_limit=self.cost_limit,
                 instance_template=instance_template,
+                action_observation_template=action_observation_template,
             )
 
             # Create and run agent

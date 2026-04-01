@@ -45,7 +45,7 @@ class TestReaders:
 
     def test_load_skillbook_empty(self, tmp_path):
         """Test loading an empty skillbook."""
-        from ace_next import Skillbook
+        from ace import Skillbook
 
         skillbook = readers.load_skillbook(None)
         assert isinstance(skillbook, Skillbook)
@@ -121,7 +121,7 @@ class TestWriters:
 
     def test_save_skillbook_per_instance(self, tmp_path):
         """Test saving a skillbook in per-instance mode."""
-        from ace_next import Skillbook, Skill
+        from ace import Skillbook, Skill
 
         skillbook = Skillbook()
         skillbook._skills["skill-1"] = Skill(
@@ -146,7 +146,7 @@ class TestWriters:
 
     def test_save_skillbook_per_run(self, tmp_path):
         """Test saving a skillbook in per-run mode."""
-        from ace_next import Skillbook, Skill
+        from ace import Skillbook, Skill
 
         skillbook = Skillbook()
         skillbook._skills["skill-1"] = Skill(

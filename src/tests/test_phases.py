@@ -163,7 +163,7 @@ class TestLearnPhase:
     def test_learn_phase_creates_skill(self, tmp_path):
         """Test that learn phase creates a skill from failure."""
         from phases.learn import LearnPhase
-        from ace_next import Skillbook
+        from ace import Skillbook
 
         # Mock ACE components
         mock_reflector = Mock()
@@ -204,7 +204,7 @@ class TestLearnPhase:
     def test_learn_phase_handles_reflection_failure(self, tmp_path):
         """Test that learn phase handles reflection failures gracefully."""
         from phases.learn import LearnPhase
-        from ace_next import Skillbook
+        from ace import Skillbook
 
         mock_reflector = Mock()
         mock_reflector.reflect.side_effect = Exception("Reflection failed")

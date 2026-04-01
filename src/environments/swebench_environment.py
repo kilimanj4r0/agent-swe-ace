@@ -2,8 +2,8 @@
 
 from typing import Optional
 
-from ace_next import TaskEnvironment, EnvironmentResult, Sample
-from ace_next.core.outputs import AgentOutput
+from ace import TaskEnvironment, EnvironmentResult, Sample
+from ace.core.outputs import AgentOutput
 from loguru import logger
 
 
@@ -11,12 +11,12 @@ class SWEBenchEnvironment(TaskEnvironment):
     """
     Evaluates patches using SWE-bench harness.
 
-    Implements ace_next's TaskEnvironment interface for use with ACE.
+    Implements ace's TaskEnvironment interface for use with ACE.
     This allows SWE-bench evaluation to be used within ace-framework's
     orchestration.
 
     Usage:
-        >>> from ace_next import ACE
+        >>> from ace import ACE
         >>> from environments.swebench_environment import SWEBenchEnvironment
         >>>
         >>> environment = SWEBenchEnvironment(use_docker=True)

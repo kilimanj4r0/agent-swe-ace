@@ -79,7 +79,7 @@ data/
 - Trajectory files include `message_count` and `assistant_message_count` for quick analysis
 - Skillbook files include `skill_count` at top level
 - `experiment.log` is saved to each run folder via `setup_run_logging()`
-- Skill deduplication via ace_next.deduplication with configurable similarity threshold
+- Skill deduplication via ace.deduplication with configurable similarity threshold
 
 ## Gotchas
 

@@ -5,9 +5,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from ace_next import Skillbook
-from ace_next.deduplication import DeduplicationManager
-from ace_next.protocols.deduplication import DeduplicationConfig
+from ace import Skillbook
+from ace.deduplication import DeduplicationManager
+from ace.protocols.deduplication import DeduplicationConfig
 from loguru import logger
 
 from data_io.writers import save_skillbook
@@ -103,7 +103,7 @@ class LearnPhase:
         messages = trajectory.get("messages", [])
 
         # Build agent output for ACE
-        from ace_next.core.outputs import AgentOutput
+        from ace.core.outputs import AgentOutput
         agent_output = AgentOutput(
             reasoning="\n".join([m.get("content", "") for m in messages if m.get("role") == "assistant"]),
             final_answer=patch or "",

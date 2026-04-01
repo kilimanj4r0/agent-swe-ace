@@ -3,9 +3,9 @@
 
 import pytest
 
-from ace_next import Skillbook
-from ace_next.deduplication import DeduplicationManager, SimilarityDetector
-from ace_next.protocols.deduplication import DeduplicationConfig
+from ace import Skillbook
+from ace.deduplication import DeduplicationManager, SimilarityDetector
+from ace.protocols.deduplication import DeduplicationConfig
 
 
 class TestSimilarityDetector:
