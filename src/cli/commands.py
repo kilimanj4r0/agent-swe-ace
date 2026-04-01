@@ -29,7 +29,7 @@ from data_io.writers import save_config, save_statistics, get_run_dir
 from utils.logging import setup_logging
 from utils.llm_observer import enable_observability
 
-load_dotenv()
+load_dotenv(_src_dir.parent / ".env")
 
 import litellm
 
@@ -44,6 +44,17 @@ def apply_litellm_config(config: dict):
     litellm_settings = config.get("litellm", {})
     if litellm_settings.get("suppress_debug_info", False):
         litellm.suppress_debug_info = True
+
+
+def deep_merge(base: dict, override: dict) -> dict:
+    """Deep merge override into base dict."""
+    result = base.copy()
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
 
 
 def load_config(config_path: str) -> dict:
@@ -67,6 +78,14 @@ def get_instances(config: dict) -> list:
     if max_instances:
         instances = instances[:max_instances]
 
+    # Exclude instances
+    exclude = config["benchmark"].get("exclude_instances", [])
+    if exclude:
+        exclude_set = set(exclude)
+        before = len(instances)
+        instances = [i for i in instances if i["instance_id"] not in exclude_set]
+        logger.info(f"Excluded {before - len(instances)} instances: {before} -> {len(instances)}")
+
     return instances
 
 
@@ -75,7 +94,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="ACE-SWE Experiment: Skillbook learning with mini-swe-agent"
     )
-    parser.add_argument("--config", "-c", default="config.yaml", help="Config file")
+    parser.add_argument("--config", "-c", help="Override config file (merged on top of config.yaml)")
     parser.add_argument("--output", "-o", help="Output directory")
     parser.add_argument("--max-instances", "-n", type=int, help="Max instances")
     parser.add_argument("--max-attempts", "-a", type=int, help="Max attempts per instance")
@@ -109,8 +128,11 @@ def main():
     # Setup console logging (file logging added after run_dir is created)
     _setup_console_logging(args.log_level)
 
-    # Load config
-    config = load_config(args.config)
+    # Load base config, then merge override config on top
+    config = load_config("config.yaml")
+    if args.config:
+        override = load_config(args.config)
+        config = deep_merge(config, override)
 
     # Apply LiteLLM settings
     apply_litellm_config(config)
@@ -171,7 +193,7 @@ def run_full_experiment(config: dict, args):
 
     # Create components
     agent_model = create_model(agent_config)
-    ace_client = create_ace_client(ace_config.to_dict())
+    ace_model = create_ace_client(ace_config.to_dict())
 
     agent = MiniSWEAgent(
         llm_model=agent_model,
@@ -182,18 +204,18 @@ def run_full_experiment(config: dict, args):
         namespace=config.get("environment", {}).get("namespace"),
     )
 
-    from ace_next import SkillManager, Reflector as DefaultReflector
+    from ace import SkillManager, Reflector as DefaultReflector
 
     # Check config for custom SWE learning (reflector + skill manager)
     custom_swe_learn = config.get("experiment", {}).get("custom_swe_learn", False)
     if custom_swe_learn:
         from prompts import SWEReflector, SWESkillManager
-        reflector = SWEReflector(ace_client)
-        skill_manager = SWESkillManager(ace_client)
+        reflector = SWEReflector(ace_model, api_base=ace_config.api_base, api_key=ace_config.api_key)
+        skill_manager = SWESkillManager(ace_model, api_base=ace_config.api_base, api_key=ace_config.api_key)
         logger.info("Using SWE-optimized Reflector and SkillManager")
     else:
-        reflector = DefaultReflector(ace_client)
-        skill_manager = SkillManager(ace_client)
+        reflector = DefaultReflector(ace_model)
+        skill_manager = SkillManager(ace_model)
         logger.info("Using default ACE Reflector")
 
     benchmark = config["benchmark"]["dataset"].replace("/", "__")
@@ -348,14 +370,14 @@ def run_learn_cmd(config: dict, args):
     ace_config = LLMConfig.from_dict(config["llm"]["ace"])
     ace_client = create_ace_client(ace_config.to_dict())
 
-    from ace_next import SkillManager, Skillbook, Reflector as DefaultReflector
+    from ace import SkillManager, Skillbook, Reflector as DefaultReflector
 
     # Check config for custom SWE learning (reflector + skill manager)
     custom_swe_learn = config.get("experiment", {}).get("custom_swe_learn", False)
     if custom_swe_learn:
         from prompts import SWEReflector, SWESkillManager
-        reflector = SWEReflector(ace_client)
-        skill_manager = SWESkillManager(ace_client)
+        reflector = SWEReflector(ace_client, api_base=ace_config.api_base, api_key=ace_config.api_key)
+        skill_manager = SWESkillManager(ace_client, api_base=ace_config.api_base, api_key=ace_config.api_key)
         logger.info("Using SWE-optimized Reflector and SkillManager")
     else:
         reflector = DefaultReflector(ace_client)

@@ -1,10 +1,11 @@
-# Experiment Configuration
+# Default Experiment Configuration
+# Can be merged with extra config
 # All settings can be overridden via CLI arguments
 
 experiment:
   name: "mini-swe-v1-skillbook-learning"
   description: "ACE skillbook learning experiment on SWE-bench Lite"
-  max_attempts: 3                     # Max retry attempts per instance
+  max_attempts: 10                     # Max retry attempts per instance
   skillbook_mode: "per_instance"      # "per_instance" or "per_run"
   random_seed: 42                     # For reproducibility
   custom_swe_learn: false         # Use SWE-optimized Reflector + SkillManager (anti-patterns, type prefixes) vs default
@@ -25,7 +26,8 @@ llm:
   # Agent LLM (runs mini-swe-agent)
   agent:
     provider: "hosted_vllm"
-    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    # model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    model: "Qwen/Qwen3-Coder-Next-FP8"
     api_base: "http://localhost:8800/v1"
     api_key_env: "HOSTED_VLLM_API_KEY"
     temperature: 0.7
@@ -44,12 +46,21 @@ benchmark:
   dataset: "princeton-nlp/SWE-bench_Lite"
   split: "test"
   max_instances: null                 # null = all instances, or set number
+  exclude_instances:                  # Instances that fail to build Docker images
+    - pylint-dev__pylint-7114
+    - pylint-dev__pylint-7228
+    - pylint-dev__pylint-7993
+    - scikit-learn__scikit-learn-25500
+    - scikit-learn__scikit-learn-25570
+    - scikit-learn__scikit-learn-25747
+    - scikit-learn__scikit-learn-25638
+    - sympy__sympy-20590
 
 # Evaluation Settings
 evaluation:
   use_docker: true                    # Use Docker for evaluation (default)
   timeout: 1800                       # Seconds per patch evaluation (30 min)
-  rm_image: true                      # Remove Docker image after evaluation (saves disk space)
+  rm_image: false                     # Keep Docker image after evaluation (instance-level caching — avoids rebuilds)
 
 # Output Settings
 output:
@@ -74,7 +85,6 @@ deduplication:
 
 # Observability Settings (optional)
 # Enable Opik tracing via ACE framework
-# Run with --observe flag or set enabled: true
 observability:
   enabled: false                      # Enable Opik tracing
   project_name: "agent-swe-ace"       # Opik project name
