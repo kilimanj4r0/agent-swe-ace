@@ -41,6 +41,11 @@ class MiniSWEAgent:
         cost_limit: float = 5.0,
         output_dir: Optional[Path] = None,
         namespace: Optional[str] = None,
+        context_management: bool = True,
+        context_window: int = 65536,
+        max_tokens: int = 4096,
+        keep_recent_messages: int = 6,
+        truncate_threshold: float = 0.85,
     ):
         """
         Args:
@@ -50,6 +55,11 @@ class MiniSWEAgent:
             cost_limit: Maximum cost per attempt
             output_dir: Directory for agent-generated files (local mode)
             namespace: Optional Docker registry namespace prefix (e.g., "ghcr.io/epoch-research/")
+            context_management: Enable proactive context window management
+            context_window: Model's total context window in tokens
+            max_tokens: Max output tokens reserved per LLM call
+            keep_recent_messages: Number of recent messages to keep intact during truncation
+            truncate_threshold: Fraction of max input tokens at which to start truncating
         """
         self.llm_model = llm_model
         self.use_docker = use_docker
@@ -57,6 +67,11 @@ class MiniSWEAgent:
         self.cost_limit = cost_limit
         self.output_dir = output_dir or Path("results")
         self.namespace = namespace
+        self.context_management = context_management
+        self.context_window = context_window
+        self.max_tokens = max_tokens
+        self.keep_recent_messages = keep_recent_messages
+        self.truncate_threshold = truncate_threshold
 
     def run(
         self,
@@ -121,14 +136,30 @@ class MiniSWEAgent:
                 action_observation_template=action_observation_template,
             )
 
-            # Create and run agent
-            logger.debug(f"Creating DefaultAgent with model: {self.llm_model}")
-            agent = DefaultAgent(
-                model=self.llm_model,
-                env=env,
-                config_class=lambda: agent_config,
-            )
-            logger.debug("DefaultAgent created")
+            # Create agent (with or without context window management)
+            if self.context_management:
+                from agents.context_manager import ContextAwareDefaultAgent
+
+                max_input_tokens = self.context_window - self.max_tokens - 2000  # 2000 token safety buffer
+                logger.debug(f"Creating ContextAwareDefaultAgent (max_input={max_input_tokens}, threshold={self.truncate_threshold})")
+                agent = ContextAwareDefaultAgent(
+                    model=self.llm_model,
+                    env=env,
+                    config_class=lambda: agent_config,
+                    max_input_tokens=max_input_tokens,
+                    keep_recent_messages=self.keep_recent_messages,
+                    truncate_threshold=self.truncate_threshold,
+                    max_tokens=self.max_tokens,
+                )
+                logger.debug("ContextAwareDefaultAgent created")
+            else:
+                logger.debug("Creating DefaultAgent (context management disabled)")
+                agent = DefaultAgent(
+                    model=self.llm_model,
+                    env=env,
+                    config_class=lambda: agent_config,
+                )
+                logger.debug("DefaultAgent created")
 
             # Pass platform info for Docker (DockerEnvironment doesn't provide these)
             platform_info = get_platform_info()
@@ -160,9 +191,14 @@ class MiniSWEAgent:
 
         except Exception as e:
             logger.error(f"Agent execution error: {e}")
+            # Extract partial trajectory even on failure (e.g. ContextWindowExceededError)
+            trajectory = []
+            if "agent" in dir():
+                if hasattr(agent, "messages"):
+                    trajectory = agent.messages
             return AgentResult(
                 exit_status="error",
                 patch="",
-                trajectory=[],
+                trajectory=trajectory,
                 error=str(e),
             )
