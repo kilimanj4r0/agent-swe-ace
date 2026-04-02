@@ -6,7 +6,7 @@ experiment:
   custom_swe_learn: true         # Use SWE-optimized Reflector + SkillManager (anti-patterns, type prefixes) vs default
 
 agent:
-  step_limit: 250                    # Max agent steps per attempt
+  step_limit: 100                    # Max agent steps per attempt
   cost_limit: 0.0                    # Effectively disabled for local vLLM (no real cost)
 
 llm:
