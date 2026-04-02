@@ -119,6 +119,64 @@ class ExperimentLoop:
             self.repo_skillbooks[repo] = skillbook
         # per_instance: skillbook is not persisted
 
+    def _extract_baseline_model(self) -> Optional[str]:
+        """
+        Extract the agent LLM model used in the baseline run.
+
+        Tries trajectory metadata in order:
+        1. .traj.json files: info.config.model.model_name (original baseline format)
+        2. iter_0.json files: info.model (new run format)
+        3. Fallback: baseline config.json → llm.agent.model
+
+        Returns:
+            Model string or None if not found.
+        """
+        if not self.baseline_dir:
+            return None
+
+        trajectories_dir = self.baseline_dir / self.benchmark / "trajectories"
+        if trajectories_dir.exists():
+            for instance_dir in trajectories_dir.iterdir():
+                if not instance_dir.is_dir():
+                    continue
+
+                # Try .traj.json first (original baseline format)
+                traj_path = instance_dir / f"{instance_dir.name}.traj.json"
+                if not traj_path.exists():
+                    traj_path = instance_dir / "iter_0.json"
+                if not traj_path.exists():
+                    continue
+
+                try:
+                    with open(traj_path) as f:
+                        traj = json.load(f)
+                    info = traj.get("info", {})
+
+                    # .traj.json format: info.config.model.model_name
+                    model = info.get("config", {}).get("model", {}).get("model_name")
+                    if model:
+                        return model
+
+                    # iter_0.json format: info.model
+                    model = info.get("model")
+                    if model:
+                        return model
+                except Exception:
+                    continue
+                break  # Only need to check one trajectory
+
+        # Fallback: read from baseline config.json
+        config_path = self.baseline_dir / "config.json"
+        if config_path.exists():
+            try:
+                with open(config_path) as f:
+                    baseline_config = json.load(f)
+                return baseline_config.get("llm", {}).get("agent", {}).get("model")
+            except Exception:
+                pass
+
+        return None
+
     def load_baseline_iter0(self, instance_id: str) -> Optional[BaselineIter0Data]:
         """
         Load baseline iter_0 data for an instance.
@@ -444,6 +502,26 @@ class ExperimentLoop:
             # Add baseline info if using baseline mode
             if self.baseline_dir:
                 statistics["baseline_dir"] = str(self.baseline_dir)
+                baseline_model = self._extract_baseline_model()
+                if baseline_model:
+                    statistics["baseline_agent_model"] = baseline_model
+
+            # Compute skillbook-assisted resolution stats
+            skillbook_assisted_ids = []
+            skillbook_by_iteration = {}
+            for instance_id, result in all_results.items():
+                if result.final_resolved and result.iterations:
+                    resolving_iter = result.iterations[-1].iteration
+                    if resolving_iter > 0:
+                        skillbook_assisted_ids.append(instance_id)
+                        iter_key = str(resolving_iter)
+                        skillbook_by_iteration.setdefault(iter_key, []).append(instance_id)
+
+            statistics["skillbook_assisted"] = {
+                "count": len(skillbook_assisted_ids),
+                "ids": skillbook_assisted_ids,
+                "by_iteration": skillbook_by_iteration,
+            }
 
             # Add observability project URL if available
             if observability_project_url:

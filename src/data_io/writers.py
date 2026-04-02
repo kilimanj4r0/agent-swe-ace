@@ -207,7 +207,14 @@ def save_statistics(
             "1": {"resolved": 15, "avg_trajectory_length": 38.7, "skills_count": 25}
         },
         "total_skills_learned": 25,
-        "skill_ids": [...]
+        "skill_ids": [...],
+        "skillbook_assisted": {
+            "count": 15,
+            "ids": [...],
+            "by_iteration": {"1": [...], "2": [...]}
+        },
+        "baseline_dir": "data/run_baseline",
+        "baseline_agent_model": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
     }
     """
     output_path = run_dir / "statistics.json"

@@ -41,6 +41,7 @@ class PredictPhase:
         output_dir: Path,
         run_name: str = "default",
         benchmark: str = "swebench-lite",
+        model_name: Optional[str] = None,
     ):
         """
         Initialize predict phase.
@@ -50,11 +51,13 @@ class PredictPhase:
             output_dir: Base directory for outputs
             run_name: Name of the experiment run
             benchmark: Benchmark name for output path
+            model_name: Agent LLM model name (saved in trajectory metadata)
         """
         self.agent = agent
         self.output_dir = Path(output_dir)
         self.run_name = run_name
         self.benchmark = benchmark
+        self.model_name = model_name
 
     def run(
         self,
@@ -90,6 +93,7 @@ class PredictPhase:
                 "submission": result.patch,
                 "iteration": iteration,
                 "instance_id": instance_id,
+                "model": self.model_name,
                 "message_count": len(result.trajectory),
                 "assistant_message_count": sum(
                     1 for m in result.trajectory if m.get("role") == "assistant"
