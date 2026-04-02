@@ -3,6 +3,7 @@
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -202,6 +203,11 @@ def run_full_experiment(config: dict, args):
         cost_limit=config.get("agent", {}).get("cost_limit", 5.0),
         output_dir=output_dir,
         namespace=config.get("environment", {}).get("namespace"),
+        context_management=config.get("agent", {}).get("context_management", True),
+        context_window=config.get("agent", {}).get("context_window", 65536),
+        max_tokens=config.get("llm", {}).get("agent", {}).get("max_tokens", 4096),
+        keep_recent_messages=config.get("agent", {}).get("keep_recent_messages", 6),
+        truncate_threshold=config.get("agent", {}).get("truncate_threshold", 0.85),
     )
 
     from ace import SkillManager, Reflector as DefaultReflector
@@ -214,12 +220,21 @@ def run_full_experiment(config: dict, args):
         skill_manager = SWESkillManager(ace_model, api_base=ace_config.api_base, api_key=ace_config.api_key)
         logger.info("Using SWE-optimized Reflector and SkillManager")
     else:
-        reflector = DefaultReflector(ace_model)
-        skill_manager = SkillManager(ace_model)
+        # Default ACE components use PydanticAI which creates AsyncOpenAI internally.
+        # For hosted_vllm, we must: (1) set OPENAI_BASE_URL so AsyncOpenAI routes
+        # to local vLLM (not OpenAI's API), and (2) use the bare model name without
+        # the hosted_vllm/ prefix since vLLM doesn't recognize it.
+        if ace_config.provider == "hosted_vllm" and ace_config.api_base:
+            os.environ["OPENAI_BASE_URL"] = ace_config.api_base
+            default_model = ace_config.model
+        else:
+            default_model = ace_model
+        reflector = DefaultReflector(default_model)
+        skill_manager = SkillManager(default_model)
         logger.info("Using default ACE Reflector")
 
     benchmark = config["benchmark"]["dataset"].replace("/", "__")
-    predict_phase = PredictPhase(agent=agent, output_dir=output_dir, run_name=run_name, benchmark=benchmark)
+    predict_phase = PredictPhase(agent=agent, output_dir=output_dir, run_name=run_name, benchmark=benchmark, model_name=agent_config.model)
     evaluate_phase = EvaluatePhase(
         use_docker=config.get("evaluation", {}).get("use_docker", True),
         timeout=config.get("evaluation", {}).get("timeout", 1800),
@@ -286,6 +301,11 @@ def run_predict_cmd(config: dict, args):
         cost_limit=config.get("agent", {}).get("cost_limit", 5.0),
         output_dir=output_dir,
         namespace=config.get("environment", {}).get("namespace"),
+        context_management=config.get("agent", {}).get("context_management", True),
+        context_window=config.get("agent", {}).get("context_window", 65536),
+        max_tokens=config.get("llm", {}).get("agent", {}).get("max_tokens", 4096),
+        keep_recent_messages=config.get("agent", {}).get("keep_recent_messages", 6),
+        truncate_threshold=config.get("agent", {}).get("truncate_threshold", 0.85),
     )
 
     # Load instance
@@ -380,8 +400,15 @@ def run_learn_cmd(config: dict, args):
         skill_manager = SWESkillManager(ace_client, api_base=ace_config.api_base, api_key=ace_config.api_key)
         logger.info("Using SWE-optimized Reflector and SkillManager")
     else:
-        reflector = DefaultReflector(ace_client)
-        skill_manager = SkillManager(ace_client)
+        # Same fix as run_full_experiment: set OPENAI_BASE_URL for PydanticAI,
+        # use bare model name without hosted_vllm/ prefix for vLLM.
+        if ace_config.provider == "hosted_vllm" and ace_config.api_base:
+            os.environ["OPENAI_BASE_URL"] = ace_config.api_base
+            default_model = ace_config.model
+        else:
+            default_model = ace_client
+        reflector = DefaultReflector(default_model)
+        skill_manager = SkillManager(default_model)
         logger.info("Using default ACE Reflector")
 
     # Run learn
