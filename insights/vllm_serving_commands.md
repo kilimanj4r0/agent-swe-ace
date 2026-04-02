@@ -1,12 +1,19 @@
 # Run Qwen3 Coder 30B
-vllm serve Qwen/Qwen3-Coder-30B-A3B-Instruct \
+uv run vllm serve Qwen/Qwen3-Coder-30B-A3B-Instruct \
   --port 8800 \
   --tensor-parallel-size 2 \
   --enable-expert-parallel \
   --dtype bfloat16 \
-  --gpu-memory-utilization 0.85 \
+  --gpu-memory-utilization 0.9 \
+  --max-model-len 128K \
+  --max-num-seqs 16 \
+  --enable-prefix-caching \
+  --enable-auto-tool-choice \
+  --tool-call-parser qwen3_coder \
+  --enable-prefix-caching
+
+  --kv-cache-dtype fp8_e5m2
   --max-model-len 262144 \
-  --max-num-seqs 4
 
 
 # Run Qwen3 Coder Next (80B)
