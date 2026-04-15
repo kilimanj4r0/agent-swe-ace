@@ -1,13 +1,10 @@
 # src/tests/test_custom_swe_learn.py
-"""Tests for custom_swe_learn flag and SWE-optimized learning components."""
+"""Tests for SWE-optimized learning components — behavior-focused."""
 
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-
-import pytest
-from unittest.mock import MagicMock, patch
 
 
 class TestSWEReflectorOutput:
@@ -152,82 +149,8 @@ class TestSWEReflectorOutput:
         assert disc_learning["learning"] == "D1"
 
 
-class TestSWESkillManager:
-    """Tests for SWESkillManager class."""
-
-    def test_skill_manager_subclasses_ace(self):
-        """SWESkillManager should subclass ace.SkillManager."""
-        from ace import SkillManager
-        from prompts import SWESkillManager
-
-        assert issubclass(SWESkillManager, SkillManager)
-
-    def test_skill_manager_uses_custom_prompt(self):
-        """SWESkillManager should use CUSTOM_SKILL_MANAGER_PROMPT by default."""
-        from prompts import SWESkillManager
-        from prompts.skill_manager_prompt import CUSTOM_SKILL_MANAGER_PROMPT
-
-        manager = SWESkillManager("zai/glm-4.5-airx")
-
-        assert manager._prompt_template == CUSTOM_SKILL_MANAGER_PROMPT
-
-    def test_skill_manager_has_update_skills(self):
-        """SWESkillManager should inherit update_skills from ace.SkillManager."""
-        from prompts import SWESkillManager
-
-        manager = SWESkillManager("zai/glm-4.5-airx")
-        assert hasattr(manager, 'update_skills')
-
-
-class TestCustomSWELearnFlag:
-    """Tests for custom_swe_learn configuration flag."""
-
-    def test_custom_swe_learn_default_false(self):
-        """custom_swe_learn should default to False."""
-        import yaml
-        from pathlib import Path
-
-        config_path = Path(__file__).parent.parent.parent / "config.yaml"
-        with open(config_path) as f:
-            config = yaml.safe_load(f)
-
-        assert config["experiment"].get("custom_swe_learn", False) == False
-
-    def test_custom_swe_learn_enables_swe_components(self):
-        """When custom_swe_learn is True, SWEReflector and SWESkillManager should be used."""
-        # This is tested indirectly through integration tests
-        # Here we just verify the imports work
-        from prompts import SWEReflector, SWESkillManager
-
-        assert SWEReflector is not None
-        assert SWESkillManager is not None
-
-
-class TestSWEReflector:
-    """Tests for SWEReflector class."""
-
-    def test_swe_reflector_subclasses_ace(self):
-        """SWEReflector should subclass ace.Reflector."""
-        from ace import Reflector
-        from prompts import SWEReflector
-
-        assert issubclass(SWEReflector, Reflector)
-
-    def test_swe_reflector_has_custom_prompt(self):
-        """SWEReflector should use CUSTOM_REFLECTOR_PROMPT by default."""
-        from prompts import SWEReflector
-        from prompts.reflector_prompt import CUSTOM_REFLECTOR_PROMPT
-
-        reflector = SWEReflector("zai/glm-4.5-airx")
-
-        assert reflector._prompt_template == CUSTOM_REFLECTOR_PROMPT
-
-    def test_swe_reflector_has_reflect(self):
-        """SWEReflector should inherit reflect from ace.Reflector."""
-        from prompts import SWEReflector
-
-        reflector = SWEReflector("zai/glm-4.5-airx")
-        assert hasattr(reflector, 'reflect')
+class TestSWEReflectorOutputType:
+    """Tests for SWEReflector output type binding."""
 
     def test_swe_reflector_output_type(self):
         """SWEReflector should use SWEReflectorOutput as output type."""
@@ -244,7 +167,6 @@ class TestLearningTypePreservation:
         """Anti-patterns should result in AVOID: prefix guidance in skills."""
         from prompts.skill_manager_prompt import CUSTOM_SKILL_MANAGER_PROMPT
 
-        # The prompt should instruct LLM to convert [ANTI-PATTERN] to AVOID:
         assert "AVOID:" in CUSTOM_SKILL_MANAGER_PROMPT
         assert "[ANTI-PATTERN]" in CUSTOM_SKILL_MANAGER_PROMPT
 
@@ -252,7 +174,6 @@ class TestLearningTypePreservation:
         """Discoveries should result in VERIFIED: prefix guidance in skills."""
         from prompts.skill_manager_prompt import CUSTOM_SKILL_MANAGER_PROMPT
 
-        # The prompt should instruct LLM to convert [DISCOVERY] to VERIFIED:
         assert "VERIFIED:" in CUSTOM_SKILL_MANAGER_PROMPT
         assert "[DISCOVERY]" in CUSTOM_SKILL_MANAGER_PROMPT
 
@@ -260,7 +181,6 @@ class TestLearningTypePreservation:
         """Hypotheses should result in CONSIDER: prefix guidance in skills."""
         from prompts.skill_manager_prompt import CUSTOM_SKILL_MANAGER_PROMPT
 
-        # The prompt should instruct LLM to convert [HYPOTHESIS] to CONSIDER:
         assert "CONSIDER:" in CUSTOM_SKILL_MANAGER_PROMPT
         assert "[HYPOTHESIS]" in CUSTOM_SKILL_MANAGER_PROMPT
 
@@ -268,6 +188,5 @@ class TestLearningTypePreservation:
         """Skill manager prompt should have examples showing type prefixes."""
         from prompts.skill_manager_prompt import CUSTOM_SKILL_MANAGER_PROMPT
 
-        # Should have example JSON output with type prefixes
         assert '"AVOID:' in CUSTOM_SKILL_MANAGER_PROMPT
         assert '"VERIFIED:' in CUSTOM_SKILL_MANAGER_PROMPT

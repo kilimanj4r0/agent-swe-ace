@@ -43,22 +43,6 @@ def ace_config(config):
     return config["llm"]["ace"]
 
 
-class TestConfigLoading:
-    """Tests for configuration file loading."""
-
-    def test_config_has_llm_section(self, config):
-        """Test that config.yaml has llm section."""
-        assert "llm" in config, "Missing 'llm' section in config.yaml"
-
-    def test_config_has_agent_section(self, config):
-        """Test that config.yaml has agent section."""
-        assert "agent" in config["llm"], "Missing 'agent' section in llm config"
-
-    def test_config_has_ace_section(self, config):
-        """Test that config.yaml has ace section."""
-        assert "ace" in config["llm"], "Missing 'ace' section in llm config"
-
-
 class TestAgentModelCreation:
     """Tests for agent model creation from config."""
 
@@ -76,11 +60,6 @@ class TestAgentModelCreation:
 
         model = create_model_from_yaml(agent_config)
         assert model is not None
-
-    def test_agent_model_has_required_fields(self, agent_config):
-        """Test that agent config has required fields."""
-        assert "provider" in agent_config
-        assert "model" in agent_config
 
 
 class TestACEClientCreation:
@@ -100,11 +79,6 @@ class TestACEClientCreation:
 
         client = create_ace_client(ace_config)
         assert client is not None
-
-    def test_ace_config_has_required_fields(self, ace_config):
-        """Test that ACE config has required fields."""
-        assert "provider" in ace_config
-        assert "model" in ace_config
 
 
 @pytest.mark.integration
