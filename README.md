@@ -13,7 +13,7 @@ The system learns from failed attempts by reflecting on trajectories and updatin
 │                    Experiment Loop                          │
 │                                                             │
 │   ┌─────────────────────────┐                               │
-│   │ Start (or load baseline)│                               │
+│   │ Start (or resume run)   │                               │
 │   └───────────┬─────────────┘                               │
 │               ▼                                             │
 │   ┌───────────────────┐                                     │
@@ -102,46 +102,37 @@ uv run python -m src.cli.commands --max-instances 50 --max-attempts 3
 uv run python -m src.cli.commands --observe
 ```
 
-### Resume from Baseline
+### Resume from Previous Runs
 
-You can skip predict/evaluate for iter_0 by providing a baseline run directory with existing results:
+Resume an interrupted experiment from one or more previous run directories:
 
 ```bash
-# Run experiment starting from baseline iter_0 results
+# Resume from two interrupted runs
+uv run python -m src.cli.commands \
+    --resume-dir data/run_20260415_020540 data/run_20260415_020217
+
+# Resume a single run
+uv run python -m src.cli.commands --resume-dir data/run_20260415_020540
+
+# Resume with override config
 uv run python -m src.cli.commands \
     --config configs/agent-qwen3-ace-qwen3.yaml \
-    --baseline-dir data/run_baseline_qwen3coder \
-    --max-attempts 2 \
-    --max-instances 50 \
+    --resume-dir data/run_20260415_020540 \
     --custom-swe-learn \
     --observe
-    # --instance astropy__astropy-14182 \
 ```
 
 This will:
-1. Load existing iter_0 trajectories/results from the baseline directory
-2. Skip predict/evaluate for iter_0 (saves time and API costs)
-3. For resolved instances: mark as resolved and skip further iterations
-4. For unresolved instances: run learn phase, then continue with iter_1, iter_2, etc.
+1. Scan resume directories for each instance, finding the longest chain of successful iterations
+2. **Fully complete instances** (resolved or all attempts exhausted): copy artifacts as-is
+3. **Partial instances** (some iterations completed, then interrupted): copy artifacts and continue from the first incomplete iteration
+4. **New instances** (not found in any resume dir): run from scratch (iter_0)
 
-The baseline directory must have the following structure:
-```
-data/run_baseline_qwen3coder/
-├── config.json
-├── statistics.json
-└── princeton-nlp__SWE-bench_Lite/
-    ├── trajectories/
-    │   └── {instance_id}/
-    │       └── iter_0.json
-    └── results/
-        └── {instance_id}/
-            └── iter_0.json
-```
+When multiple resume directories are provided, the one with the highest `last_complete_iter` wins for each instance.
 
-Use the provided transformation script to convert baseline data:
-```bash
-uv run python scripts/transform_baseline_to_run_format.py --in-place
-```
+**Iteration chain validation**: iterations are checked sequentially from iter_0. The chain breaks at the first incomplete iteration (missing trajectory, bad exit status, or missing result). Only the unbroken prefix is considered valid.
+
+> **Deprecated**: `--baseline-dir` has been replaced by `--resume-dir`. The baseline approach only supported skipping iter_0, while `--resume-dir` supports resuming from any iteration with proper chain validation.
 
 ### Individual Phases
 
@@ -296,7 +287,8 @@ data/
     "skillbook_mode": "per_instance"
   },
   "observability_project_url": "http://localhost:5173/projects/run_20260322_054500",
-  "baseline_dir": "data/run_baseline_qwen3coder"  // Only if --baseline-dir was used
+  "resume_dirs": ["data/run_20260415_020540", "data/run_20260415_020217"],  // Only if --resume-dir was used
+  "resumed_complete_count": 70  // Instances copied from previous runs
 }
 ```
 
