@@ -17,6 +17,7 @@ def main():
     parser.add_argument("--instances", nargs="+", help="Specific instance IDs to prepare")
     parser.add_argument("--workers", type=int, default=4, help="Number of parallel workers")
     parser.add_argument("--force", action="store_true", help="Force rebuild images")
+    parser.add_argument("--dataset", default=None, help="Dataset name (overrides config)")
     parser.add_argument("--env-image-tag", default="latest", help="Environment image tag (default: latest)")
     parser.add_argument("--tag", default="latest", help="Instance image tag (default: latest)")
     args = parser.parse_args()
@@ -30,7 +31,7 @@ def main():
         config = yaml.safe_load(f)
 
     namespace = config.get("environment", {}).get("namespace")
-    dataset = config.get("benchmark", {}).get("dataset", "princeton-nlp/SWE-bench_Lite")
+    dataset = args.dataset or config.get("benchmark", {}).get("dataset", "princeton-nlp/SWE-bench_Lite")
     split = config.get("benchmark", {}).get("split", "test")
 
     # Build swebench prepare_images command

@@ -6,9 +6,12 @@ experiment:
   name: "mini-swe-v1-skillbook-learning"
   description: "ACE skillbook learning experiment on SWE-bench Lite"
   max_attempts: 10                     # Max retry attempts per instance
+  concurrency: 1                       # Number of parallel instances (1 = sequential)
   skillbook_mode: "per_instance"      # "per_instance" or "per_run"
   random_seed: 42                     # For reproducibility
-  custom_swe_learn: false         # Use SWE-optimized Reflector + SkillManager (anti-patterns, type prefixes) vs default
+  custom_swe_learn: true         # Use SWE-optimized Reflector + SkillManager (anti-patterns, type prefixes) vs default
+  # resume_dirs:
+  #   - data/run_20260415_020540
 
 # Environment Settings
 environment:
@@ -40,7 +43,7 @@ llm:
   # ACE LLM (runs Reflector/SkillManager)
   ace:
     provider: "zai"
-    model: "glm-5"
+    model: "glm-4.5-flash"
     api_key_env: "ZAI_API_KEY"
     temperature: 0.7
     max_tokens: 4096
@@ -51,14 +54,26 @@ benchmark:
   split: "test"
   max_instances: null                 # null = all instances, or set number
   exclude_instances:                  # Instances that fail to build Docker images
-    - pylint-dev__pylint-7114
-    - pylint-dev__pylint-7228
-    - pylint-dev__pylint-7993
-    - scikit-learn__scikit-learn-25500
-    - scikit-learn__scikit-learn-25570
-    - scikit-learn__scikit-learn-25747
-    - scikit-learn__scikit-learn-25638
-    - sympy__sympy-20590
+    # Lite + Verified
+    - pylint-dev__pylint-7114           # build_editable hook missing
+    - pylint-dev__pylint-7228           # build_editable hook missing
+    - pylint-dev__pylint-7993           # build_editable hook missing
+    - sympy__sympy-20590                # upstream branch 1.7 renamed to sympy-1.7
+    # Lite only
+    - scikit-learn__scikit-learn-25500  # --no-use-pep517 removed in pip 25.1
+    - scikit-learn__scikit-learn-25570  # --no-use-pep517 removed in pip 25.1
+    - scikit-learn__scikit-learn-25638  # --no-use-pep517 removed in pip 25.1
+    # Verified only
+    - astropy__astropy-8707             # pkg_resources missing in build isolation
+    - astropy__astropy-8872             # pkg_resources missing in build isolation
+    - pylint-dev__pylint-7277           # build_editable hook missing
+    - scikit-learn__scikit-learn-25102  # --no-use-pep517 removed in pip 25.1
+    - scikit-learn__scikit-learn-25232  # --no-use-pep517 removed in pip 25.1
+    - scikit-learn__scikit-learn-25747  # --no-use-pep517 removed in pip 25.1
+    - scikit-learn__scikit-learn-25931  # --no-use-pep517 removed in pip 25.1
+    - scikit-learn__scikit-learn-25973  # --no-use-pep517 removed in pip 25.1
+    - scikit-learn__scikit-learn-26194  # --no-use-pep517 removed in pip 25.1
+    - scikit-learn__scikit-learn-26323  # --no-use-pep517 removed in pip 25.1
 
 # Evaluation Settings
 evaluation:

@@ -3,7 +3,7 @@ experiment:
   description: "ACE skillbook learning experiment on SWE-bench Lite"
   max_attempts: 4                    # Max retry attempts per instance
   skillbook_mode: "per_instance"      # "per_instance" or "per_run"
-  custom_swe_learn: true         # Use SWE-optimized Reflector + SkillManager (anti-patterns, type prefixes) vs default
+  custom_swe_learn: false         # Use SWE-optimized Reflector + SkillManager (anti-patterns, type prefixes) vs default
 
 agent:
   step_limit: 200                    # Max agent steps per attempt
