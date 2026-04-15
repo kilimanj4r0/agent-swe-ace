@@ -113,10 +113,11 @@ def main():
     parser.add_argument("--log-level", default="INFO", help="Log level")
     parser.add_argument("--observe", action="store_true", help="Enable Opik observability")
     parser.add_argument(
-        "--baseline-dir",
+        "--resume-dir",
+        nargs="+",
         type=Path,
-        help="Path to baseline run directory with existing iter_0 results. "
-        "Skips predict/evaluate for iter_0, loads existing data, and continues from iter_1.",
+        help="Path(s) to previous run directories. Resumes from last successful "
+        "iteration per instance. Fully completed instances are copied.",
     )
     parser.add_argument(
         "--custom-swe-learn",
@@ -160,6 +161,29 @@ def main():
         run_learn_cmd(config, args)
 
 
+def _make_agent_factory(config: dict, agent_config: LLMConfig, output_dir: Path):
+    """Create a factory that produces per-worker MiniSWEAgent instances.
+
+    Each agent gets its own LitellmModel to avoid races on n_calls/cost counters.
+    """
+    def factory():
+        agent_model = create_model(agent_config)
+        return MiniSWEAgent(
+            llm_model=agent_model,
+            use_docker=config.get("environment", {}).get("type") == "docker",
+            step_limit=config.get("agent", {}).get("step_limit", 100),
+            cost_limit=config.get("agent", {}).get("cost_limit", 5.0),
+            output_dir=output_dir,
+            namespace=config.get("environment", {}).get("namespace"),
+            context_management=config.get("agent", {}).get("context_management", True),
+            context_window=config.get("agent", {}).get("context_window", 65536),
+            max_tokens=config.get("llm", {}).get("agent", {}).get("max_tokens", 4096),
+            keep_recent_messages=config.get("agent", {}).get("keep_recent_messages", 6),
+            truncate_threshold=config.get("agent", {}).get("truncate_threshold", 0.85),
+        )
+    return factory
+
+
 def run_full_experiment(config: dict, args):
     """Run full experiment loop."""
     # Setup run name and output
@@ -192,23 +216,13 @@ def run_full_experiment(config: dict, args):
     agent_config = LLMConfig.from_dict(config["llm"]["agent"])
     ace_config = LLMConfig.from_dict(config["llm"]["ace"])
 
-    # Create components
-    agent_model = create_model(agent_config)
+    # Create agent factory (each worker gets its own agent + model)
+    agent_factory = _make_agent_factory(config, agent_config, output_dir)
+
+    # Create a single agent for sequential mode / shared predict phase
     ace_model = create_ace_client(ace_config.to_dict())
 
-    agent = MiniSWEAgent(
-        llm_model=agent_model,
-        use_docker=config.get("environment", {}).get("type") == "docker",
-        step_limit=config.get("agent", {}).get("step_limit", 100),
-        cost_limit=config.get("agent", {}).get("cost_limit", 5.0),
-        output_dir=output_dir,
-        namespace=config.get("environment", {}).get("namespace"),
-        context_management=config.get("agent", {}).get("context_management", True),
-        context_window=config.get("agent", {}).get("context_window", 65536),
-        max_tokens=config.get("llm", {}).get("agent", {}).get("max_tokens", 4096),
-        keep_recent_messages=config.get("agent", {}).get("keep_recent_messages", 6),
-        truncate_threshold=config.get("agent", {}).get("truncate_threshold", 0.85),
-    )
+    agent = agent_factory()
 
     from ace import SkillManager, Reflector as DefaultReflector
 
@@ -220,18 +234,23 @@ def run_full_experiment(config: dict, args):
         skill_manager = SWESkillManager(ace_model, api_base=ace_config.api_base, api_key=ace_config.api_key)
         logger.info("Using SWE-optimized Reflector and SkillManager")
     else:
-        # Default ACE components use PydanticAI which creates AsyncOpenAI internally.
-        # For hosted_vllm, we must: (1) set OPENAI_BASE_URL so AsyncOpenAI routes
-        # to local vLLM (not OpenAI's API), and (2) use the bare model name without
-        # the hosted_vllm/ prefix since vLLM doesn't recognize it.
-        if ace_config.provider == "hosted_vllm" and ace_config.api_base:
+        # Default ACE components use PydanticAI internally.
+        # For any provider with api_base, set OPENAI_BASE_URL + OPENAI_API_KEY
+        # and use "openai:" prefix so PydanticAI routes through OpenAIProvider
+        # (which reads these env vars). Without the prefix, ACE's resolve_model
+        # prepends "litellm:" and LiteLLM fails to recognise the provider.
+        if ace_config.api_base:
             os.environ["OPENAI_BASE_URL"] = ace_config.api_base
-            default_model = ace_config.model
+            os.environ["OPENAI_API_KEY"] = ace_config.api_key
+            os.environ["OPENAI_MAX_RETRIES"] = os.getenv("ACE_LEARN_MAX_RETRIES", "50")
+            default_model = f"openai:{ace_config.model}"
         else:
             default_model = ace_model
         reflector = DefaultReflector(default_model)
         skill_manager = SkillManager(default_model)
         logger.info("Using default ACE Reflector")
+
+    concurrency = config["experiment"].get("concurrency", 1)
 
     benchmark = config["benchmark"]["dataset"].replace("/", "__")
     predict_phase = PredictPhase(agent=agent, output_dir=output_dir, run_name=run_name, benchmark=benchmark, model_name=agent_config.model)
@@ -264,18 +283,41 @@ def run_full_experiment(config: dict, args):
             logger.error(f"Instance not found: {args.instance}")
             sys.exit(1)
 
+    # Resume from previous runs (CLI --resume-dir overrides config)
+    cli_resume_dirs = getattr(args, 'resume_dir', None)
+    config_resume_dirs = config.get("experiment", {}).get("resume_dirs")
+    resume_dirs = cli_resume_dirs or ([Path(p) for p in config_resume_dirs] if config_resume_dirs else None)
+    resume_state = {}
+    max_attempts = config["experiment"].get("max_attempts", 2)
+
+    if resume_dirs:
+        from data_io.resume_scanner import scan_resume_dirs
+        instance_ids = [i["instance_id"] for i in instances]
+        resume_state = scan_resume_dirs(resume_dirs, benchmark, instance_ids, max_attempts)
+
+        # Filter out fully complete instances (they get copied, not re-run)
+        complete_ids = {iid for iid, rp in resume_state.items() if rp.is_fully_complete}
+        before = len(instances)
+        instances = [i for i in instances if i["instance_id"] not in complete_ids]
+        logger.info(
+            f"Resume: {len(complete_ids)} complete (copied), "
+            f"{before - len(complete_ids) - len(instances)} partial (continued), "
+            f"{len(instances)} to process"
+        )
+
     # Run experiment
-    baseline_dir = getattr(args, 'baseline_dir', None)
     loop = ExperimentLoop(
         predict_phase=predict_phase,
         evaluate_phase=evaluate_phase,
         learn_phase=learn_phase,
         output_dir=output_dir,
         run_name=run_name,
-        max_attempts=config["experiment"].get("max_attempts", 2),
+        max_attempts=max_attempts,
         skillbook_mode=config["experiment"].get("skillbook_mode", "per_instance"),
-        baseline_dir=baseline_dir,
+        resume_state=resume_state,
         benchmark=benchmark,
+        concurrency=concurrency,
+        agent_factory=agent_factory,
     )
 
     loop.run(instances, config)
@@ -400,11 +442,13 @@ def run_learn_cmd(config: dict, args):
         skill_manager = SWESkillManager(ace_client, api_base=ace_config.api_base, api_key=ace_config.api_key)
         logger.info("Using SWE-optimized Reflector and SkillManager")
     else:
-        # Same fix as run_full_experiment: set OPENAI_BASE_URL for PydanticAI,
-        # use bare model name without hosted_vllm/ prefix for vLLM.
-        if ace_config.provider == "hosted_vllm" and ace_config.api_base:
+        # Same as run_full_experiment: use "openai:" prefix for any provider
+        # with api_base so PydanticAI uses OpenAIProvider (reads env vars).
+        if ace_config.api_base:
             os.environ["OPENAI_BASE_URL"] = ace_config.api_base
-            default_model = ace_config.model
+            os.environ["OPENAI_API_KEY"] = ace_config.api_key
+            os.environ["OPENAI_MAX_RETRIES"] = os.getenv("ACE_LEARN_MAX_RETRIES", "50")
+            default_model = f"openai:{ace_config.model}"
         else:
             default_model = ace_client
         reflector = DefaultReflector(default_model)

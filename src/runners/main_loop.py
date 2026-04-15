@@ -2,16 +2,21 @@
 """Main experiment loop: Predict → Evaluate → Learn."""
 
 import json
+import shutil
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from ace import Skillbook
 from loguru import logger
 
+from data_io.resume_scanner import ResumePoint, copy_instance_artifacts
 from data_io.writers import save_statistics, save_config
 from utils.llm_observer import get_project_url, is_enabled as is_observability_enabled
+from utils.logging import instance_context
 
 
 @dataclass
@@ -34,16 +39,6 @@ class InstanceResult:
     total_attempts: int = 0
 
 
-@dataclass
-class BaselineIter0Data:
-    """Container for baseline iter_0 data."""
-
-    trajectory: Dict[str, Any]
-    result: Dict[str, Any]
-    patch: str
-    resolved: bool
-
-
 class ExperimentLoop:
     """
     Main experiment loop: Predict → Evaluate → Learn.
@@ -55,8 +50,9 @@ class ExperimentLoop:
 
     Repeat until resolved or max_attempts reached.
 
-    When baseline_dir is provided, iter_0 predict/evaluate are skipped
-    and existing baseline data is loaded instead.
+    When resume_state is provided, completed instances are copied from
+    previous runs and partial instances resume from the last successful
+    iteration.
     """
 
     def __init__(
@@ -68,22 +64,26 @@ class ExperimentLoop:
         run_name: str = "default",
         max_attempts: int = 3,
         skillbook_mode: str = "per_instance",  # per_instance, per_repo, global
-        baseline_dir: Optional[Path] = None,
+        resume_state: Optional[Dict[str, ResumePoint]] = None,
         benchmark: str = "princeton-nlp__SWE-bench_Lite",
+        concurrency: int = 1,
+        agent_factory: Optional[Callable] = None,
     ):
         """
         Initialize experiment loop.
 
         Args:
-            predict_phase: Phase 1 runner
+            predict_phase: Phase 1 runner (used in sequential mode)
             evaluate_phase: Phase 2 runner
             learn_phase: Phase 3 runner
             output_dir: Output directory
             run_name: Name of this run
             max_attempts: Maximum attempts per instance
             skillbook_mode: How to manage skillbooks
-            baseline_dir: Optional path to baseline run with existing iter_0 data
-            benchmark: Benchmark name for finding baseline files
+            resume_state: Dict mapping instance_id -> ResumePoint for resuming
+            benchmark: Benchmark name for finding files
+            concurrency: Number of parallel instances (1 = sequential)
+            agent_factory: Callable that returns a new MiniSWEAgent (for concurrent mode)
         """
         self.predict = predict_phase
         self.evaluate = evaluate_phase
@@ -92,8 +92,10 @@ class ExperimentLoop:
         self.run_name = run_name
         self.max_attempts = max_attempts
         self.skillbook_mode = skillbook_mode
-        self.baseline_dir = Path(baseline_dir) if baseline_dir else None
+        self.resume_state = resume_state or {}
         self.benchmark = benchmark
+        self.concurrency = concurrency
+        self.agent_factory = agent_factory
 
         # Global skillbook for 'global' mode
         self.global_skillbook = Skillbook()
@@ -119,146 +121,53 @@ class ExperimentLoop:
             self.repo_skillbooks[repo] = skillbook
         # per_instance: skillbook is not persisted
 
-    def _extract_baseline_model(self) -> Optional[str]:
-        """
-        Extract the agent LLM model used in the baseline run.
-
-        Tries trajectory metadata in order:
-        1. .traj.json files: info.config.model.model_name (original baseline format)
-        2. iter_0.json files: info.model (new run format)
-        3. Fallback: baseline config.json → llm.agent.model
+    def _get_resume_start(self, instance_id: str) -> int:
+        """Get the start iteration for an instance based on resume_state.
 
         Returns:
-            Model string or None if not found.
+            -1 if instance is fully complete (should be skipped)
+            0 or higher for the iteration to start from
         """
-        if not self.baseline_dir:
+        rp = self.resume_state.get(instance_id)
+        if rp is None:
+            return 0
+        if rp.is_fully_complete:
+            return -1
+        return rp.start_iteration
+
+    def _copy_resume_artifacts(self, instance_id: str) -> None:
+        """Copy artifacts from resume dir to output dir for a partial instance."""
+        rp = self.resume_state.get(instance_id)
+        if rp is None or rp.last_complete_iter < 0:
+            return
+        copy_instance_artifacts(
+            source_dir=rp.resume_dir,
+            dest_dir=self.output_dir,
+            benchmark=self.benchmark,
+            instance_id=instance_id,
+            up_to_iter=rp.last_complete_iter,
+        )
+        logger.info(
+            f"[{instance_id}] Resumed from iter_0..iter_{rp.last_complete_iter} "
+            f"(source: {rp.resume_dir.name})"
+        )
+
+    def _load_resolved_status(self, instance_id: str) -> Optional[bool]:
+        """Read resolved status from the last completed iteration's result file."""
+        rp = self.resume_state.get(instance_id)
+        if rp is None:
             return None
-
-        trajectories_dir = self.baseline_dir / self.benchmark / "trajectories"
-        if trajectories_dir.exists():
-            for instance_dir in trajectories_dir.iterdir():
-                if not instance_dir.is_dir():
-                    continue
-
-                # Try .traj.json first (original baseline format)
-                traj_path = instance_dir / f"{instance_dir.name}.traj.json"
-                if not traj_path.exists():
-                    traj_path = instance_dir / "iter_0.json"
-                if not traj_path.exists():
-                    continue
-
-                try:
-                    with open(traj_path) as f:
-                        traj = json.load(f)
-                    info = traj.get("info", {})
-
-                    # .traj.json format: info.config.model.model_name
-                    model = info.get("config", {}).get("model", {}).get("model_name")
-                    if model:
-                        return model
-
-                    # iter_0.json format: info.model
-                    model = info.get("model")
-                    if model:
-                        return model
-                except Exception:
-                    continue
-                break  # Only need to check one trajectory
-
-        # Fallback: read from baseline config.json
-        config_path = self.baseline_dir / "config.json"
-        if config_path.exists():
+        results_dir = rp.resume_dir / self.benchmark / "results" / instance_id
+        iter_files = sorted(results_dir.glob("iter_*.json"))
+        # Find the result for last_complete_iter
+        target = results_dir / f"iter_{rp.last_complete_iter}.json"
+        if target.exists():
             try:
-                with open(config_path) as f:
-                    baseline_config = json.load(f)
-                return baseline_config.get("llm", {}).get("agent", {}).get("model")
+                with open(target) as f:
+                    return json.load(f).get("resolved", False)
             except Exception:
                 pass
-
         return None
-
-    def load_baseline_iter0(self, instance_id: str) -> Optional[BaselineIter0Data]:
-        """
-        Load baseline iter_0 data for an instance.
-
-        Args:
-            instance_id: Instance ID to load data for
-
-        Returns:
-            BaselineIter0Data if found, None otherwise
-        """
-        if not self.baseline_dir:
-            return None
-
-        baseline_dir = self.baseline_dir / self.benchmark
-
-        # Try to load trajectory
-        traj_path = baseline_dir / "trajectories" / instance_id / "iter_0.json"
-        if not traj_path.exists():
-            # Try old format with .traj.json
-            traj_path = baseline_dir / "trajectories" / instance_id / f"{instance_id}.traj.json"
-            if not traj_path.exists():
-                logger.debug(f"No baseline trajectory found for {instance_id}")
-                return None
-
-        # Try to load result
-        result_path = baseline_dir / "results" / instance_id / "iter_0.json"
-        if not result_path.exists():
-            logger.debug(f"No baseline result found for {instance_id}")
-            return None
-
-        try:
-            with open(traj_path) as f:
-                trajectory = json.load(f)
-
-            with open(result_path) as f:
-                result = json.load(f)
-
-            # Extract patch from trajectory or result
-            patch = result.get("patch", "")
-            if not patch:
-                patch = trajectory.get("info", {}).get("submission", "")
-
-            resolved = result.get("resolved", False)
-
-            logger.info(f"[{instance_id}] Loaded baseline iter_0 data (resolved={resolved})")
-
-            return BaselineIter0Data(
-                trajectory=trajectory,
-                result=result,
-                patch=patch,
-                resolved=resolved,
-            )
-
-        except Exception as e:
-            logger.warning(f"Failed to load baseline data for {instance_id}: {e}")
-            return None
-
-    def copy_baseline_iter0_to_output(self, instance_id: str, baseline_data: BaselineIter0Data) -> None:
-        """
-        Copy baseline iter_0 files to output directory.
-
-        Args:
-            instance_id: Instance ID
-            baseline_data: Baseline data to copy
-        """
-        import shutil
-
-        # Copy trajectory
-        src_traj = self.baseline_dir / self.benchmark / "trajectories" / instance_id / "iter_0.json"
-        dst_traj = self.output_dir / self.benchmark / "trajectories" / instance_id / "iter_0.json"
-        if src_traj.exists():
-            dst_traj.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src_traj, dst_traj)
-            logger.debug(f"Copied baseline trajectory to {dst_traj}")
-
-        # Copy result
-        src_result = self.baseline_dir / self.benchmark / "results" / instance_id / "iter_0.json"
-        dst_result = self.output_dir / self.benchmark / "results" / instance_id / "iter_0.json"
-        if src_result.exists():
-            dst_result.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src_result, dst_result)
-            logger.debug(f"Copied baseline result to {dst_result}")
 
     def run_instance(
         self,
@@ -278,6 +187,11 @@ class ExperimentLoop:
         instance_id = instance.get("instance_id", "unknown")
         repo = instance.get("repo", "unknown")
 
+        with instance_context(instance_id):
+            return self._run_instance_inner(instance, instance_id, repo, initial_skillbook)
+
+    def _run_instance_inner(self, instance, instance_id, repo, initial_skillbook=None):
+        """Inner implementation with instance context set."""
         logger.info(f"\n{'='*60}")
         logger.info(f"Starting instance: {instance_id}")
         logger.info(f"Repo: {repo}")
@@ -288,69 +202,19 @@ class ExperimentLoop:
 
         result = InstanceResult(instance_id=instance_id)
 
-        # Check for baseline iter_0 data
-        baseline_data = self.load_baseline_iter0(instance_id)
+        # Check resume state
+        start_iteration = self._get_resume_start(instance_id)
 
-        start_iteration = 0
-        if baseline_data:
-            # Copy baseline data to output directory
-            self.copy_baseline_iter0_to_output(instance_id, baseline_data)
+        if start_iteration == -1:
+            # Fully complete — should not reach here (filtered in run()),
+            # but handle gracefully
+            logger.info(f"[{instance_id}] Already complete, skipping")
+            result.final_resolved = self._load_resolved_status(instance_id) or False
+            return result
 
-            # Create IterationResult from baseline data
-            from dataclasses import dataclass as create_dataclass
-
-            @create_dataclass
-            class MockPredictResult:
-                exit_status: str
-                patch: str
-                trajectory: list
-
-            @create_dataclass
-            class MockEvaluateResult:
-                resolved: bool
-                feedback: str
-                result_path: str
-
-            mock_predict = MockPredictResult(
-                exit_status=baseline_data.trajectory.get("info", {}).get("exit_status", "Submitted"),
-                patch=baseline_data.patch,
-                trajectory=baseline_data.trajectory.get("messages", []),
-            )
-
-            mock_evaluate = MockEvaluateResult(
-                resolved=baseline_data.resolved,
-                feedback=baseline_data.result.get("feedback", "Baseline run"),
-                result_path=str(self.output_dir / self.benchmark / "results" / instance_id / "iter_0.json"),
-            )
-
-            iter_result = IterationResult(
-                iteration=0,
-                predict_result=mock_predict,
-                evaluate_result=mock_evaluate,
-            )
-            result.iterations.append(iter_result)
-            result.total_attempts = 1
-
-            if baseline_data.resolved:
-                logger.info(f"[{instance_id}] RESOLVED at baseline iter_0!")
-                result.final_resolved = True
-                return result
-
-            # Run learn phase for unresolved baseline (always, to update skillbook)
-            logger.info(f"[{instance_id}] Baseline iter_0 not resolved, learning from failure...")
-
-            learn_result = self.learn.run(
-                skillbook=skillbook,
-                instance=instance,
-                trajectory=baseline_data.trajectory,
-                patch=baseline_data.patch,
-                iteration=0,
-            )
-            iter_result.learn_result = learn_result
-            self.update_skillbook(repo, skillbook)
-
-            # Continue from iter_1
-            start_iteration = 1
+        if start_iteration > 0:
+            # Partial resume — copy existing artifacts
+            self._copy_resume_artifacts(instance_id)
 
         for iteration in range(start_iteration, self.max_attempts):
             logger.info(f"\n--- Iteration {iteration + 1}/{self.max_attempts} ---")
@@ -384,8 +248,8 @@ class ExperimentLoop:
                 result.final_resolved = True
                 break
 
-            # Phase 3: Learn (only if not resolved and not last attempt)
-            if iteration < self.max_attempts - 1:
+            # Phase 3: Learn (always run on unresolved to save skillbook)
+            if not evaluate_result.resolved:
                 logger.info(f"[{instance_id}] Not resolved, learning from failure...")
 
                 trajectory = {
@@ -403,6 +267,95 @@ class ExperimentLoop:
                 iter_result.learn_result = learn_result
 
                 # Update skillbook for next iteration
+                self.update_skillbook(repo, skillbook)
+
+        return result
+
+    def _run_instance_concurrent(self, instance: Dict[str, Any]) -> InstanceResult:
+        """Run a single instance with its own agent (for concurrent execution)."""
+        instance_id = instance.get("instance_id", "unknown")
+        with instance_context(instance_id):
+            return self._run_instance_concurrent_inner(instance)
+
+    def _run_instance_concurrent_inner(self, instance: Dict[str, Any]) -> InstanceResult:
+        """Inner implementation of concurrent instance run."""
+        instance_id = instance.get("instance_id", "unknown")
+        repo = instance.get("repo", "unknown")
+
+        # Create a fresh agent + predict phase for this worker
+        agent = self.agent_factory()
+        from phases.predict import PredictPhase
+        worker_predict = PredictPhase(
+            agent=agent,
+            output_dir=self.predict.output_dir,
+            run_name=self.predict.run_name,
+            benchmark=self.predict.benchmark,
+            model_name=self.predict.model_name,
+        )
+
+        logger.info(f"\n{'='*60}")
+        logger.info(f"[{instance_id}] Starting (concurrent)")
+        logger.info(f"{'='*60}")
+
+        skillbook = self.get_skillbook(repo)
+        result = InstanceResult(instance_id=instance_id)
+
+        # Check resume state
+        start_iteration = self._get_resume_start(instance_id)
+
+        if start_iteration == -1:
+            logger.info(f"[{instance_id}] Already complete, skipping")
+            result.final_resolved = self._load_resolved_status(instance_id) or False
+            return result
+
+        if start_iteration > 0:
+            self._copy_resume_artifacts(instance_id)
+
+        for iteration in range(start_iteration, self.max_attempts):
+            logger.info(f"[{instance_id}] Iteration {iteration + 1}/{self.max_attempts}")
+
+            # Phase 1: Predict (use worker's own predict phase)
+            predict_result = worker_predict.run(
+                instance=instance,
+                skillbook=skillbook,
+                iteration=iteration,
+            )
+
+            # Phase 2: Evaluate
+            evaluate_result = self.evaluate.run(
+                instance=instance,
+                patch=predict_result.patch,
+                iteration=iteration,
+            )
+
+            iter_result = IterationResult(
+                iteration=iteration,
+                predict_result=predict_result,
+                evaluate_result=evaluate_result,
+            )
+            result.iterations.append(iter_result)
+            result.total_attempts = iteration + 1
+
+            if evaluate_result.resolved:
+                logger.info(f"[{instance_id}] RESOLVED at iteration {iteration + 1}!")
+                result.final_resolved = True
+                break
+
+            # Phase 3: Learn (always run on unresolved to save skillbook)
+            if not evaluate_result.resolved:
+                logger.info(f"[{instance_id}] Not resolved, learning from failure...")
+                trajectory = {
+                    "info": {"exit_status": predict_result.exit_status},
+                    "messages": predict_result.trajectory,
+                }
+                learn_result = self.learn.run(
+                    skillbook=skillbook,
+                    instance=instance,
+                    trajectory=trajectory,
+                    patch=predict_result.patch,
+                    iteration=iteration,
+                )
+                iter_result.learn_result = learn_result
                 self.update_skillbook(repo, skillbook)
 
         return result
@@ -426,11 +379,27 @@ class ExperimentLoop:
         logger.info(f"Instances: {len(instances)}")
         logger.info(f"Max attempts: {self.max_attempts}")
         logger.info(f"Skillbook mode: {self.skillbook_mode}")
-        if self.baseline_dir:
-            logger.info(f"Baseline dir: {self.baseline_dir} (loading existing iter_0)")
+        logger.info(f"Concurrency: {self.concurrency}")
+        if self.resume_state:
+            complete = sum(1 for rp in self.resume_state.values() if rp.is_fully_complete)
+            partial = sum(1 for rp in self.resume_state.values() if not rp.is_fully_complete and rp.last_complete_iter >= 0)
+            logger.info(f"Resume: {complete} complete, {partial} partial")
 
         # Create output directory
         self.output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Copy artifacts for fully complete instances (they won't be in instances list)
+        # and partial instances (they will be in instances list)
+        for instance_id, rp in self.resume_state.items():
+            if rp.is_fully_complete:
+                copy_instance_artifacts(
+                    source_dir=rp.resume_dir,
+                    dest_dir=self.output_dir,
+                    benchmark=self.benchmark,
+                    instance_id=instance_id,
+                    up_to_iter=rp.last_complete_iter,
+                )
+            # Partial instances get their artifacts copied inside _run_instance_inner
 
         # Save config
         if config:
@@ -440,23 +409,60 @@ class ExperimentLoop:
         all_results: Dict[str, InstanceResult] = {}
         resolved_ids: List[str] = []
         unresolved_ids: List[str] = []
-        baseline_resolved_ids: List[str] = []
-        baseline_unresolved_ids: List[str] = []
         error_info: Optional[str] = None
 
         try:
-            # Process each instance
-            for i, instance in enumerate(instances):
-                instance_id = instance.get("instance_id", f"unknown-{i}")
-                logger.info(f"\n[{i+1}/{len(instances)}] Processing {instance_id}")
+            if self.concurrency <= 1:
+                # Sequential mode
+                for i, instance in enumerate(instances):
+                    instance_id = instance.get("instance_id", f"unknown-{i}")
+                    logger.info(f"\n[{i+1}/{len(instances)}] Processing {instance_id}")
 
-                result = self.run_instance(instance)
-                all_results[instance_id] = result
+                    result = self.run_instance(instance)
+                    all_results[instance_id] = result
 
-                if result.final_resolved:
-                    resolved_ids.append(instance_id)
-                else:
-                    unresolved_ids.append(instance_id)
+                    if result.final_resolved:
+                        resolved_ids.append(instance_id)
+                    else:
+                        unresolved_ids.append(instance_id)
+            else:
+                # Concurrent mode
+                results_lock = threading.Lock()
+
+                def _worker(instance):
+                    instance_id = instance.get("instance_id", "unknown")
+                    try:
+                        result = self._run_instance_concurrent(instance)
+                        with results_lock:
+                            all_results[instance_id] = result
+                            if result.final_resolved:
+                                resolved_ids.append(instance_id)
+                            else:
+                                unresolved_ids.append(instance_id)
+                        return result
+                    except Exception as e:
+                        logger.error(f"[{instance_id}] Worker failed: {e}")
+                        with results_lock:
+                            unresolved_ids.append(instance_id)
+                            all_results[instance_id] = InstanceResult(
+                                instance_id=instance_id,
+                                final_resolved=False,
+                                total_attempts=0,
+                            )
+                        return None
+
+                logger.info(f"Launching {len(instances)} instances with concurrency={self.concurrency}")
+                with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
+                    futures = {
+                        executor.submit(_worker, inst): inst
+                        for inst in instances
+                    }
+                    done_count = 0
+                    for future in as_completed(futures):
+                        done_count += 1
+                        inst = futures[future]
+                        instance_id = inst.get("instance_id", "unknown")
+                        logger.info(f"[{done_count}/{len(instances)}] Completed {instance_id}")
 
         except Exception as e:
             import traceback
@@ -465,9 +471,23 @@ class ExperimentLoop:
             logger.error(traceback.format_exc())
 
         finally:
+            # Add fully-complete resumed instances to statistics
+            resumed_resolved = []
+            resumed_unresolved = []
+            for instance_id, rp in self.resume_state.items():
+                if rp.is_fully_complete:
+                    resolved = self._load_resolved_status(instance_id) or False
+                    if resolved:
+                        resumed_resolved.append(instance_id)
+                    else:
+                        resumed_unresolved.append(instance_id)
+
+            resolved_ids = resumed_resolved + resolved_ids
+            unresolved_ids = resumed_unresolved + unresolved_ids
+
             # Always save statistics, even if interrupted
-            total_processed = len(all_results)
-            total_planned = len(instances)
+            total_processed = len(all_results) + len(resumed_resolved) + len(resumed_unresolved)
+            total_planned = len(instances) + len(resumed_resolved) + len(resumed_unresolved)
             resolved_count = len(resolved_ids)
             resolution_rate = resolved_count / total_processed if total_processed > 0 else 0.0
 
@@ -489,6 +509,7 @@ class ExperimentLoop:
                 "config": {
                     "max_attempts": self.max_attempts,
                     "skillbook_mode": self.skillbook_mode,
+                    "concurrency": self.concurrency,
                 },
             }
 
@@ -499,12 +520,11 @@ class ExperimentLoop:
             else:
                 statistics["status"] = "completed"
 
-            # Add baseline info if using baseline mode
-            if self.baseline_dir:
-                statistics["baseline_dir"] = str(self.baseline_dir)
-                baseline_model = self._extract_baseline_model()
-                if baseline_model:
-                    statistics["baseline_agent_model"] = baseline_model
+            # Add resume info
+            if self.resume_state:
+                resume_dirs = list(set(str(rp.resume_dir) for rp in self.resume_state.values()))
+                statistics["resume_dirs"] = resume_dirs
+                statistics["resumed_complete_count"] = len(resumed_resolved) + len(resumed_unresolved)
 
             # Compute skillbook-assisted resolution stats
             skillbook_assisted_ids = []
@@ -551,6 +571,8 @@ def run_experiment(
     max_attempts: int = 3,
     skillbook_mode: str = "per_instance",
     config: Optional[Dict] = None,
+    concurrency: int = 1,
+    agent_factory: Optional[Callable] = None,
 ) -> Dict[str, Any]:
     """
     Convenience function to run experiment.
@@ -565,6 +587,8 @@ def run_experiment(
         max_attempts: Max attempts per instance
         skillbook_mode: Skillbook management mode
         config: Optional config to save
+        concurrency: Number of parallel instances (1 = sequential)
+        agent_factory: Callable that returns a new MiniSWEAgent (for concurrent mode)
 
     Returns:
         Summary dict with statistics
@@ -577,5 +601,7 @@ def run_experiment(
         run_name=run_name,
         max_attempts=max_attempts,
         skillbook_mode=skillbook_mode,
+        concurrency=concurrency,
+        agent_factory=agent_factory,
     )
     return loop.run(instances=instances, config=config)
