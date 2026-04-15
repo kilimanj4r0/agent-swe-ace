@@ -18,13 +18,27 @@ from typing import Literal, Optional, Any, Dict
 from dotenv import load_dotenv
 load_dotenv()
 
+# Patch PydanticAI's schema transformer to inline $ref definitions.
+# Z.AI models (GLM) can't handle $ref/$defs in tool schemas — they
+# return referenced objects as JSON strings instead of actual objects.
+# Inlining resolves all $ref into flat definitions.
+try:
+    from pydantic_ai.profiles.openai import OpenAIJsonSchemaTransformer as _OAIJT
+    _oaijt_orig_init = _OAIJT.__init__
+    def _oaijt_patched_init(self, schema, *, strict=None):
+        _oaijt_orig_init(self, schema, strict=strict)
+        self.prefer_inlined_defs = True
+    _OAIJT.__init__ = _oaijt_patched_init
+except ImportError:
+    pass
+
 
 @dataclass
 class LLMConfig:
     """Unified LLM configuration."""
 
     provider: Literal["zai", "hosted_vllm"] = "zai"
-    model: str = "glm-4.5-airx"  # Z.AI free tier model
+    model: str = "glm-4.5-flash"  # Z.AI model
     api_key: Optional[str] = None
     api_key_env: str = "ZAI_API_KEY"  # Standard env var for Z.AI
     api_base: Optional[str] = None  # Required for vLLM, auto-handled for Z.AI
@@ -76,9 +90,9 @@ class LLMConfig:
             }
         else:  # zai
             defaults = {
-                "model": "glm-4.5-airx",  # Z.AI free tier
+                "model": "glm-4.5-flash",
                 "api_key_env": "ZAI_API_KEY",
-                "api_base": None,  # LiteLLM handles Z.AI endpoint automatically
+                "api_base": "https://api.z.ai/api/paas/v4",
             }
 
         return cls(
