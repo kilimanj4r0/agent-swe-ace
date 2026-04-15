@@ -1,6 +1,11 @@
 # src/tests/test_custom_swe_learn.py
 """Tests for custom_swe_learn flag and SWE-optimized learning components."""
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 import pytest
 from unittest.mock import MagicMock, patch
 

@@ -52,9 +52,15 @@ class SWESkillManager(SkillManager):
         self._prompt_template = prompt_template
 
         if api_base:
+            from openai import AsyncOpenAI
             from pydantic_ai.models.openai import OpenAIChatModel
             from pydantic_ai.providers.litellm import LiteLLMProvider
-            provider = LiteLLMProvider(api_base=api_base, api_key=api_key or "not-needed")
+            openai_client = AsyncOpenAI(
+                base_url=api_base,
+                api_key=api_key or "not-needed",
+                max_retries=int(__import__("os").getenv("ACE_LEARN_MAX_RETRIES", "50")),
+            )
+            provider = LiteLLMProvider(openai_client=openai_client)
             # Strip LiteLLM provider prefix (e.g. "hosted_vllm/") since
             # OpenAIChatModel sends the model name directly to the endpoint
             model_name = model.split("/", 1)[1] if "/" in model else model
