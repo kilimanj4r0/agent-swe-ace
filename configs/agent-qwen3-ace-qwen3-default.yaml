@@ -3,8 +3,13 @@ experiment:
   description: "ACE skillbook learning experiment on SWE-bench Lite"
   max_attempts: 4                    # Max retry attempts per instance
   concurrency: 4                       # Number of parallel instances (1 = sequential)
-  skillbook_mode: "per_instance"      # "per_instance" or "per_run"
-  custom_swe_learn: false         # Use SWE-optimized Reflector + SkillManager (anti-patterns, type prefixes) vs default
+
+  skillbook:
+    mode: "per_instance"              # "per_instance", "per_repo", or "global"
+    custom_swe_learn: false           # Default ACE Reflector+SkillManager
+    deduplication:
+      enabled: true
+      similarity_threshold: 0.85      # Cosine similarity threshold
 
 agent:
   step_limit: 200                    # Max agent steps per attempt
@@ -46,10 +51,6 @@ output:
   save_skillbooks: true
   save_logs: true
   log_level: "INFO"                   # DEBUG, INFO, WARNING, ERROR
-
-deduplication:
-  enabled: true
-  similarity_threshold: 0.85          # Cosine similarity threshold
 
 observability:
   enabled: false

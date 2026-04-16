@@ -1,12 +1,35 @@
 experiment:
-  name: "test"
-  description: "ACE skillbook learning experiment"
-  max_attempts: 2                    # Max retry attempts per instance
+  name: "per repo glm matblotlib test"
+  description: "ACE skillbook learning experiment per repo"
+  max_attempts: 1                    # Max retry attempts per instance
   concurrency: 1                       # Number of parallel instances (1 = sequential)
-  skillbook_mode: "per_instance"      # "per_instance" or "per_run"
-  custom_swe_learn: true         # Use SWE-optimized Reflector + SkillManager (anti-patterns, type prefixes) vs default
-  resume_dirs:
-    - data/run_20260415_020540
+
+  skillbook:
+    mode: "per_repo"               # "per_instance", "per_repo", or "global"
+    custom_swe_learn: false             # true = SWEReflector+SWESkillManager (anti-patterns, type prefixes)
+                                       # false = default ACE Reflector+SkillManager (PydanticAI-based)
+    deduplication:
+      enabled: true                    # Deduplicate similar skills via cosine similarity
+      similarity_threshold: 0.85       # Threshold (0-1); higher = stricter matching
+      embedding_provider: "sentence_transformers"  # or "litellm"
+      local_model_name: "all-MiniLM-L6-v2"         # Local embedding model
+      within_section_only: true        # Only compare skills within same skillbook section
+      min_pairs_to_report: 1           # Min duplicate pairs to trigger consolidation
+
+  # --- Two-phase experiment settings (per_repo/global modes) ---
+  split:                             # Enable train/val split
+    val_ratio: 0.2                  # Fraction of instances for validation
+  baseline_run_dir: "data/run_20260415_020540"  # Reuse baseline results (skip re-running val baseline + train predict/eval)
+  # resume_dirs:                       # Resume from previous runs (copies completed, continues partial)
+  #   - data/run_20260415_020540
+
+
+benchmark:
+  dataset: "princeton-nlp/SWE-bench_Lite"
+  split: "test"
+  max_instances: null                 # null = all instances, or set number
+  # --- Two-phase experiment settings (per_repo/global modes) ---
+  filter_repos: ["matplotlib/matplotlib"]                 # null = all repos, or list: ["django/django"]
 
 agent:
   step_limit: 200                    # Max agent steps per attempt
@@ -14,28 +37,27 @@ agent:
 
 llm:
   agent:
-    provider: "hosted_vllm"
-    model: "Qwen/Qwen3-Coder-Next-FP8"
+    provider: "zai"
+    model: "glm-4.7-flash"
+    api_key_env: "ZAI_API_KEY"
+    api_base: "https://open.bigmodel.cn/api/coding/paas/v4"
+    # provider: "hosted_vllm"
+    # model: "Qwen/Qwen3-Coder-Next-FP8"
+    # api_base: "http://10.100.30.241:8800/v1"
     # model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
-    api_base: "http://10.100.30.241:8800/v1"
     # api_base: "http://localhost:8800/v1"
-    api_key_env: "HOSTED_VLLM_API_KEY"
-    temperature: 0.7
-    max_tokens: 4096
+    # api_key_env: "HOSTED_VLLM_API_KEY"
   ace:
-    provider: "hosted_vllm"
-    model: "Qwen/Qwen3-Coder-Next-FP8"
+    provider: "zai"
+    model: "glm-4.7-flash"
+    api_key_env: "ZAI_API_KEY"
+    api_base: "https://open.bigmodel.cn/api/coding/paas/v4"
+    # provider: "hosted_vllm"
+    # model: "Qwen/Qwen3-Coder-Next-FP8"
+    # api_base: "http://10.100.30.241:8800/v1"
     # model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
-    api_base: "http://10.100.30.241:8800/v1"
     # api_base: "http://localhost:8800/v1"
-    api_key_env: "HOSTED_VLLM_API_KEY"
-    temperature: 0.7
-    max_tokens: 4096
-
-benchmark:
-  dataset: "princeton-nlp/SWE-bench_Lite"
-  split: "test"
-  max_instances: 4                 # null = all instances, or set number
+    # api_key_env: "HOSTED_VLLM_API_KEY"
 
 evaluation:
   use_docker: true                    # Use Docker for evaluation (default)
@@ -48,10 +70,6 @@ output:
   save_skillbooks: true
   save_logs: true
   log_level: "INFO"                   # DEBUG, INFO, WARNING, ERROR
-
-deduplication:
-  enabled: true
-  similarity_threshold: 0.85          # Cosine similarity threshold
 
 observability:
   enabled: false

@@ -2,8 +2,13 @@ experiment:
   name: "agent-glm-ace-glm-4-full"
   description: "ACE skillbook learning experiment on SWE-bench Lite"
   max_attempts: 4                    # Max retry attempts per instance
-  skillbook_mode: "per_instance"      # "per_instance" or "per_run"
-  custom_swe_learn: true         # Use SWE-optimized Reflector + SkillManager (anti-patterns, type prefixes) vs default
+
+  skillbook:
+    mode: "per_instance"              # "per_instance", "per_repo", or "global"
+    custom_swe_learn: true            # SWE-optimized Reflector+SkillManager (anti-patterns, type prefixes)
+    deduplication:
+      enabled: true
+      similarity_threshold: 0.85      # Cosine similarity threshold
 
 agent:
   step_limit: 200                    # Max agent steps per attempt
@@ -39,10 +44,6 @@ output:
   save_skillbooks: true
   save_logs: true
   log_level: "INFO"                   # DEBUG, INFO, WARNING, ERROR
-
-deduplication:
-  enabled: true
-  similarity_threshold: 0.85          # Cosine similarity threshold
 
 observability:
   enabled: false

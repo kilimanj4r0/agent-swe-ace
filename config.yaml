@@ -1,36 +1,74 @@
-# Default Experiment Configuration
-# Can be merged with extra config
-# All settings can be overridden via CLI arguments
+# ==========================================================================
+# ACE-SWE Configuration
+# ==========================================================================
+#
+# Config layers (later overrides earlier):
+#   config.yaml  <  --config <file>  <  CLI args
+#
+# Override configs in configs/ are deep-merged on top of this file.
+# API keys live in .env (ZAI_API_KEY, HOSTED_VLLM_API_KEY), not here.
+#
+# Skillbook modes:
+#   per_instance — fresh skillbook per instance, learn from own failures
+#   per_repo     — shared skillbook per repo, two-phase train/val experiment
+#   global       — single skillbook across all instances
+#
+# Two-phase experiment (per_repo/global + split):
+#   Train phase:    1 attempt, force learn (even on success), skillbook accumulates
+#   Val baseline:   1 attempt, empty skillbook, frozen (no learning)
+#   Val skillbook:  1 attempt, learned skillbook from train, frozen (no learning)
+#   Requires: experiment.split + benchmark.filter_repos (or equivalent)
+#
+# ==========================================================================
 
 experiment:
   name: "mini-swe-v1-skillbook-learning"
   description: "ACE skillbook learning experiment on SWE-bench Lite"
-  max_attempts: 10                     # Max retry attempts per instance
+  max_attempts: 10                     # Max retry attempts per instance (train phase overrides to 1)
   concurrency: 1                       # Number of parallel instances (1 = sequential)
-  skillbook_mode: "per_instance"      # "per_instance" or "per_run"
-  random_seed: 42                     # For reproducibility
-  custom_swe_learn: true         # Use SWE-optimized Reflector + SkillManager (anti-patterns, type prefixes) vs default
-  # resume_dirs:
+  random_seed: 42                      # For reproducibility (used in train/val split)
+
+  skillbook:
+    mode: "per_instance"               # "per_instance", "per_repo", or "global"
+    custom_swe_learn: true             # true = SWEReflector+SWESkillManager (anti-patterns, type prefixes)
+                                       # false = default ACE Reflector+SkillManager (PydanticAI-based)
+    deduplication:
+      enabled: true                    # Deduplicate similar skills via cosine similarity
+      similarity_threshold: 0.85       # Threshold (0-1); higher = stricter matching
+      embedding_provider: "sentence_transformers"  # or "litellm"
+      local_model_name: "all-MiniLM-L6-v2"         # Local embedding model
+      within_section_only: true        # Only compare skills within same skillbook section
+      min_pairs_to_report: 1           # Min duplicate pairs to trigger consolidation
+
+  # resume_dirs:                       # Resume from previous runs (copies completed, continues partial)
   #   - data/run_20260415_020540
 
-# Environment Settings
+  # --- Two-phase experiment settings (per_repo/global modes) ---
+  # split:                             # Enable train/val split
+  #   val_ratio: 0.2                  # Fraction of instances for validation
+  # baseline_run_dir: "data/run_20260415_020540"  # Reuse baseline results (skip re-running val baseline + train predict/eval)
+
+# --- Environment ---
+# Docker is required for SWE-bench evaluation (swebench images).
 environment:
   type: "docker"                      # "docker" (default) or "local"
   namespace: "ghcr.io/epoch-research/"  # Docker registry namespace (set to null for local images)
 
-# Mini SWE-Agent Settings
+# --- Agent (mini-swe-agent) ---
 agent:
   step_limit: 100                    # Max agent steps per attempt
   cost_limit: 0.0                    # Effectively disabled for local vLLM (no real cost)
-  context_management: false           # Enable proactive context window management
-  context_window: 65536              # Model's total context window in tokens
-  keep_recent_messages: 6            # Recent messages kept intact during truncation
-  truncate_threshold: 0.85           # Start truncating at 85% of max input tokens
+  context:
+    enabled: false                   # Enable proactive context window management
+    context_window: 65536            # Model's total context window in tokens
+    keep_recent_messages: 6          # Recent messages kept intact during truncation
+    truncate_threshold: 0.85         # Start truncating at 85% of max input tokens
 
-# LLM Configuration
-# API keys are loaded from .env file (not stored here)
+# --- LLM ---
+# Two separate LLM configs: agent (runs mini-swe-agent) and ace (runs Reflector/SkillManager).
+# API keys are loaded from .env (not stored here).
+# Providers: "zai" (Z.AI/GLM), "hosted_vllm" (local vLLM server), or any LiteLLM provider.
 llm:
-  # Agent LLM (runs mini-swe-agent)
   agent:
     provider: "hosted_vllm"
     model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
@@ -40,20 +78,28 @@ llm:
     temperature: 0.7
     max_tokens: 4096
 
-  # ACE LLM (runs Reflector/SkillManager)
   ace:
     provider: "zai"
     model: "glm-4.5-flash"
+    api_base: "https://api.z.ai/api/coding/paas/v4"
+    # api_base: "https://open.bigmodel.cn/api/coding/paas/v4"
     api_key_env: "ZAI_API_KEY"
     temperature: 0.7
     max_tokens: 4096
 
-# Benchmark Configuration
+# --- Benchmark ---
+# benchmark.split is the HuggingFace dataset split (not experiment.split for train/val).
 benchmark:
   dataset: "princeton-nlp/SWE-bench_Lite"
-  split: "test"
-  max_instances: null                 # null = all instances, or set number
-  exclude_instances:                  # Instances that fail to build Docker images
+  split: "test"                        # HuggingFace dataset split (not to be confused with experiment.split)
+  
+  max_instances: null                  # null = all instances, or set number
+
+  # --- Two-phase experiment settings (per_repo/global modes) ---
+  # filter_repos: null                 # null = all repos, or list: ["django/django"]
+
+  # --- General instances exculsion from any experiment ---
+  exclude_instances:                   # Instances that fail to build Docker images
     # Lite + Verified
     - pylint-dev__pylint-7114           # build_editable hook missing
     - pylint-dev__pylint-7228           # build_editable hook missing
@@ -75,13 +121,13 @@ benchmark:
     - scikit-learn__scikit-learn-26194  # --no-use-pep517 removed in pip 25.1
     - scikit-learn__scikit-learn-26323  # --no-use-pep517 removed in pip 25.1
 
-# Evaluation Settings
+# --- Evaluation ---
 evaluation:
   use_docker: true                    # Use Docker for evaluation (default)
   timeout: 1800                       # Seconds per patch evaluation (30 min)
   rm_image: false                     # Keep Docker image after evaluation (instance-level caching — avoids rebuilds)
 
-# Output Settings
+# --- Output ---
 output:
   dir: "data"
   save_trajectories: true
@@ -89,21 +135,11 @@ output:
   save_logs: true
   log_level: "INFO"                   # DEBUG, INFO, WARNING, ERROR
 
-# LiteLLM Settings
+# --- LiteLLM ---
 litellm:
   suppress_debug_info: true           # Suppress LiteLLM debug output
 
-# Skill Deduplication Settings
-deduplication:
-  enabled: true
-  similarity_threshold: 0.85          # Cosine similarity threshold
-  embedding_provider: "sentence_transformers"  # or "litellm"
-  local_model_name: "all-MiniLM-L6-v2"  # Light local model
-  within_section_only: true           # Only compare skills in same section
-  min_pairs_to_report: 1              # Min pairs to trigger consolidation
-
-# Observability Settings (optional)
-# Enable Opik tracing via ACE framework
+# --- Observability (optional, Opik tracing via ACE framework) ---
 observability:
-  enabled: false                      # Enable Opik tracing
-  project_name: "agent-swe-ace"       # Opik project name
+  enabled: false
+  project_name: "agent-swe-ace"
