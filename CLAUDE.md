@@ -12,6 +12,14 @@ uv sync                           # Install dependencies
 uv run python -m src.cli.commands --max-instances 10
 uv run python -m src.cli.commands --instance django__django-12345
 
+# List repos and preview train/val split
+uv run python -m src.cli.commands --list-repos
+uv run python -m src.cli.commands --list-repos --filter-repos django/django --val-ratio 0.2
+
+# Two-phase skillbook experiment (single repo)
+uv run python -m src.cli.commands --filter-repos django/django --val-ratio 0.2 --config configs/agent-glm-ace-glm.yaml
+uv run python -m src.cli.commands --filter-repos django/django --val-ratio 0.2 --baseline-run-dir data/run_20260415_xxx
+
 # Run with override config (deep-merged on top of config.yaml)
 uv run python -m src.cli.commands --config configs/agent-glm-ace-glm.yaml
 uv run python -m src.cli.commands --config configs/agent-qwen3-ace-qwen3.yaml --custom-swe-learn --observe
@@ -39,6 +47,7 @@ uv run python scripts/analyze_token_usage.py --data-dir data/ --output-csv token
 # Testing
 uv run pytest src/tests/ -v
 uv run pytest src/tests/ -v -k "not docker"  # Skip Docker tests
+uv run pytest src/tests/ -v -k "not LLMCall"  # Skip tests that call vLLM server (hang if unreachable)
 uv run pytest -m integration                 # Only real API call tests
 
 # Transform baseline data to run format
@@ -78,6 +87,11 @@ data/
 │   ├── trajectories/<instance>/iter_N.json
 │   ├── results/<instance>/iter_N.json
 │   └── skillbooks/<instance>/iter_N.json
+│   # Two-phase mode adds subdirectories:
+│   ├── trajectories/{train,val_baseline,val}/<instance>/iter_N.json
+│   ├── results/{train,val_baseline,val}/<instance>/iter_N.json
+│   ├── skillbooks/train/iter_N.json
+│   └── skillbooks/final_skillbook.json
 ```
 
 ## Experiment Flow
@@ -101,13 +115,22 @@ data/
 
 - Dual LLM config: `agent` (runs mini-swe-agent) and `ace` (runs Reflector/SkillManager)
 - `--custom-swe-learn` flag: uses SWE-optimized Reflector/SkillManager (anti-patterns, type prefixes) vs default ACE
-- Skillbook modes: `per_instance` or `per_run`
+- Skillbook modes: `per_instance`, `per_repo`, or `global`
+- Two-phase experiment: `--filter-repos <repo> --val-ratio 0.2` splits into train/val
+  - Train: 1 attempt per instance, force learn (even on success), skillbook accumulates
+  - Val baseline: 1 attempt per instance, empty skillbook, no learning
+  - Val skillbook: 1 attempt per instance, learned skillbook from train, no learning
+  - statistics.json includes `train_phase`, `val_baseline_phase`, `val_skillbook_phase`, `summary`
+- `--list-repos` prints all repos with counts and optional split preview
+- `--baseline-run-dir` loads existing baseline results to avoid re-running val baseline
 - Docker required for evaluation (SWE-bench images)
 - Output uses compact timestamps: `run_20260319_143052`
 - Trajectory files include `message_count` and `assistant_message_count` for quick analysis
 - Skillbook files include `skill_count` at top level
 - `experiment.log` is saved to each run folder via `setup_logging(run_dir=...)`
-- Skill deduplication via ace.deduplication with configurable similarity threshold
+- Skill deduplication via experiment.skillbook.deduplication with configurable similarity threshold
+- Config structure: `experiment.skillbook.{mode,custom_swe_learn,deduplication}`, `agent.context.{enabled,context_window,...}`
+- All config reads are in `src/cli/commands.py` — other files receive values via constructor args
 - PydanticAI schema monkey-patch on import in `config/llm.py`: inlines `$ref`/`$defs` in tool schemas (Z.AI/GLM models can't handle JSON references)
 - Default ACE routing: when `api_base` is set, code sets `OPENAI_BASE_URL`/`OPENAI_API_KEY` env vars at runtime and prefixes model with `"openai:"` so PydanticAI uses OpenAIProvider
 - Model `n_calls`/`cost` counters reset to 0 before each agent run (accumulation would trigger immediate LimitsExceeded)
@@ -126,6 +149,8 @@ data/
 - statistics.json includes `observability_project_url` when observability enabled
 - Resumed runs include `resume_dirs` and `resumed_complete_count` in statistics.json
 - Evaluation is always serialized (threading.Lock) even with concurrency > 1 — concurrency only overlaps prediction
+- `per_instance` skillbook mode is incompatible with two-phase experiments — use `per_repo` or `global`
+- `uv run pytest` must be run from project root (`/root/makharev/agent-swe-ace`)
 
 ## Git Commits
 

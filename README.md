@@ -190,7 +190,7 @@ Full options in `config.yaml`:
 experiment:
   name: "mini-swe-v1-skillbook-learning"
   max_attempts: 2
-  skillbook_mode: "per_instance"  # per_instance, per_run
+  skillbook_mode: "per_instance"  # per_instance, per_repo, global
 
 llm:
   agent:
