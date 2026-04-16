@@ -308,3 +308,477 @@ class TestResumeSupport:
 
         start = loop._get_resume_start("unknown__instance-999")
         assert start == 0
+
+
+class TestForceLearn:
+    """Test force_learn and frozen_skillbook flags."""
+
+    def test_force_learn_runs_learn_on_resolved(self, tmp_path):
+        """When force_learn=True, learn runs even if resolved."""
+        from runners.main_loop import ExperimentLoop
+
+        mock_predict = Mock()
+        mock_predict.run.return_value = Mock(
+            instance_id="test__repo-123",
+            exit_status="submitted",
+            patch="good patch",
+            trajectory=[],
+        )
+
+        mock_evaluate = Mock()
+        mock_evaluate.run.return_value = Mock(
+            instance_id="test__repo-123",
+            resolved=True,
+            feedback="Great!",
+            metrics={"resolved": 1.0},
+        )
+
+        mock_learn = Mock()
+        mock_learn.run.return_value = Mock(skills_added=1)
+
+        loop = ExperimentLoop(
+            predict_phase=mock_predict,
+            evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn,
+            output_dir=tmp_path,
+            run_name="test-run",
+            max_attempts=3,
+        )
+
+        instance = {"instance_id": "test__repo-123", "problem_statement": "Fix"}
+        result = loop.run_instance(instance, force_learn=True)
+
+        # Should have called learn even though resolved
+        assert result.final_resolved is True
+        mock_learn.run.assert_called_once()
+
+    def test_frozen_skillbook_skips_learn(self, tmp_path):
+        """When frozen_skillbook=True, learn never runs."""
+        from runners.main_loop import ExperimentLoop
+
+        mock_predict = Mock()
+        mock_predict.run.return_value = Mock(
+            instance_id="test__repo-123",
+            exit_status="submitted",
+            patch="bad patch",
+            trajectory=[],
+        )
+
+        mock_evaluate = Mock()
+        mock_evaluate.run.return_value = Mock(
+            instance_id="test__repo-123",
+            resolved=False,
+            feedback="Bad",
+            metrics={"resolved": 0.0},
+        )
+
+        mock_learn = Mock()
+
+        loop = ExperimentLoop(
+            predict_phase=mock_predict,
+            evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn,
+            output_dir=tmp_path,
+            run_name="test-run",
+            max_attempts=3,
+        )
+
+        instance = {"instance_id": "test__repo-123", "problem_statement": "Fix"}
+        result = loop.run_instance(instance, frozen_skillbook=True, max_attempts_override=1)
+
+        # Learn should not be called at all
+        assert result.final_resolved is False
+        mock_learn.run.assert_not_called()
+
+    def test_max_attempts_override_limits_iterations(self, tmp_path):
+        """max_attempts_override=1 forces single attempt."""
+        from runners.main_loop import ExperimentLoop
+
+        mock_predict = Mock()
+        mock_predict.run.return_value = Mock(
+            instance_id="test__repo-123",
+            exit_status="submitted",
+            patch="patch",
+            trajectory=[],
+        )
+
+        mock_evaluate = Mock()
+        mock_evaluate.run.return_value = Mock(
+            instance_id="test__repo-123",
+            resolved=False,
+            feedback="Bad",
+            metrics={"resolved": 0.0},
+        )
+
+        mock_learn = Mock()
+        mock_learn.run.return_value = Mock(skills_added=1)
+
+        loop = ExperimentLoop(
+            predict_phase=mock_predict,
+            evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn,
+            output_dir=tmp_path,
+            run_name="test-run",
+            max_attempts=10,  # Would normally try 10 times
+        )
+
+        instance = {"instance_id": "test__repo-123", "problem_statement": "Fix"}
+        result = loop.run_instance(instance, max_attempts_override=1)
+
+        # Should only run once despite max_attempts=10
+        assert mock_predict.run.call_count == 1
+        assert result.total_attempts == 1
+
+
+class TestPerRepoMode:
+    """Test per_repo skillbook mode."""
+
+    def test_per_repo_mode(self, tmp_path):
+        """Skillbook accumulates across instances from the same repo."""
+        from runners.main_loop import ExperimentLoop
+        from ace import Skillbook
+
+        loop = ExperimentLoop(
+            predict_phase=Mock(),
+            evaluate_phase=Mock(),
+            learn_phase=Mock(),
+            output_dir=tmp_path,
+            skillbook_mode="per_repo",
+        )
+
+        # Same repo gets same skillbook
+        sb1 = loop.get_skillbook("django/django")
+        sb2 = loop.get_skillbook("django/django")
+        assert sb1 is sb2
+
+        # Different repo gets different skillbook
+        sb3 = loop.get_skillbook("flask/flask")
+        assert sb1 is not sb3
+
+    def test_two_phase_run(self, tmp_path):
+        """Test two-phase run produces correct statistics structure."""
+        from runners.main_loop import ExperimentLoop
+
+        mock_predict = Mock()
+        mock_predict.run.return_value = Mock(
+            instance_id="test__repo-123",
+            exit_status="submitted",
+            patch="patch",
+            trajectory=[],
+        )
+
+        mock_evaluate = Mock()
+        mock_evaluate.run.side_effect = [
+            # Train instance 1
+            Mock(instance_id="train-1", resolved=True, feedback="OK"),
+            # Train instance 2
+            Mock(instance_id="train-2", resolved=False, feedback="Bad"),
+            # Val baseline
+            Mock(instance_id="val-1", resolved=False, feedback="Bad"),
+            # Val skillbook
+            Mock(instance_id="val-1", resolved=True, feedback="OK"),
+        ]
+
+        mock_learn = Mock()
+        mock_learn.run.return_value = Mock(skills_added=1)
+
+        loop = ExperimentLoop(
+            predict_phase=mock_predict,
+            evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn,
+            output_dir=tmp_path,
+            run_name="test-run",
+            max_attempts=3,
+            skillbook_mode="per_repo",
+        )
+
+        train = [
+            {"instance_id": "train-1", "repo": "django/django"},
+            {"instance_id": "train-2", "repo": "django/django"},
+        ]
+        val = [
+            {"instance_id": "val-1", "repo": "django/django"},
+        ]
+
+        stats = loop.run(train, val_instances=val)
+
+        # Check statistics structure
+        assert "train_phase" in stats
+        assert "val_baseline_phase" in stats
+        assert "val_skillbook_phase" in stats
+        assert "summary" in stats
+
+        assert stats["train_phase"]["total_instances"] == 2
+        assert stats["train_phase"]["resolved_count"] == 1
+        assert stats["val_baseline_phase"]["total_instances"] == 1
+        assert stats["val_baseline_phase"]["resolved_count"] == 0
+        assert stats["val_skillbook_phase"]["total_instances"] == 1
+        assert stats["val_skillbook_phase"]["resolved_count"] == 1
+
+        # Skillbook improvement
+        assert stats["summary"]["newly_resolved_by_skillbook"] == ["val-1"]
+        assert stats["summary"]["lost_by_skillbook"] == []
+
+    def test_backward_compat_no_split(self, tmp_path):
+        """Without val_instances, run() works identically to before."""
+        from runners.main_loop import ExperimentLoop
+
+        mock_predict = Mock()
+        mock_predict.run.return_value = Mock(
+            instance_id="test__repo-123",
+            exit_status="submitted",
+            patch="good patch",
+            trajectory=[],
+        )
+
+        mock_evaluate = Mock()
+        mock_evaluate.run.return_value = Mock(
+            instance_id="test__repo-123",
+            resolved=True,
+            feedback="Great!",
+            metrics={"resolved": 1.0},
+        )
+
+        mock_learn = Mock()
+
+        loop = ExperimentLoop(
+            predict_phase=mock_predict,
+            evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn,
+            output_dir=tmp_path,
+            run_name="test-run",
+            max_attempts=3,
+            skillbook_mode="per_instance",
+        )
+
+        instance = {"instance_id": "test__repo-123", "problem_statement": "Fix"}
+        stats = loop.run([instance])
+
+        # Old-style statistics
+        assert "train_phase" not in stats
+        assert "val_baseline_phase" not in stats
+        assert "skillbook_assisted" in stats
+        assert stats["resolved_count"] == 1
+
+
+class TestTrainBaselineReuse:
+    """Test reusing existing trajectories from baseline_run_dir in train phase."""
+
+    def _setup_baseline_dir(self, tmp_path, instance_id, exit_status="Submitted",
+                            resolved=True, has_traj=True, has_result=True):
+        """Helper: create a fake baseline run directory with artifacts."""
+        baseline_dir = tmp_path / "baseline"
+        benchmark = "princeton-nlp__SWE-bench_Lite"
+
+        if has_traj:
+            traj_dir = baseline_dir / benchmark / "trajectories" / instance_id
+            traj_dir.mkdir(parents=True, exist_ok=True)
+            import json
+            (traj_dir / "iter_0.json").write_text(json.dumps({
+                "info": {"exit_status": exit_status, "submission": "patch content"},
+                "messages": [{"role": "user", "content": "fix it"}],
+            }))
+
+        if has_result:
+            result_dir = baseline_dir / benchmark / "results" / instance_id
+            result_dir.mkdir(parents=True, exist_ok=True)
+            import json
+            (result_dir / "iter_0.json").write_text(json.dumps({
+                "resolved": resolved,
+                "feedback": "test feedback",
+            }))
+
+        return baseline_dir
+
+    def test_reuse_valid_trajectory_only_learns(self, tmp_path):
+        """When baseline has valid trajectory (Submitted), only run learn phase."""
+        from runners.main_loop import ExperimentLoop
+
+        instance_id = "django__django-12345"
+        baseline_dir = self._setup_baseline_dir(tmp_path, instance_id, "Submitted", resolved=False)
+
+        mock_predict = Mock()
+        mock_evaluate = Mock()
+        mock_learn = Mock()
+        mock_learn.run.return_value = Mock(skills_added=2)
+
+        loop = ExperimentLoop(
+            predict_phase=mock_predict,
+            evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn,
+            output_dir=tmp_path,
+            run_name="test",
+            skillbook_mode="per_repo",
+        )
+
+        instance = {"instance_id": instance_id, "repo": "django/django"}
+        result = loop._run_train_instance_reusing_baseline(instance, baseline_dir)
+
+        # Learn was called, predict/evaluate were not
+        mock_learn.run.assert_called_once()
+        mock_predict.run.assert_not_called()
+        mock_evaluate.run.assert_not_called()
+
+        # Result reflects baseline resolved status
+        assert result.final_resolved is False
+        assert result.total_attempts == 1
+
+        # Artifacts copied to train/ subdirs
+        assert (tmp_path / "princeton-nlp__SWE-bench_Lite" / "trajectories" / "train" /
+                instance_id / "iter_0.json").exists()
+        assert (tmp_path / "princeton-nlp__SWE-bench_Lite" / "results" / "train" /
+                instance_id / "iter_0.json").exists()
+
+    def test_reuse_limits_exceeded_status(self, tmp_path):
+        """LimitsExceeded is also a valid exit status for reuse."""
+        from runners.main_loop import ExperimentLoop
+
+        instance_id = "django__django-12345"
+        baseline_dir = self._setup_baseline_dir(tmp_path, instance_id, "LimitsExceeded", resolved=False)
+
+        mock_predict = Mock()
+        mock_evaluate = Mock()
+        mock_learn = Mock()
+        mock_learn.run.return_value = Mock(skills_added=1)
+
+        loop = ExperimentLoop(
+            predict_phase=mock_predict,
+            evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn,
+            output_dir=tmp_path,
+            run_name="test",
+            skillbook_mode="per_repo",
+        )
+
+        instance = {"instance_id": instance_id, "repo": "django/django"}
+        result = loop._run_train_instance_reusing_baseline(instance, baseline_dir)
+
+        mock_learn.run.assert_called_once()
+        mock_predict.run.assert_not_called()
+
+    def test_invalid_exit_status_falls_back(self, tmp_path):
+        """When exit_status is not Submitted/LimitsExceeded, run full pipeline."""
+        from runners.main_loop import ExperimentLoop
+
+        instance_id = "django__django-12345"
+        baseline_dir = self._setup_baseline_dir(tmp_path, instance_id, "UnknownError", resolved=False)
+
+        mock_predict = Mock()
+        mock_predict.run.return_value = Mock(
+            instance_id=instance_id, exit_status="submitted", patch="p", trajectory=[],
+        )
+        mock_evaluate = Mock()
+        mock_evaluate.run.return_value = Mock(
+            instance_id=instance_id, resolved=False, feedback="Bad",
+        )
+        mock_learn = Mock()
+        mock_learn.run.return_value = Mock(skills_added=1)
+
+        loop = ExperimentLoop(
+            predict_phase=mock_predict,
+            evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn,
+            output_dir=tmp_path,
+            run_name="test",
+            skillbook_mode="per_repo",
+        )
+
+        instance = {"instance_id": instance_id, "repo": "django/django"}
+        result = loop._run_train_instance_reusing_baseline(instance, baseline_dir)
+
+        # Falls back to full predict→eval→learn
+        mock_predict.run.assert_called_once()
+        mock_evaluate.run.assert_called_once()
+        mock_learn.run.assert_called_once()
+
+    def test_missing_artifacts_falls_back(self, tmp_path):
+        """When baseline is missing traj or result, run full pipeline."""
+        from runners.main_loop import ExperimentLoop
+
+        instance_id = "django__django-12345"
+        baseline_dir = self._setup_baseline_dir(
+            tmp_path, instance_id, has_traj=False, has_result=True
+        )
+
+        mock_predict = Mock()
+        mock_predict.run.return_value = Mock(
+            instance_id=instance_id, exit_status="submitted", patch="p", trajectory=[],
+        )
+        mock_evaluate = Mock()
+        mock_evaluate.run.return_value = Mock(
+            instance_id=instance_id, resolved=True, feedback="OK",
+        )
+        mock_learn = Mock()
+        mock_learn.run.return_value = Mock(skills_added=1)
+
+        loop = ExperimentLoop(
+            predict_phase=mock_predict,
+            evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn,
+            output_dir=tmp_path,
+            run_name="test",
+            skillbook_mode="per_repo",
+        )
+
+        instance = {"instance_id": instance_id, "repo": "django/django"}
+        result = loop._run_train_instance_reusing_baseline(instance, baseline_dir)
+
+        mock_predict.run.assert_called_once()
+
+    def test_two_phase_with_baseline_reuse_stats(self, tmp_path):
+        """Full two-phase run with baseline reuse produces correct statistics."""
+        from runners.main_loop import ExperimentLoop
+        import json
+
+        # Setup baseline dir with one train instance that has valid data
+        baseline_dir = tmp_path / "baseline"
+        benchmark = "princeton-nlp__SWE-bench_Lite"
+        train_id = "django__django-11111"
+        traj_dir = baseline_dir / benchmark / "trajectories" / train_id
+        traj_dir.mkdir(parents=True)
+        (traj_dir / "iter_0.json").write_text(json.dumps({
+            "info": {"exit_status": "Submitted", "submission": "patch"},
+            "messages": [{"role": "user", "content": "fix"}],
+        }))
+        result_dir = baseline_dir / benchmark / "results" / train_id
+        result_dir.mkdir(parents=True)
+        (result_dir / "iter_0.json").write_text(json.dumps({
+            "resolved": True, "feedback": "OK",
+        }))
+
+        mock_predict = Mock()
+        mock_predict.run.return_value = Mock(
+            instance_id="django__django-22222", exit_status="submitted",
+            patch="p", trajectory=[],
+        )
+        mock_evaluate = Mock()
+        mock_evaluate.run.side_effect = [
+            Mock(instance_id="django__django-22222", resolved=False, feedback="Bad"),
+            # val baseline
+            Mock(instance_id="django__django-33333", resolved=False, feedback="Bad"),
+            # val skillbook
+            Mock(instance_id="django__django-33333", resolved=True, feedback="OK"),
+        ]
+        mock_learn = Mock()
+        mock_learn.run.return_value = Mock(skills_added=1)
+
+        loop = ExperimentLoop(
+            predict_phase=mock_predict,
+            evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn,
+            output_dir=tmp_path,
+            run_name="test",
+            skillbook_mode="per_repo",
+        )
+
+        train = [
+            {"instance_id": train_id, "repo": "django/django"},          # reused
+            {"instance_id": "django__django-22222", "repo": "django/django"},  # fresh
+        ]
+        val = [{"instance_id": "django__django-33333", "repo": "django/django"}]
+
+        stats = loop.run(train, val_instances=val, baseline_run_dir=baseline_dir)
+
+        assert stats["train_phase"]["reused_from_baseline"] == 1
+        assert stats["train_phase"]["freshly_run"] == 1
+        assert stats["train_phase"]["total_instances"] == 2

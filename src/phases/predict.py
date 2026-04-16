@@ -64,6 +64,7 @@ class PredictPhase:
         instance: Dict[str, Any],
         skillbook: Optional[Skillbook],
         iteration: int = 0,
+        phase: Optional[str] = None,
     ) -> PredictResult:
         """
         Run agent on instance with skillbook.
@@ -109,6 +110,7 @@ class PredictPhase:
             benchmark=self.benchmark,
             instance_id=instance_id,
             iteration=iteration,
+            phase=phase,
         )
 
         logger.info(

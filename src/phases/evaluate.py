@@ -68,6 +68,7 @@ class EvaluatePhase:
         instance: Dict[str, Any],
         patch: str,
         iteration: int = 0,
+        phase: Optional[str] = None,
     ) -> EvaluateResult:
         """
         Evaluate patch against SWE-bench test suite.
@@ -104,6 +105,7 @@ class EvaluatePhase:
                 benchmark=self.benchmark,
                 instance_id=instance_id,
                 iteration=iteration,
+                phase=phase,
             )
             return result
 
@@ -153,6 +155,7 @@ class EvaluatePhase:
             benchmark=self.benchmark,
             instance_id=instance_id,
             iteration=iteration,
+            phase=phase,
         )
 
         return result

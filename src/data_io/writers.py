@@ -41,6 +41,7 @@ def save_trajectory(
     benchmark: str,
     instance_id: str,
     iteration: int,
+    phase: Optional[str] = None,
 ) -> Path:
     """
     Save an agent trajectory to JSON file.
@@ -51,11 +52,15 @@ def save_trajectory(
         benchmark: Benchmark name (e.g., "swebench-lite")
         instance_id: SWE-bench instance ID
         iteration: Iteration number (0-indexed)
+        phase: Optional phase subdirectory ("train", "val_baseline", "val")
 
     Returns:
         Path to saved file
     """
-    output_dir = run_dir / benchmark / "trajectories" / instance_id
+    if phase:
+        output_dir = run_dir / benchmark / "trajectories" / phase / instance_id
+    else:
+        output_dir = run_dir / benchmark / "trajectories" / instance_id
     output_dir.mkdir(parents=True, exist_ok=True)
 
     output_path = output_dir / f"iter_{iteration}.json"
@@ -73,6 +78,7 @@ def save_skillbook(
     benchmark: str,
     iteration: int,
     instance_id: Optional[str] = None,
+    phase: Optional[str] = None,
 ) -> Path:
     """
     Save a skillbook to JSON file.
@@ -83,6 +89,7 @@ def save_skillbook(
         benchmark: Benchmark name
         iteration: Iteration number (0-indexed)
         instance_id: Optional instance ID for per-instance mode
+        phase: Optional phase subdirectory ("train")
 
     Returns:
         Path to saved file
@@ -90,6 +97,9 @@ def save_skillbook(
     if instance_id:
         # Per-instance mode
         output_dir = run_dir / benchmark / "skillbooks" / instance_id
+    elif phase:
+        # Phase-based (train)
+        output_dir = run_dir / benchmark / "skillbooks" / phase
     else:
         # Per-run mode
         output_dir = run_dir / benchmark / "skillbooks"
@@ -129,6 +139,7 @@ def save_result(
     benchmark: str,
     instance_id: str,
     iteration: int,
+    phase: Optional[str] = None,
 ) -> Path:
     """
     Save an evaluation result to JSON file.
@@ -139,11 +150,15 @@ def save_result(
         benchmark: Benchmark name
         instance_id: SWE-bench instance ID
         iteration: Iteration number (0-indexed)
+        phase: Optional phase subdirectory ("train", "val_baseline", "val")
 
     Returns:
         Path to saved file
     """
-    output_dir = run_dir / benchmark / "results" / instance_id
+    if phase:
+        output_dir = run_dir / benchmark / "results" / phase / instance_id
+    else:
+        output_dir = run_dir / benchmark / "results" / instance_id
     output_dir.mkdir(parents=True, exist_ok=True)
 
     output_path = output_dir / f"iter_{iteration}.json"

@@ -4,7 +4,9 @@
 import argparse
 import json
 import os
+import random
 import sys
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -87,7 +89,86 @@ def get_instances(config: dict) -> list:
         instances = [i for i in instances if i["instance_id"] not in exclude_set]
         logger.info(f"Excluded {before - len(instances)} instances: {before} -> {len(instances)}")
 
+    # Filter by repos
+    filter_repos = config["benchmark"].get("filter_repos")
+    if filter_repos:
+        filter_set = set(filter_repos)
+        before = len(instances)
+        instances = [i for i in instances if i.get("repo") in filter_set]
+        logger.info(f"Filtered by repos {filter_repos}: {before} -> {len(instances)}")
+
     return instances
+
+
+def split_instances(instances: list, config: dict) -> tuple:
+    """Split instances into train and val sets.
+
+    Returns:
+        (train_instances, val_instances). If no split config, returns (instances, []).
+    """
+    split_config = config.get("experiment", {}).get("split")
+    if not split_config:
+        return instances, []
+
+    ratio = split_config.get("val_ratio", 0.2)
+    seed = config.get("experiment", {}).get("random_seed", 42)
+
+    # Deterministic shuffle
+    rng = random.Random(seed)
+    shuffled = list(instances)
+    rng.shuffle(shuffled)
+
+    val_count = max(1, int(len(shuffled) * ratio))
+    val_instances = shuffled[:val_count]
+    train_instances = shuffled[val_count:]
+
+    logger.info(f"Split: {len(train_instances)} train, {len(val_instances)} val (ratio={ratio}, seed={seed})")
+    return train_instances, val_instances
+
+
+def list_repos(config: dict):
+    """List all unique repos in the dataset with instance counts.
+
+    If split config is set, also shows train/val split details.
+    """
+    instances = get_instances(config)
+    repo_counts = Counter(i.get("repo", "unknown") for i in instances)
+
+    print(f"\n{'Repo':<45} {'Count':>6}")
+    print("-" * 53)
+    for repo, count in sorted(repo_counts.items(), key=lambda x: -x[1]):
+        print(f"{repo:<45} {count:>6}")
+    print(f"\nTotal: {len(instances)} instances across {len(repo_counts)} repos")
+
+    # If split or filter_repos is configured, show split preview
+    filter_repos = config.get("benchmark", {}).get("filter_repos")
+    split_config = config.get("experiment", {}).get("split")
+
+    if filter_repos:
+        filtered = [i for i in instances if i.get("repo") in set(filter_repos)]
+        print(f"\nAfter filter_repos={filter_repos}: {len(filtered)} instances")
+
+        if split_config:
+            train, val = split_instances(filtered, config)
+            _print_split(train, val)
+    elif split_config:
+        train, val = split_instances(instances, config)
+        _print_split(train, val)
+
+    sys.exit(0)
+
+
+def _print_split(train: list, val: list):
+    """Print train/val split details."""
+    total = len(train) + len(val)
+    val_ratio = len(val) / total if total > 0 else 0
+    print(f"\nTrain/Val split ({len(train)}/{len(val)}, val_ratio={val_ratio:.2f}):")
+    print(f"\n  TRAIN ({len(train)} instances):")
+    for inst in train:
+        print(f"    - {inst['instance_id']}")
+    print(f"\n  VAL ({len(val)} instances):")
+    for inst in val:
+        print(f"    - {inst['instance_id']}")
 
 
 def main():
@@ -124,6 +205,26 @@ def main():
         action="store_true",
         help="Use SWE-optimized Reflector + SkillManager (extracts anti-patterns, preserves type prefixes).",
     )
+    parser.add_argument(
+        "--filter-repos",
+        nargs="+",
+        help="Only run instances from these repos (e.g., django/django)",
+    )
+    parser.add_argument(
+        "--val-ratio",
+        type=float,
+        help="Fraction of instances for validation (e.g., 0.2)",
+    )
+    parser.add_argument(
+        "--list-repos",
+        action="store_true",
+        help="List all unique repos in dataset with instance counts and exit",
+    )
+    parser.add_argument(
+        "--baseline-run-dir",
+        type=Path,
+        help="Previous run dir with baseline val results (skip re-running baseline pass)",
+    )
 
     args = parser.parse_args()
 
@@ -147,7 +248,15 @@ def main():
     if args.output:
         config.setdefault("output", {})["dir"] = args.output
     if args.custom_swe_learn:
-        config.setdefault("experiment", {})["custom_swe_learn"] = True
+        config.setdefault("experiment", {}).setdefault("skillbook", {})["custom_swe_learn"] = True
+    if args.filter_repos:
+        config.setdefault("benchmark", {})["filter_repos"] = args.filter_repos
+    if args.val_ratio is not None:
+        config.setdefault("experiment", {}).setdefault("split", {})["val_ratio"] = args.val_ratio
+
+    # List repos and exit (must be after config loading)
+    if args.list_repos:
+        list_repos(config)
 
     # Run appropriate phase
     # Note: Observability is enabled inside run_full_experiment with run_id as project name
@@ -175,11 +284,11 @@ def _make_agent_factory(config: dict, agent_config: LLMConfig, output_dir: Path)
             cost_limit=config.get("agent", {}).get("cost_limit", 5.0),
             output_dir=output_dir,
             namespace=config.get("environment", {}).get("namespace"),
-            context_management=config.get("agent", {}).get("context_management", True),
-            context_window=config.get("agent", {}).get("context_window", 65536),
+            context_management=config.get("agent", {}).get("context", {}).get("enabled", True),
+            context_window=config.get("agent", {}).get("context", {}).get("context_window", 65536),
             max_tokens=config.get("llm", {}).get("agent", {}).get("max_tokens", 4096),
-            keep_recent_messages=config.get("agent", {}).get("keep_recent_messages", 6),
-            truncate_threshold=config.get("agent", {}).get("truncate_threshold", 0.85),
+            keep_recent_messages=config.get("agent", {}).get("context", {}).get("keep_recent_messages", 6),
+            truncate_threshold=config.get("agent", {}).get("context", {}).get("truncate_threshold", 0.85),
         )
     return factory
 
@@ -227,7 +336,7 @@ def run_full_experiment(config: dict, args):
     from ace import SkillManager, Reflector as DefaultReflector
 
     # Check config for custom SWE learning (reflector + skill manager)
-    custom_swe_learn = config.get("experiment", {}).get("custom_swe_learn", False)
+    custom_swe_learn = config.get("experiment", {}).get("skillbook", {}).get("custom_swe_learn", False)
     if custom_swe_learn:
         from prompts import SWEReflector, SWESkillManager
         reflector = SWEReflector(ace_model, api_base=ace_config.api_base, api_key=ace_config.api_key)
@@ -269,8 +378,8 @@ def run_full_experiment(config: dict, args):
         output_dir=output_dir,
         run_name=run_name,
         benchmark=benchmark,
-        skillbook_mode=config["experiment"].get("skillbook_mode", "per_instance"),
-        dedup_config=config.get("deduplication"),
+        skillbook_mode=config.get("experiment", {}).get("skillbook", {}).get("mode", "per_instance"),
+        dedup_config=config.get("experiment", {}).get("skillbook", {}).get("deduplication"),
     )
 
     # Get instances
@@ -283,7 +392,11 @@ def run_full_experiment(config: dict, args):
             logger.error(f"Instance not found: {args.instance}")
             sys.exit(1)
 
+    # Split into train/val if configured
+    train_instances, val_instances = split_instances(instances, config)
+
     # Resume from previous runs (CLI --resume-dir overrides config)
+    # Note: resume only applies to train instances
     cli_resume_dirs = getattr(args, 'resume_dir', None)
     config_resume_dirs = config.get("experiment", {}).get("resume_dirs")
     resume_dirs = cli_resume_dirs or ([Path(p) for p in config_resume_dirs] if config_resume_dirs else None)
@@ -292,17 +405,17 @@ def run_full_experiment(config: dict, args):
 
     if resume_dirs:
         from data_io.resume_scanner import scan_resume_dirs
-        instance_ids = [i["instance_id"] for i in instances]
+        instance_ids = [i["instance_id"] for i in train_instances]
         resume_state = scan_resume_dirs(resume_dirs, benchmark, instance_ids, max_attempts)
 
         # Filter out fully complete instances (they get copied, not re-run)
         complete_ids = {iid for iid, rp in resume_state.items() if rp.is_fully_complete}
-        before = len(instances)
-        instances = [i for i in instances if i["instance_id"] not in complete_ids]
+        before = len(train_instances)
+        train_instances = [i for i in train_instances if i["instance_id"] not in complete_ids]
         logger.info(
             f"Resume: {len(complete_ids)} complete (copied), "
-            f"{before - len(complete_ids) - len(instances)} partial (continued), "
-            f"{len(instances)} to process"
+            f"{before - len(complete_ids) - len(train_instances)} partial (continued), "
+            f"{len(train_instances)} to process"
         )
 
     # Run experiment
@@ -313,14 +426,23 @@ def run_full_experiment(config: dict, args):
         output_dir=output_dir,
         run_name=run_name,
         max_attempts=max_attempts,
-        skillbook_mode=config["experiment"].get("skillbook_mode", "per_instance"),
+        skillbook_mode=config.get("experiment", {}).get("skillbook", {}).get("mode", "per_instance"),
         resume_state=resume_state,
         benchmark=benchmark,
         concurrency=concurrency,
         agent_factory=agent_factory,
     )
 
-    loop.run(instances, config)
+    # baseline_run_dir: CLI takes priority, then config
+    baseline_run_dir = getattr(args, 'baseline_run_dir', None)
+    if not baseline_run_dir:
+        config_baseline = config.get("experiment", {}).get("baseline_run_dir")
+        if config_baseline:
+            baseline_run_dir = Path(config_baseline)
+
+    loop.run(train_instances, config,
+             val_instances=val_instances if val_instances else None,
+             baseline_run_dir=baseline_run_dir)
 
 
 def run_predict_cmd(config: dict, args):
@@ -343,11 +465,11 @@ def run_predict_cmd(config: dict, args):
         cost_limit=config.get("agent", {}).get("cost_limit", 5.0),
         output_dir=output_dir,
         namespace=config.get("environment", {}).get("namespace"),
-        context_management=config.get("agent", {}).get("context_management", True),
-        context_window=config.get("agent", {}).get("context_window", 65536),
+        context_management=config.get("agent", {}).get("context", {}).get("enabled", True),
+        context_window=config.get("agent", {}).get("context", {}).get("context_window", 65536),
         max_tokens=config.get("llm", {}).get("agent", {}).get("max_tokens", 4096),
-        keep_recent_messages=config.get("agent", {}).get("keep_recent_messages", 6),
-        truncate_threshold=config.get("agent", {}).get("truncate_threshold", 0.85),
+        keep_recent_messages=config.get("agent", {}).get("context", {}).get("keep_recent_messages", 6),
+        truncate_threshold=config.get("agent", {}).get("context", {}).get("truncate_threshold", 0.85),
     )
 
     # Load instance
@@ -435,7 +557,7 @@ def run_learn_cmd(config: dict, args):
     from ace import SkillManager, Skillbook, Reflector as DefaultReflector
 
     # Check config for custom SWE learning (reflector + skill manager)
-    custom_swe_learn = config.get("experiment", {}).get("custom_swe_learn", False)
+    custom_swe_learn = config.get("experiment", {}).get("skillbook", {}).get("custom_swe_learn", False)
     if custom_swe_learn:
         from prompts import SWEReflector, SWESkillManager
         reflector = SWEReflector(ace_client, api_base=ace_config.api_base, api_key=ace_config.api_key)

@@ -43,7 +43,7 @@ class LearnPhase:
         output_dir: Path,
         run_name: str = "default",
         benchmark: str = "swebench-lite",
-        skillbook_mode: str = "per_instance",  # "per_instance" or "per_run"
+        skillbook_mode: str = "per_instance",  # "per_instance", "per_repo", or "global"
         dedup_config: Optional[Dict[str, Any]] = None,
     ):
         """
@@ -55,7 +55,7 @@ class LearnPhase:
             output_dir: Base directory for outputs
             run_name: Name of the experiment run
             benchmark: Benchmark name for output path
-            skillbook_mode: "per_instance" or "per_run"
+            skillbook_mode: "per_instance", "per_repo", or "global"
             dedup_config: Optional deduplication config dict
         """
         self.reflector = reflector
@@ -81,6 +81,7 @@ class LearnPhase:
         patch: str,
         iteration: int = 0,
         feedback: Optional[str] = None,
+        phase: Optional[str] = None,
     ) -> LearnResult:
         """
         Learn from trajectory and update skillbook.
@@ -178,6 +179,7 @@ class LearnPhase:
             benchmark=self.benchmark,
             iteration=iteration + 1,  # Save for next iteration
             instance_id=instance_id if self.skillbook_mode == "per_instance" else None,
+            phase=phase if self.skillbook_mode != "per_instance" else None,
         )
 
         return LearnResult(
@@ -216,7 +218,7 @@ def run_learn(
         output_dir: Output directory
         run_name: Run name
         benchmark: Benchmark name
-        skillbook_mode: "per_instance" or "per_run"
+        skillbook_mode: "per_instance", "per_repo", or "global"
         iteration: Iteration number
         feedback: Optional evaluation feedback
 
