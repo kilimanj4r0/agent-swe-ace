@@ -226,6 +226,17 @@ deduplication:
 
 Copy `.env.example` to `.env` and add your API keys.
 
+## Testing
+
+```bash
+# Run all tests (no API calls)
+uv run pytest src/tests/ -v -m "not integration"
+
+# LLM health check — verify endpoints from a config
+uv run pytest src/tests/test_llm_health.py -v --config=configs/agent-glm-ace-glm.yaml
+uv run pytest src/tests/test_llm_health.py -v --config=configs/agent-qwen3-ace-qwen3.yaml
+```
+
 ## Project Structure
 
 ```
