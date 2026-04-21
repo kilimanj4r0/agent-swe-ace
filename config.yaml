@@ -73,24 +73,28 @@ llm:
     provider: "hosted_vllm"
     model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
     # model: "Qwen/Qwen3-Coder-Next-FP8"
-    api_base: "http://localhost:8800/v1"
+    # api_base: "http://localhost:8800/v1"
+    # api_base: "http://10.100.30.241:8800/v1"
     api_key_env: "HOSTED_VLLM_API_KEY"
-    temperature: 0.7
+    temperature: 0.0
     max_tokens: 4096
 
   ace:
     provider: "zai"
     model: "glm-4.5-flash"
-    api_base: "https://api.z.ai/api/coding/paas/v4"
+    # model: "glm-4.7-flash"
+    # api_base: "https://api.z.ai/api/coding/paas/v4"
     # api_base: "https://open.bigmodel.cn/api/coding/paas/v4"
     api_key_env: "ZAI_API_KEY"
-    temperature: 0.7
+    temperature: 0.0
     max_tokens: 4096
 
 # --- Benchmark ---
 # benchmark.split is the HuggingFace dataset split (not experiment.split for train/val).
 benchmark:
   dataset: "princeton-nlp/SWE-bench_Lite"
+  # dataset: "princeton-nlp/SWE-bench_Verified"
+  # dataset: "SWE-bench/SWE-bench_Multilingual"
   split: "test"                        # HuggingFace dataset split (not to be confused with experiment.split)
   
   max_instances: null                  # null = all instances, or set number
