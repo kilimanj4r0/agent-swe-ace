@@ -22,7 +22,7 @@ uv run python -m src.cli.commands --filter-repos django/django --val-ratio 0.2 -
 
 # Run with override config (deep-merged on top of config.yaml)
 uv run python -m src.cli.commands --config configs/agent-glm-ace-glm.yaml
-uv run python -m src.cli.commands --config configs/agent-qwen3-ace-qwen3.yaml --custom-swe-learn --observe
+uv run python -m src.cli.commands --config configs/agent-qwen3-ace-qwen3-full-4a-swe.yaml --custom-swe-learn --observe
 
 # Resume from previous runs (copies completed instances, continues partial)
 uv run python -m src.cli.commands --resume-dir data/run_20260415_020540 data/run_20260415_020217
@@ -52,6 +52,12 @@ uv run pytest -m integration                 # Only real API call tests
 
 # Transform baseline data to run format
 uv run python scripts/transform_baseline_to_run_format.py --in-place
+
+# Watch running experiments (CLI dashboard)
+python scripts/watch_experiments.py              # auto-refresh every 10s
+python scripts/watch_experiments.py -n            # one-shot
+python scripts/watch_experiments.py --running     # only active runs
+python scripts/watch_experiments.py --all         # include old completed runs
 ```
 
 ## Architecture
@@ -66,24 +72,39 @@ src/
 ├── environments/     # Docker/swebench environment
 ├── evaluation/       # swebench.py (serialized via threading.Lock)
 ├── cli/              # commands.py (entry point)
-└── utils/            # logging.py (thread-local instance context), platform.py, llm_observer.py
-
 ├── prompts/          # SWE-optimized learning (SWEReflector, SWESkillManager, output models)
+├── tests/            # Unit and integration tests
+└── utils/            # logging.py (thread-local instance context), platform.py, llm_observer.py
 
 scripts/
 ├── prepare_images.py                     # Build Docker images for evaluation
 ├── analyze_token_usage.py                # Token usage analysis
-└── transform_baseline_to_run_format.py   # Convert baseline trajectories to run format
+├── transform_baseline_to_run_format.py   # Convert baseline trajectories to run format
+├── compare_runs.py                       # Compare completed experiment runs (summary table)
+├── watch_experiments.py                  # Live CLI dashboard for running experiments
+└── run_vllm_on_crash.sh                  # vLLM watchdog auto-restart
 
 configs/                                   # Override configs (deep-merged on top of config.yaml)
 ├── agent-glm-ace-glm.yaml
-├── agent-qwen3-ace-qwen3.yaml
+├── agent-glm-ace-glm-default.yaml
+├── agent-qwen3-ace-qwen3-full-1a-baseline.yaml
+├── agent-qwen3-ace-qwen3-full-4a-default.yaml
+├── agent-qwen3-ace-qwen3-full-4a-swe.yaml
+├── agent-qwen3-ace-qwen3-full-global-split-default.yaml
+├── agent-qwen3-ace-glm.yaml
 └── test.yaml
 
 data/
 ├── <run_timestamp>/  # Output per run
 │   ├── config.json
 │   ├── statistics.json  # Includes observability_project_url when --observe
+│   ├── experiment.log
+│   # New layout (benchmark-scoped subdirectory):
+│   ├── princeton-nlp__SWE-bench_Lite/
+│   │   ├── trajectories/<instance>/iter_N.json
+│   │   ├── results/<instance>/iter_N.json
+│   │   └── skillbooks/<instance>/iter_N.json
+│   # Old layout (flat, still supported):
 │   ├── trajectories/<instance>/iter_N.json
 │   ├── results/<instance>/iter_N.json
 │   └── skillbooks/<instance>/iter_N.json
