@@ -68,6 +68,7 @@ class ExperimentLoop:
         benchmark: str = "princeton-nlp__SWE-bench_Lite",
         concurrency: int = 1,
         agent_factory: Optional[Callable] = None,
+        force_learn: bool = True,
     ):
         """
         Initialize experiment loop.
@@ -96,6 +97,7 @@ class ExperimentLoop:
         self.benchmark = benchmark
         self.concurrency = concurrency
         self.agent_factory = agent_factory
+        self.force_learn = force_learn
 
         # Global skillbook for 'global' mode
         self.global_skillbook = Skillbook()
@@ -272,7 +274,9 @@ class ExperimentLoop:
                 result.final_resolved = True
 
             # Phase 3: Learn (conditionally)
-            should_learn = not frozen_skillbook and (force_learn or not evaluate_result.resolved)
+            # Skip learn when: single attempt AND config force_learn=False AND not overridden by runtime force_learn
+            skip_learn = effective_max <= 1 and not self.force_learn and not force_learn
+            should_learn = not frozen_skillbook and not skip_learn and (force_learn or not evaluate_result.resolved)
             if should_learn:
                 if evaluate_result.resolved:
                     logger.info(f"[{instance_id}] Learning from success (force_learn=True)...")
@@ -372,8 +376,9 @@ class ExperimentLoop:
                 result.final_resolved = True
                 break
 
-            # Phase 3: Learn (always run on unresolved to save skillbook)
-            if not evaluate_result.resolved:
+            # Phase 3: Learn (run on unresolved unless single-attempt with force_learn=False)
+            skip_learn = self.max_attempts <= 1 and not self.force_learn
+            if not evaluate_result.resolved and not skip_learn:
                 logger.info(f"[{instance_id}] Not resolved, learning from failure...")
                 trajectory = {
                     "info": {"exit_status": predict_result.exit_status},
@@ -470,6 +475,10 @@ class ExperimentLoop:
         train_max_attempts = 1 if two_phase else self.max_attempts
         train_phase = "train" if two_phase else None
 
+        # Timing
+        start_time = datetime.now()
+        instance_durations: List[float] = []
+
         try:
             if self.concurrency <= 1:
                 # Sequential mode
@@ -477,6 +486,7 @@ class ExperimentLoop:
                     instance_id = instance.get("instance_id", f"unknown-{i}")
                     logger.info(f"\n[TRAIN {i+1}/{len(instances)}] Processing {instance_id}")
 
+                    inst_start = datetime.now()
                     if two_phase and baseline_run_dir:
                         result = self._run_train_instance_reusing_baseline(
                             instance, baseline_run_dir, phase="train",
@@ -496,6 +506,7 @@ class ExperimentLoop:
                             phase=train_phase,
                         )
                     all_results[instance_id] = result
+                    instance_durations.append((datetime.now() - inst_start).total_seconds())
 
                     if result.final_resolved:
                         resolved_ids.append(instance_id)
@@ -507,10 +518,12 @@ class ExperimentLoop:
 
                 def _worker(instance):
                     instance_id = instance.get("instance_id", "unknown")
+                    inst_start = datetime.now()
                     try:
                         result = self._run_instance_concurrent(instance)
                         with results_lock:
                             all_results[instance_id] = result
+                            instance_durations.append((datetime.now() - inst_start).total_seconds())
                             if result.final_resolved:
                                 resolved_ids.append(instance_id)
                             else:
@@ -519,6 +532,7 @@ class ExperimentLoop:
                     except Exception as e:
                         logger.error(f"[{instance_id}] Worker failed: {e}")
                         with results_lock:
+                            instance_durations.append((datetime.now() - inst_start).total_seconds())
                             unresolved_ids.append(instance_id)
                             all_results[instance_id] = InstanceResult(
                                 instance_id=instance_id,
@@ -624,9 +638,21 @@ class ExperimentLoop:
             if is_observability_enabled():
                 observability_project_url = get_project_url()
 
+            end_time = datetime.now()
+            experiment_time = (end_time - start_time).total_seconds()
+            avg_instance_time = (
+                sum(instance_durations) / len(instance_durations)
+                if instance_durations
+                else 0.0
+            )
+
             statistics = {
                 "run_name": self.run_name,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": end_time.isoformat(),
+                "start_time": start_time.isoformat(),
+                "end_time": end_time.isoformat(),
+                "experiment_time_seconds": round(experiment_time, 1),
+                "avg_instance_time_seconds": round(avg_instance_time, 1),
                 "total_instances": total_planned,
                 "processed_instances": total_processed,
                 "resolved_count": resolved_count,
@@ -732,6 +758,9 @@ class ExperimentLoop:
             else:
                 logger.info("Experiment Complete!")
             logger.info(f"Resolved: {resolved_count}/{total_processed} ({resolution_rate:.1%})")
+            logger.info(f"Experiment time: {experiment_time:.1f}s ({experiment_time/60:.1f}min)")
+            if instance_durations:
+                logger.info(f"Avg per instance: {avg_instance_time:.1f}s ({avg_instance_time/60:.1f}min)")
             if two_phase and val_skillbook_stats:
                 logger.info(f"Val baseline: {val_baseline_stats['resolution_rate']:.1%}")
                 logger.info(f"Val skillbook: {val_skillbook_stats['resolution_rate']:.1%}")

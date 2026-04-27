@@ -130,6 +130,7 @@ class MiniSWEAgent:
             # Create agent config
             logger.debug("Creating agent config...")
             agent_config = AgentConfig(
+                system_template=system_template,
                 step_limit=self.step_limit,
                 cost_limit=self.cost_limit,
                 instance_template=instance_template,

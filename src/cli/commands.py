@@ -402,6 +402,7 @@ def run_full_experiment(config: dict, args):
     resume_dirs = cli_resume_dirs or ([Path(p) for p in config_resume_dirs] if config_resume_dirs else None)
     resume_state = {}
     max_attempts = config["experiment"].get("max_attempts", 2)
+    force_learn = config["experiment"].get("force_learn", True)
 
     if resume_dirs:
         from data_io.resume_scanner import scan_resume_dirs
@@ -426,6 +427,7 @@ def run_full_experiment(config: dict, args):
         output_dir=output_dir,
         run_name=run_name,
         max_attempts=max_attempts,
+        force_learn=force_learn,
         skillbook_mode=config.get("experiment", {}).get("skillbook", {}).get("mode", "per_instance"),
         resume_state=resume_state,
         benchmark=benchmark,

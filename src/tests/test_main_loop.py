@@ -390,6 +390,83 @@ class TestForceLearn:
         assert result.final_resolved is False
         mock_learn.run.assert_not_called()
 
+    def test_force_learn_false_skips_learn_on_single_attempt(self, tmp_path):
+        """When force_learn=False and max_attempts=1, learn is skipped entirely."""
+        from runners.main_loop import ExperimentLoop
+
+        mock_predict = Mock()
+        mock_predict.run.return_value = Mock(
+            instance_id="test__repo-123",
+            exit_status="submitted",
+            patch="bad patch",
+            trajectory=[],
+        )
+
+        mock_evaluate = Mock()
+        mock_evaluate.run.return_value = Mock(
+            instance_id="test__repo-123",
+            resolved=False,
+            feedback="Bad",
+            metrics={"resolved": 0.0},
+        )
+
+        mock_learn = Mock()
+
+        loop = ExperimentLoop(
+            predict_phase=mock_predict,
+            evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn,
+            output_dir=tmp_path,
+            run_name="test-run",
+            max_attempts=1,
+            force_learn=False,
+        )
+
+        instance = {"instance_id": "test__repo-123", "problem_statement": "Fix"}
+        result = loop.run_instance(instance, max_attempts_override=1)
+
+        assert result.final_resolved is False
+        mock_learn.run.assert_not_called()
+
+    def test_force_learn_true_runs_learn_on_single_attempt(self, tmp_path):
+        """When force_learn=True and max_attempts=1, learn still runs on unresolved."""
+        from runners.main_loop import ExperimentLoop
+
+        mock_predict = Mock()
+        mock_predict.run.return_value = Mock(
+            instance_id="test__repo-123",
+            exit_status="submitted",
+            patch="bad patch",
+            trajectory=[],
+        )
+
+        mock_evaluate = Mock()
+        mock_evaluate.run.return_value = Mock(
+            instance_id="test__repo-123",
+            resolved=False,
+            feedback="Bad",
+            metrics={"resolved": 0.0},
+        )
+
+        mock_learn = Mock()
+        mock_learn.run.return_value = Mock(skills_added=1)
+
+        loop = ExperimentLoop(
+            predict_phase=mock_predict,
+            evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn,
+            output_dir=tmp_path,
+            run_name="test-run",
+            max_attempts=1,
+            force_learn=True,
+        )
+
+        instance = {"instance_id": "test__repo-123", "problem_statement": "Fix"}
+        result = loop.run_instance(instance, max_attempts_override=1)
+
+        assert result.final_resolved is False
+        mock_learn.run.assert_called_once()
+
     def test_max_attempts_override_limits_iterations(self, tmp_path):
         """max_attempts_override=1 forces single attempt."""
         from runners.main_loop import ExperimentLoop

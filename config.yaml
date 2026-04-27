@@ -25,6 +25,8 @@ experiment:
   name: "mini-swe-v1-skillbook-learning"
   description: "ACE skillbook learning experiment on SWE-bench Lite"
   max_attempts: 10                     # Max retry attempts per instance (train phase overrides to 1)
+  force_learn: true                    # true = learn runs on unresolved even with max_attempts=1 (default)
+                                       # false = skip learn when max_attempts=1 (saves API costs in per_instance mode)
   concurrency: 1                       # Number of parallel instances (1 = sequential)
   random_seed: 42                      # For reproducibility (used in train/val split)
 
