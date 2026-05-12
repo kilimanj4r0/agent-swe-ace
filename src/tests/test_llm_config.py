@@ -21,6 +21,7 @@ load_dotenv()
 import litellm
 
 litellm.suppress_debug_info = True
+litellm.request_timeout = 10  # Fail fast if server unreachable
 
 
 @pytest.fixture
