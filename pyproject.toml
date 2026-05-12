@@ -3,7 +3,7 @@ name = "agent-swe-ace"
 version = "0.3.0"
 description = "ACE skillbook learning with mini-swe-agent for SWE-bench evaluation"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [
     { name = "Vladimir Makharev" }
@@ -12,7 +12,7 @@ keywords = ["swe-bench", "ace", "skillbook-learning", "llm", "agent"]
 
 dependencies = [
     "mini-swe-agent",
-    "ace-framework[all]",
+    "ace-framework[all]==0.9.1",
     "swebench",
     "datasets",
     "pyyaml",
