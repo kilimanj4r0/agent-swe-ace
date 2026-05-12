@@ -198,7 +198,7 @@ llm:
     model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
   ace:
     provider: "zai"
-    model: "glm-4.5-airx"
+    model: "glm-4.5-flash"
 
 benchmark:
   dataset: "princeton-nlp/SWE-bench_Lite"

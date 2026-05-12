@@ -22,7 +22,7 @@ class SWEReflector(Reflector):
     SWEReflectorOutput with anti_patterns, discoveries, unvalidated_hypotheses.
 
     Args:
-        model: Model identifier string (e.g. "zai/glm-4.5-airx").
+        model: Model identifier string (e.g. "zai/glm-4.5-flash").
         prompt_template: Custom prompt template (defaults to CUSTOM_REFLECTOR_PROMPT).
         max_retries: Maximum retries for structured output validation.
         api_base: Base URL for the LLM endpoint (required for hosted_vllm).
@@ -30,7 +30,7 @@ class SWEReflector(Reflector):
 
     Example::
 
-        reflector = SWEReflector("zai/glm-4.5-airx")
+        reflector = SWEReflector("zai/glm-4.5-flash")
         reflection = reflector.reflect(
             question="Fix the bug...",
             agent_output=agent_output,

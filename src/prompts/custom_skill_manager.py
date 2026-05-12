@@ -21,7 +21,7 @@ class SWESkillManager(SkillManager):
        to AVOID:, VERIFIED:, CONSIDER: prefixes in skill content
 
     Args:
-        model: Model identifier string (e.g. "zai/glm-4.5-airx").
+        model: Model identifier string (e.g. "zai/glm-4.5-flash").
         prompt_template: Custom prompt template (defaults to CUSTOM_SKILL_MANAGER_PROMPT).
         max_retries: Maximum retries for structured output validation.
         api_base: Base URL for the LLM endpoint (required for hosted_vllm).
@@ -29,7 +29,7 @@ class SWESkillManager(SkillManager):
 
     Example::
 
-        sm = SWESkillManager("zai/glm-4.5-airx")
+        sm = SWESkillManager("zai/glm-4.5-flash")
         output = sm.update_skills(
             reflections=(reflection_output,),
             skillbook=skillbook,

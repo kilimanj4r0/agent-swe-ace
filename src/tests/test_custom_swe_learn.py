@@ -156,7 +156,7 @@ class TestSWEReflectorOutputType:
         """SWEReflector should use SWEReflectorOutput as output type."""
         from prompts import SWEReflector, SWEReflectorOutput
 
-        reflector = SWEReflector("zai/glm-4.5-airx")
+        reflector = SWEReflector("zai/glm-4.5-flash")
         assert reflector._agent._output_type is SWEReflectorOutput
 
 
