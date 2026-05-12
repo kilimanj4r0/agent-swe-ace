@@ -11,6 +11,7 @@ logs/
 # Temporary files
 _*
 *.tmp
+output.json
 
 # Results (large output files)
 results/
