@@ -47,7 +47,7 @@ uv run python scripts/analyze_token_usage.py --data-dir data/ --output-csv token
 # Testing
 uv run pytest src/tests/ -v
 uv run pytest src/tests/ -v -k "not docker"  # Skip Docker tests
-uv run pytest src/tests/ -v -k "not LLMCall"  # Skip tests that call vLLM server (hang if unreachable)
+uv run pytest src/tests/ -v -m "not integration"  # Skip tests that make real API calls (hang if server unreachable)
 uv run pytest -m integration                 # Only real API call tests
 
 # Transform baseline data to run format

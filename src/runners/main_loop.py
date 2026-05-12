@@ -429,6 +429,13 @@ class ExperimentLoop:
                 "(train/val split). Use 'per_repo' or 'global' so skills accumulate across "
                 "training instances."
             )
+        if two_phase and self.concurrency > 1:
+            raise ValueError(
+                f"concurrency={self.concurrency} is incompatible with two-phase experiments "
+                f"(train/val split). The concurrent path does not support baseline reuse, "
+                f"so it would re-run all train predictions from scratch instead of only "
+                f"learning from existing baseline trajectories. Use concurrency=1."
+            )
 
         logger.info(f"\nStarting experiment: {self.run_name}")
         logger.info(f"Instances: {len(instances)}")
@@ -480,6 +487,11 @@ class ExperimentLoop:
         instance_durations: List[float] = []
 
         try:
+            # Pre-check baseline skillbook compatibility (once, before train loop)
+            baseline_sb_compat = None
+            if two_phase and baseline_run_dir and self.skillbook_mode in ("global", "per_repo"):
+                baseline_sb_compat = self._check_baseline_skillbook_compat(baseline_run_dir)
+
             if self.concurrency <= 1:
                 # Sequential mode
                 for i, instance in enumerate(instances):
@@ -490,6 +502,7 @@ class ExperimentLoop:
                     if two_phase and baseline_run_dir:
                         result = self._run_train_instance_reusing_baseline(
                             instance, baseline_run_dir, phase="train",
+                            allow_sb_merge=baseline_sb_compat is not False,
                         )
                         # Check if reused (no predict_result means it was reused)
                         if result.iterations and result.iterations[0].predict_result is None:
@@ -772,8 +785,51 @@ class ExperimentLoop:
 
         return statistics
 
+    def _check_baseline_skillbook_compat(self, baseline_dir: Path) -> bool | None:
+        """Check if baseline skillbooks are compatible with current config.
+
+        Compares skillbook settings between baseline and current run.
+        Returns True if compatible, False if not, None if cannot determine.
+        Logs the result.
+        """
+        baseline_cfg_path = baseline_dir / "config.json"
+        current_cfg_path = self.output_dir / "config.json"
+        if not baseline_cfg_path.exists() or not current_cfg_path.exists():
+            logger.info("[TRAIN] Cannot check baseline skillbook compatibility (missing config)")
+            return None
+        try:
+            b_cfg = json.loads(baseline_cfg_path.read_text())
+            c_cfg = json.loads(current_cfg_path.read_text())
+            b_sb = b_cfg.get("experiment", {}).get("skillbook", {})
+            c_sb = c_cfg.get("experiment", {}).get("skillbook", {})
+
+            mismatches = []
+            for key in ("custom_swe_learn",):
+                b_val = b_sb.get(key, False)
+                c_val = c_sb.get(key, False)
+                if b_val != c_val:
+                    mismatches.append(f"{key}: baseline={b_val} vs current={c_val}")
+
+            if mismatches:
+                logger.info(
+                    f"[TRAIN] Baseline skillbook incompatible ({'; '.join(mismatches)}), "
+                    f"will relearn all skills"
+                )
+                return False
+
+            logger.info(
+                f"[TRAIN] Baseline skillbook compatible "
+                f"(custom_swe_learn={c_sb.get('custom_swe_learn', False)}, "
+                f"mode: baseline={b_sb.get('mode','?')} -> current={c_sb.get('mode','?')})"
+            )
+            return True
+        except Exception as e:
+            logger.warning(f"[TRAIN] Failed to check baseline compatibility: {e}")
+            return None
+
     def _run_train_instance_reusing_baseline(
         self, instance: Dict[str, Any], baseline_dir: Path, phase: str = "train",
+        allow_sb_merge: bool = True,
     ) -> InstanceResult:
         """Run a single train instance, reusing existing trajectory from baseline_dir.
 
@@ -824,20 +880,56 @@ class ExperimentLoop:
 
                 skillbook = self.get_skillbook(repo)
 
-                # Run learn phase only
-                trajectory = {
-                    "info": traj_data.get("info", {}),
-                    "messages": traj_data.get("messages", []),
-                }
-                learn_result = self.learn.run(
-                    skillbook=skillbook,
-                    instance=instance,
-                    trajectory=trajectory,
-                    patch=patch,
-                    iteration=0,
-                    phase=phase,
+                # Check if baseline has a skillbook for this instance (global/per_repo only)
+                baseline_sb_path = (
+                    baseline_dir / self.benchmark / "skillbooks" / instance_id
                 )
-                self.update_skillbook(repo, skillbook)
+                baseline_sb_file = None
+                if baseline_sb_path.exists() and self.skillbook_mode in ("global", "per_repo"):
+                    iters = sorted(baseline_sb_path.glob("iter_*.json"))
+                    if iters:
+                        baseline_sb_file = iters[-1]
+                        if not allow_sb_merge:
+                            baseline_sb_file = None
+
+                if baseline_sb_file is not None:
+                    # Merge baseline skills into current skillbook, skip relearn
+                    from data_io.readers import load_skillbook as _load_sb
+                    baseline_sb = _load_sb(baseline_sb_file)
+                    existing_contents = {
+                        s.content for s in skillbook.skills()
+                    }
+                    merged = 0
+                    for skill in baseline_sb.skills():
+                        if skill.content not in existing_contents:
+                            skillbook.add_skill(
+                                section=skill.section,
+                                content=skill.content,
+                                justification=skill.justification,
+                                evidence=skill.evidence,
+                            )
+                            merged += 1
+                    self.update_skillbook(repo, skillbook)
+                    logger.info(
+                        f"[TRAIN] {instance_id}: merged {merged} baseline skills "
+                        f"(skipped relearn, {len(skillbook.skills())} total in skillbook)"
+                    )
+                    learn_result = None
+                else:
+                    # No baseline skillbook or per_instance mode → run learn
+                    trajectory = {
+                        "info": traj_data.get("info", {}),
+                        "messages": traj_data.get("messages", []),
+                    }
+                    learn_result = self.learn.run(
+                        skillbook=skillbook,
+                        instance=instance,
+                        trajectory=trajectory,
+                        patch=patch,
+                        iteration=0,
+                        phase=phase,
+                    )
+                    self.update_skillbook(repo, skillbook)
 
                 # Build result
                 result = InstanceResult(instance_id=instance_id)
