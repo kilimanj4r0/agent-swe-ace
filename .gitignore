@@ -1,9 +1,14 @@
 # User-defined
 opik/
 .other/
-data/
 logs/
 .docs/
+
+# Run data — block everything, then whitelist key files
+data/**
+!data/run_*/
+!data/run_*/config.json
+!data/run_*/statistics.json
 
 # Secrets
 .env

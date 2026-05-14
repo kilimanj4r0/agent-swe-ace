@@ -14,7 +14,7 @@ experiment:
   # --- Two-phase experiment settings (per_repo/global modes) ---
   split:                             # Enable train/val split
     val_ratio: 0.2                  # Fraction of instances for validation
-  baseline_run_dir: "data/run_20260426_210831_baseline"  # Reuse baseline results (skip re-running val baseline + train predict/eval)
+  baseline_run_dir: "data/run_20260426_210831_completed_baseline"  # Reuse baseline results (skip re-running val baseline + train predict/eval)
 
 agent:
   step_limit: 200                    # Max agent steps per attempt

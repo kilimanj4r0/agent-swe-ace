@@ -1,11 +1,11 @@
 experiment:
-  name: "per repo glm matblotlib test"
-  description: "ACE skillbook learning experiment per repo"
+  name: "single instance test"
+  description: "ACE skillbook learning"
   max_attempts: 1                    # Max retry attempts per instance
   concurrency: 1                       # Number of parallel instances (1 = sequential)
 
   skillbook:
-    mode: "per_repo"               # "per_instance", "per_repo", or "global"
+    mode: "per_instance"               # "per_instance", "per_repo", or "global"
     custom_swe_learn: false             # true = SWEReflector+SWESkillManager (anti-patterns, type prefixes)
                                        # false = default ACE Reflector+SkillManager (PydanticAI-based)
     deduplication:
@@ -17,9 +17,9 @@ experiment:
       min_pairs_to_report: 1           # Min duplicate pairs to trigger consolidation
 
   # --- Two-phase experiment settings (per_repo/global modes) ---
-  split:                             # Enable train/val split
-    val_ratio: 0.2                  # Fraction of instances for validation
-  baseline_run_dir: "data/run_20260415_020540"  # Reuse baseline results (skip re-running val baseline + train predict/eval)
+  # split:                             # Enable train/val split
+    # val_ratio: 0.2                  # Fraction of instances for validation
+  # baseline_run_dir: "data/run_20260415_020540"  # Reuse baseline results (skip re-running val baseline + train predict/eval)
   # resume_dirs:                       # Resume from previous runs (copies completed, continues partial)
   #   - data/run_20260415_020540
 
@@ -29,12 +29,12 @@ benchmark:
   # dataset: "princeton-nlp/SWE-bench_Verified"
   # dataset: "SWE-bench/SWE-bench_Multilingual"
   split: "test"
-  max_instances: null                 # null = all instances, or set number
+  max_instances: 1                 # null = all instances, or set number
   # --- Two-phase experiment settings (per_repo/global modes) ---
   # filter_repos: ["matplotlib/matplotlib"]                 # null = all repos, or list: ["django/django"]
 
 agent:
-  step_limit: 200                    # Max agent steps per attempt
+  step_limit: 2                    # Max agent steps per attempt
   cost_limit: 0.0                    # Effectively disabled for local vLLM (no real cost)
 
 llm:
