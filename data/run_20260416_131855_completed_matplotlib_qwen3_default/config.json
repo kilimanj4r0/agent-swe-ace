@@ -1,0 +1,102 @@
+{
+  "experiment": {
+    "name": "per repo qwen3 matblotlib test",
+    "description": "ACE skillbook learning experiment per repo",
+    "max_attempts": 1,
+    "concurrency": 1,
+    "random_seed": 42,
+    "skillbook": {
+      "mode": "per_repo",
+      "custom_swe_learn": false,
+      "deduplication": {
+        "enabled": true,
+        "similarity_threshold": 0.85,
+        "embedding_provider": "sentence_transformers",
+        "local_model_name": "all-MiniLM-L6-v2",
+        "within_section_only": true,
+        "min_pairs_to_report": 1
+      }
+    },
+    "split": {
+      "val_ratio": 0.2
+    },
+    "baseline_run_dir": "data/run_20260415_020540"
+  },
+  "environment": {
+    "type": "docker",
+    "namespace": "ghcr.io/epoch-research/"
+  },
+  "agent": {
+    "step_limit": 200,
+    "cost_limit": 0.0,
+    "context_management": false,
+    "context_window": 65536,
+    "keep_recent_messages": 6,
+    "truncate_threshold": 0.85
+  },
+  "llm": {
+    "agent": {
+      "provider": "hosted_vllm",
+      "model": "Qwen/Qwen3-Coder-Next-FP8",
+      "api_base": "http://10.100.30.241:8800/v1",
+      "api_key_env": "HOSTED_VLLM_API_KEY",
+      "temperature": 0.7,
+      "max_tokens": 4096
+    },
+    "ace": {
+      "provider": "hosted_vllm",
+      "model": "Qwen/Qwen3-Coder-Next-FP8",
+      "api_key_env": "HOSTED_VLLM_API_KEY",
+      "temperature": 0.7,
+      "max_tokens": 4096,
+      "api_base": "http://10.100.30.241:8800/v1"
+    }
+  },
+  "benchmark": {
+    "dataset": "princeton-nlp/SWE-bench_Lite",
+    "split": "test",
+    "max_instances": null,
+    "exclude_instances": [
+      "pylint-dev__pylint-7114",
+      "pylint-dev__pylint-7228",
+      "pylint-dev__pylint-7993",
+      "sympy__sympy-20590",
+      "scikit-learn__scikit-learn-25500",
+      "scikit-learn__scikit-learn-25570",
+      "scikit-learn__scikit-learn-25638",
+      "astropy__astropy-8707",
+      "astropy__astropy-8872",
+      "pylint-dev__pylint-7277",
+      "scikit-learn__scikit-learn-25102",
+      "scikit-learn__scikit-learn-25232",
+      "scikit-learn__scikit-learn-25747",
+      "scikit-learn__scikit-learn-25931",
+      "scikit-learn__scikit-learn-25973",
+      "scikit-learn__scikit-learn-26194",
+      "scikit-learn__scikit-learn-26323"
+    ],
+    "filter_repos": [
+      "matplotlib/matplotlib"
+    ]
+  },
+  "evaluation": {
+    "use_docker": true,
+    "timeout": 1800,
+    "rm_image": false,
+    "parallel": 1
+  },
+  "output": {
+    "dir": "data",
+    "save_trajectories": true,
+    "save_skillbooks": true,
+    "save_logs": true,
+    "log_level": "INFO"
+  },
+  "litellm": {
+    "suppress_debug_info": true
+  },
+  "observability": {
+    "enabled": false,
+    "project_name": "agent-swe-ace"
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "experiment": {
+    "name": "agent-glm-ace-glm",
+    "description": "ACE skillbook learning experiment on SWE-bench Lite",
+    "max_attempts": 2,
+    "skillbook_mode": "per_instance",
+    "random_seed": 42,
+    "custom_swe_learn": true
+  },
+  "environment": {
+    "type": "docker",
+    "namespace": "ghcr.io/epoch-research/"
+  },
+  "agent": {
+    "step_limit": 250,
+    "cost_limit": 0.0
+  },
+  "llm": {
+    "agent": {
+      "provider": "zai",
+      "model": "glm-4.5-airx",
+      "api_base": "http://localhost:8800/v1",
+      "api_key_env": "ZAI_API_KEY",
+      "temperature": 0.7,
+      "max_tokens": 4096
+    },
+    "ace": {
+      "provider": "zai",
+      "model": "glm-4.5-airx",
+      "api_key_env": "ZAI_API_KEY",
+      "temperature": 0.7,
+      "max_tokens": 4096
+    }
+  },
+  "benchmark": {
+    "dataset": "princeton-nlp/SWE-bench_Lite",
+    "split": "test",
+    "max_instances": 100,
+    "exclude_instances": [
+      "pylint-dev__pylint-7114",
+      "pylint-dev__pylint-7228",
+      "pylint-dev__pylint-7993",
+      "scikit-learn__scikit-learn-25500",
+      "scikit-learn__scikit-learn-25570",
+      "scikit-learn__scikit-learn-25747",
+      "scikit-learn__scikit-learn-25638",
+      "sympy__sympy-20590"
+    ]
+  },
+  "evaluation": {
+    "use_docker": true,
+    "timeout": 1800,
+    "rm_image": false,
+    "parallel": 1
+  },
+  "output": {
+    "dir": "data",
+    "save_trajectories": true,
+    "save_skillbooks": true,
+    "save_logs": true,
+    "log_level": "INFO"
+  },
+  "litellm": {
+    "suppress_debug_info": true
+  },
+  "deduplication": {
+    "enabled": true,
+    "similarity_threshold": 0.85,
+    "embedding_provider": "sentence_transformers",
+    "local_model_name": "all-MiniLM-L6-v2",
+    "within_section_only": true,
+    "min_pairs_to_report": 1
+  },
+  "observability": {
+    "enabled": false,
+    "project_name": "agent-swe-ace"
+  }
+}

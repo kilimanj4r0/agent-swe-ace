@@ -1,0 +1,55 @@
+{
+  "run_name": "agent-qwen3-ace-qwen3",
+  "timestamp": "2026-04-02T12:33:17.366144",
+  "total_instances": 50,
+  "processed_instances": 17,
+  "resolved_count": 9,
+  "unresolved_count": 8,
+  "resolution_rate": 0.5294117647058824,
+  "resolved_ids": [
+    "astropy__astropy-14995",
+    "astropy__astropy-6938",
+    "django__django-10914",
+    "django__django-11001",
+    "django__django-11039",
+    "django__django-11049",
+    "django__django-11099",
+    "django__django-11133",
+    "django__django-11179"
+  ],
+  "unresolved_ids": [
+    "astropy__astropy-12907",
+    "astropy__astropy-14182",
+    "astropy__astropy-14365",
+    "astropy__astropy-7746",
+    "django__django-10924",
+    "django__django-11019",
+    "django__django-11283",
+    "django__django-11422"
+  ],
+  "config": {
+    "max_attempts": 3,
+    "skillbook_mode": "per_instance"
+  },
+  "status": "completed",
+  "skillbook_assisted": {
+    "count": 4,
+    "ids": [
+      "astropy__astropy-14995",
+      "django__django-11099",
+      "django__django-11133",
+      "django__django-11179"
+    ],
+    "by_iteration": {
+      "1": [
+        "astropy__astropy-14995",
+        "django__django-11133"
+      ],
+      "2": [
+        "django__django-11099",
+        "django__django-11179"
+      ]
+    }
+  },
+  "observability_project_url": "http://localhost:5173/projects/agent-swe-ace_run_20260402_112418"
+}

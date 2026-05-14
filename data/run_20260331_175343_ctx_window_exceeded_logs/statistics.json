@@ -1,0 +1,32 @@
+{
+  "run_name": "agent-qwen3-ace-qwen3",
+  "timestamp": "2026-04-01T03:07:46.634651",
+  "total_instances": 292,
+  "processed_instances": 13,
+  "resolved_count": 4,
+  "unresolved_count": 9,
+  "resolution_rate": 0.3076923076923077,
+  "resolved_ids": [
+    "astropy__astropy-12907",
+    "django__django-11039",
+    "django__django-11049",
+    "django__django-11099"
+  ],
+  "unresolved_ids": [
+    "astropy__astropy-14182",
+    "astropy__astropy-14365",
+    "astropy__astropy-14995",
+    "astropy__astropy-6938",
+    "astropy__astropy-7746",
+    "django__django-10914",
+    "django__django-10924",
+    "django__django-11001",
+    "django__django-11019"
+  ],
+  "config": {
+    "max_attempts": 2,
+    "skillbook_mode": "per_instance"
+  },
+  "status": "completed",
+  "observability_project_url": "http://localhost:5173/projects/agent-swe-ace_run_20260331_175343"
+}

@@ -1,0 +1,30 @@
+{
+  "run_name": "agent-qwen3-ace-qwen3-1-4-concurrency",
+  "timestamp": "2026-04-15T01:39:23.008159",
+  "total_instances": 4,
+  "processed_instances": 4,
+  "resolved_count": 2,
+  "unresolved_count": 2,
+  "resolution_rate": 0.5,
+  "resolved_ids": [
+    "astropy__astropy-12907",
+    "astropy__astropy-14995"
+  ],
+  "unresolved_ids": [
+    "astropy__astropy-14182",
+    "astropy__astropy-14365"
+  ],
+  "config": {
+    "max_attempts": 1,
+    "skillbook_mode": "per_instance",
+    "concurrency": 4
+  },
+  "status": "completed",
+  "baseline_dir": "data/run_20260415_002734",
+  "baseline_agent_model": "Qwen/Qwen3-Coder-Next-FP8",
+  "skillbook_assisted": {
+    "count": 0,
+    "ids": [],
+    "by_iteration": {}
+  }
+}

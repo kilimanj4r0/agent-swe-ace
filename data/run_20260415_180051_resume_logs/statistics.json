@@ -1,0 +1,32 @@
+{
+  "run_name": "test",
+  "timestamp": "2026-04-15T18:22:18.512268",
+  "total_instances": 4,
+  "processed_instances": 4,
+  "resolved_count": 2,
+  "unresolved_count": 2,
+  "resolution_rate": 0.5,
+  "resolved_ids": [
+    "astropy__astropy-12907",
+    "astropy__astropy-14995"
+  ],
+  "unresolved_ids": [
+    "astropy__astropy-14182",
+    "astropy__astropy-14365"
+  ],
+  "config": {
+    "max_attempts": 2,
+    "skillbook_mode": "per_instance",
+    "concurrency": 1
+  },
+  "status": "completed",
+  "resume_dirs": [
+    "data/run_20260415_020428"
+  ],
+  "resumed_complete_count": 2,
+  "skillbook_assisted": {
+    "count": 0,
+    "ids": [],
+    "by_iteration": {}
+  }
+}

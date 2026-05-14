@@ -1,0 +1,21 @@
+{
+  "run_name": "agent-qwen-ace-qwen",
+  "timestamp": "2026-03-22T22:51:22.572405",
+  "total_instances": 2,
+  "processed_instances": 2,
+  "resolved_count": 0,
+  "unresolved_count": 2,
+  "resolution_rate": 0.0,
+  "resolved_ids": [],
+  "unresolved_ids": [
+    "astropy__astropy-12907",
+    "astropy__astropy-14182"
+  ],
+  "config": {
+    "max_attempts": 5,
+    "skillbook_mode": "per_instance"
+  },
+  "status": "completed",
+  "baseline_dir": "data/run_baseline_qwen3coder",
+  "observability_project_url": "http://localhost:5173/projects/agent-swe-ace_run_20260322_223509"
+}

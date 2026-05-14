@@ -1,0 +1,67 @@
+{
+  "experiment": {
+    "name": "agent-qwen-ace-qwen",
+    "description": "ACE skillbook learning experiment on SWE-bench Lite",
+    "max_attempts": 10,
+    "skillbook_mode": "per_instance",
+    "random_seed": 42
+  },
+  "environment": {
+    "type": "docker",
+    "image_namespace": "swebench"
+  },
+  "agent": {
+    "step_limit": 250,
+    "cost_limit": 0.0
+  },
+  "llm": {
+    "agent": {
+      "provider": "hosted_vllm",
+      "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+      "api_base": "http://localhost:8800/v1",
+      "api_key_env": "HOSTED_VLLM_API_KEY",
+      "temperature": 0.7,
+      "max_tokens": 4096
+    },
+    "ace": {
+      "provider": "hosted_vllm",
+      "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+      "api_base": "http://localhost:8800/v1",
+      "api_key_env": "HOSTED_VLLM_API_KEY",
+      "temperature": 0.7,
+      "max_tokens": 4096
+    }
+  },
+  "benchmark": {
+    "dataset": "princeton-nlp/SWE-bench_Lite",
+    "split": "test",
+    "max_instances": null
+  },
+  "evaluation": {
+    "use_docker": true,
+    "timeout": 1800,
+    "parallel": 1
+  },
+  "output": {
+    "dir": "data",
+    "save_trajectories": true,
+    "save_skillbooks": true,
+    "save_logs": true,
+    "log_level": "INFO"
+  },
+  "litellm": {
+    "suppress_debug_info": true
+  },
+  "deduplication": {
+    "enabled": true,
+    "similarity_threshold": 0.85,
+    "embedding_provider": "sentence_transformers",
+    "local_model_name": "all-MiniLM-L6-v2",
+    "within_section_only": true,
+    "min_pairs_to_report": 1
+  },
+  "observability": {
+    "enabled": true,
+    "project_name": "agent-swe-ace"
+  }
+}

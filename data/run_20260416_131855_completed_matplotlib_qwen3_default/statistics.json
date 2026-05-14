@@ -1,0 +1,113 @@
+{
+  "run_name": "per repo qwen3 matblotlib test",
+  "timestamp": "2026-04-16T14:25:07.024615",
+  "total_instances": 19,
+  "processed_instances": 19,
+  "resolved_count": 9,
+  "unresolved_count": 10,
+  "resolution_rate": 0.47368421052631576,
+  "resolved_ids": [
+    "matplotlib__matplotlib-23562",
+    "matplotlib__matplotlib-23563",
+    "matplotlib__matplotlib-23913",
+    "matplotlib__matplotlib-23964",
+    "matplotlib__matplotlib-23987",
+    "matplotlib__matplotlib-25332",
+    "matplotlib__matplotlib-25433",
+    "matplotlib__matplotlib-25442",
+    "matplotlib__matplotlib-26020"
+  ],
+  "unresolved_ids": [
+    "matplotlib__matplotlib-18869",
+    "matplotlib__matplotlib-22711",
+    "matplotlib__matplotlib-23299",
+    "matplotlib__matplotlib-23314",
+    "matplotlib__matplotlib-23476",
+    "matplotlib__matplotlib-24149",
+    "matplotlib__matplotlib-24265",
+    "matplotlib__matplotlib-24334",
+    "matplotlib__matplotlib-25498",
+    "matplotlib__matplotlib-26011"
+  ],
+  "config": {
+    "max_attempts": 1,
+    "skillbook_mode": "per_repo",
+    "concurrency": 1
+  },
+  "status": "completed",
+  "train_phase": {
+    "total_instances": 19,
+    "resolved_count": 9,
+    "unresolved_count": 10,
+    "resolution_rate": 0.47368421052631576,
+    "resolved_ids": [
+      "matplotlib__matplotlib-23562",
+      "matplotlib__matplotlib-23563",
+      "matplotlib__matplotlib-23913",
+      "matplotlib__matplotlib-23964",
+      "matplotlib__matplotlib-23987",
+      "matplotlib__matplotlib-25332",
+      "matplotlib__matplotlib-25433",
+      "matplotlib__matplotlib-25442",
+      "matplotlib__matplotlib-26020"
+    ],
+    "unresolved_ids": [
+      "matplotlib__matplotlib-18869",
+      "matplotlib__matplotlib-22711",
+      "matplotlib__matplotlib-23299",
+      "matplotlib__matplotlib-23314",
+      "matplotlib__matplotlib-23476",
+      "matplotlib__matplotlib-24149",
+      "matplotlib__matplotlib-24265",
+      "matplotlib__matplotlib-24334",
+      "matplotlib__matplotlib-25498",
+      "matplotlib__matplotlib-26011"
+    ],
+    "total_skills_learned": 41,
+    "reused_from_baseline": 19,
+    "freshly_run": 0,
+    "baseline_resolved_count": 1,
+    "baseline_unresolved_count": 18,
+    "baseline_resolution_rate": 0.05263157894736842
+  },
+  "val_baseline_phase": {
+    "total_instances": 4,
+    "resolved_count": 0,
+    "unresolved_count": 4,
+    "resolution_rate": 0.0,
+    "resolved_ids": [],
+    "unresolved_ids": [
+      "matplotlib__matplotlib-22835",
+      "matplotlib__matplotlib-24970",
+      "matplotlib__matplotlib-25079",
+      "matplotlib__matplotlib-25311"
+    ],
+    "skillbook_skills": 0
+  },
+  "val_skillbook_phase": {
+    "total_instances": 4,
+    "resolved_count": 1,
+    "unresolved_count": 3,
+    "resolution_rate": 0.25,
+    "resolved_ids": [
+      "matplotlib__matplotlib-25311"
+    ],
+    "unresolved_ids": [
+      "matplotlib__matplotlib-22835",
+      "matplotlib__matplotlib-24970",
+      "matplotlib__matplotlib-25079"
+    ],
+    "skillbook_skills": 41
+  },
+  "summary": {
+    "train_resolution_rate": 0.47368421052631576,
+    "val_baseline_resolution_rate": 0.0,
+    "val_skillbook_resolution_rate": 0.25,
+    "skillbook_improvement": "+0.250",
+    "skillbook_improvement_pct": "N/A",
+    "newly_resolved_by_skillbook": [
+      "matplotlib__matplotlib-25311"
+    ],
+    "lost_by_skillbook": []
+  }
+}

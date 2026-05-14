@@ -1,0 +1,32 @@
+{
+  "run_name": "agent-qwen3-ace-qwen3",
+  "timestamp": "2026-04-01T18:13:41.050677",
+  "total_instances": 1,
+  "processed_instances": 1,
+  "resolved_count": 1,
+  "unresolved_count": 0,
+  "resolution_rate": 1.0,
+  "resolved_ids": [
+    "astropy__astropy-12907"
+  ],
+  "unresolved_ids": [],
+  "config": {
+    "max_attempts": 2,
+    "skillbook_mode": "per_instance"
+  },
+  "status": "completed",
+  "baseline_dir": "data/run_baseline_qwen3coder",
+  "baseline_agent_model": "openai/Qwen/Qwen3-Coder-30B-A3B-Instruct",
+  "skillbook_assisted": {
+    "count": 1,
+    "ids": [
+      "astropy__astropy-12907"
+    ],
+    "by_iteration": {
+      "1": [
+        "astropy__astropy-12907"
+      ]
+    }
+  },
+  "observability_project_url": "http://localhost:5173/projects/agent-swe-ace_run_20260401_175333"
+}

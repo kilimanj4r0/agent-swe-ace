@@ -1,0 +1,18 @@
+{
+  "run_name": "agent-glm-ace-glm",
+  "timestamp": "2026-03-31T02:15:37.482848",
+  "total_instances": 1,
+  "processed_instances": 1,
+  "resolved_count": 1,
+  "unresolved_count": 0,
+  "resolution_rate": 1.0,
+  "resolved_ids": [
+    "astropy__astropy-12907"
+  ],
+  "unresolved_ids": [],
+  "config": {
+    "max_attempts": 3,
+    "skillbook_mode": "per_instance"
+  },
+  "status": "completed"
+}
