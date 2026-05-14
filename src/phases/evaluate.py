@@ -1,6 +1,7 @@
 # src/phases/evaluate.py
 """Phase 2: Evaluate patch using SWE-bench harness."""
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -8,6 +9,25 @@ from typing import Any, Dict, Optional
 from evaluation import validate_patch
 from loguru import logger
 from data_io.writers import save_result
+
+
+def _is_valid_patch(patch: str) -> bool:
+    """Check if patch is a format that git apply / patch can handle.
+
+    Accepts:
+    - git diff format (diff --git a/X b/X ...)
+    - bare unified diff (--- X\\n+++ X\\n@@ ... @@) with all three markers
+    """
+    stripped = patch.lstrip()
+    if stripped.startswith("diff --git"):
+        return True
+    if (
+        re.search(r"^--- ", stripped, re.MULTILINE)
+        and re.search(r"^\+\+\+ ", stripped, re.MULTILINE)
+        and re.search(r"^@@ ", stripped, re.MULTILINE)
+    ):
+        return True
+    return False
 
 
 @dataclass
@@ -63,6 +83,32 @@ class EvaluatePhase:
         self.benchmark = benchmark
         self.namespace = namespace
 
+    def _save_early_result(self, instance_id, iteration, phase, resolved, feedback, metrics, patch=None):
+        """Save an early-return result (empty/invalid patch) to disk."""
+        result = EvaluateResult(
+            instance_id=instance_id,
+            iteration=iteration,
+            resolved=resolved,
+            feedback=feedback,
+            metrics=metrics,
+        )
+        save_data = {
+            "resolved": result.resolved,
+            "feedback": result.feedback,
+            "metrics": result.metrics,
+        }
+        if patch is not None:
+            save_data["patch"] = patch[:1000] + "..." if len(patch) > 1000 else patch
+        result.result_path = save_result(
+            result=save_data,
+            run_dir=self.output_dir,
+            benchmark=self.benchmark,
+            instance_id=instance_id,
+            iteration=iteration,
+            phase=phase,
+        )
+        return result
+
     def run(
         self,
         instance: Dict[str, Any],
@@ -87,27 +133,23 @@ class EvaluatePhase:
         # Handle empty patch
         if not patch or not patch.strip():
             logger.warning(f"[Evaluate] Empty patch for {instance_id}")
-            result = EvaluateResult(
-                instance_id=instance_id,
-                iteration=iteration,
+            return self._save_early_result(
+                instance_id, iteration, phase,
                 resolved=False,
                 feedback="No patch submitted. Agent did not produce a valid patch.",
                 metrics={"resolved": 0.0, "patch_empty": 1.0},
             )
-            # Save result
-            result.result_path = save_result(
-                result={
-                    "resolved": result.resolved,
-                    "feedback": result.feedback,
-                    "metrics": result.metrics,
-                },
-                run_dir=self.output_dir,
-                benchmark=self.benchmark,
-                instance_id=instance_id,
-                iteration=iteration,
-                phase=phase,
+
+        # Validate patch format
+        if not _is_valid_patch(patch):
+            logger.warning(f"[Evaluate] Invalid patch format for {instance_id}")
+            return self._save_early_result(
+                instance_id, iteration, phase,
+                resolved=False,
+                feedback="Patch is not a valid diff format (expected diff --git or unified diff with hunks).",
+                metrics={"resolved": 0.0, "patch_invalid_format": 1.0, "patch_length": len(patch)},
+                patch=patch,
             )
-            return result
 
         # Run evaluation
         try:
