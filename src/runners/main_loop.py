@@ -587,6 +587,13 @@ class ExperimentLoop:
                 logger.info(f"Skills learned: {skill_count}")
                 logger.info(f"{'='*60}")
 
+                # Post-train dedup sweep
+                if self.learn.dedup_manager is not None:
+                    dedup_ops = self.learn._consolidate(final_skillbook)
+                    if isinstance(dedup_ops, int) and dedup_ops > 0:
+                        skill_count = len(final_skillbook.skills())
+                        logger.info(f"Post-train dedup: applied {dedup_ops} operations, {skill_count} skills remain")
+
                 # Save final skillbook snapshot
                 from data_io.writers import save_skillbook
                 save_skillbook(

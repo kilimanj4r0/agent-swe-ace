@@ -21,6 +21,7 @@ class LearnResult:
     iteration: int
     skills_added: int
     skills_updated: int
+    skills_removed: int = 0
     skillbook_path: Optional[Path] = None
 
 
@@ -72,6 +73,51 @@ class LearnPhase:
             logger.info(f"[Learn] Deduplication enabled with threshold {cfg.similarity_threshold}")
         else:
             self.dedup_manager = None
+
+    def _consolidate(self, skillbook: Skillbook) -> int:
+        """Detect similar pairs and apply deterministic consolidation operations."""
+        if not self.dedup_manager:
+            return 0
+        self.dedup_manager.detector.ensure_embeddings(skillbook)
+        pairs = self.dedup_manager.detector.detect_similar_pairs(skillbook)
+        if not pairs:
+            return 0
+        logger.info(f"[Learn] Found {len(pairs)} similar pairs, consolidating")
+
+        from ace.deduplication.operations import DeleteOp, KeepOp, MergeOp
+        ops = []
+        for skill_a, skill_b, similarity in pairs:
+            score_a = skill_a.helpful - skill_a.harmful
+            score_b = skill_b.helpful - skill_b.harmful
+            a_validated = skill_a.helpful > 0 or skill_a.harmful > 0
+            b_validated = skill_b.helpful > 0 or skill_b.harmful > 0
+
+            keep, remove = (skill_a, skill_b) if score_a >= score_b else (skill_b, skill_a)
+
+            if a_validated and b_validated:
+                delta = abs(score_a - score_b)
+                if delta > 1:
+                    ops.append(MergeOp(
+                        source_ids=[keep.id, remove.id],
+                        keep_id=keep.id,
+                        merged_content=keep.content,
+                        reasoning=f"Merged ({similarity:.0%} similar), kept {keep.id} (score {score_a} vs {score_b})",
+                    ))
+                else:
+                    ops.append(KeepOp(
+                        skill_ids=[skill_a.id, skill_b.id],
+                        differentiation=f"Similar scores ({score_a} vs {score_b})",
+                        reasoning=f"Both validated, scores within margin ({similarity:.0%} similar)",
+                    ))
+            else:
+                ops.append(DeleteOp(
+                    skill_id=remove.id,
+                    reasoning=f"Duplicate of {keep.id} ({similarity:.0%} similar), unvalidated",
+                ))
+
+        self.dedup_manager.apply_operations(ops, skillbook)
+        logger.info(f"[Learn] Consolidation: applied {len(ops)} operations")
+        return len(ops)
 
     def run(
         self,
@@ -161,16 +207,12 @@ class LearnPhase:
             logger.info(f"[Learn] Added {skills_added} skills, updated {skills_updated} skills")
 
             # Run deduplication if enabled
-            if self.dedup_manager:
-                similarity_report = self.dedup_manager.get_similarity_report(skillbook)
-                if similarity_report:
-                    logger.info("[Learn] Found similar skills, consolidating")
-                    # Log the report for debugging
-                    logger.debug(f"[Learn] Similarity report:\n{similarity_report}")
+            skills_removed = self._consolidate(skillbook)
         except Exception as e:
             logger.error(f"[Learn] Skill update failed: {e}")
             skills_added = 0
             skills_updated = 0
+            skills_removed = 0
 
         # Save skillbook
         skillbook_path = save_skillbook(
@@ -187,6 +229,7 @@ class LearnPhase:
             iteration=iteration,
             skills_added=skills_added,
             skills_updated=skills_updated,
+            skills_removed=skills_removed,
             skillbook_path=skillbook_path,
         )
 
