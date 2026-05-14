@@ -40,11 +40,24 @@ def validate_patch_docker(
     instance_id = instance["instance_id"]
 
     with _eval_lock:
-        # Redirect SWE-bench logs to output_dir if provided
+        # Redirect SWE-bench logs to output_dir if provided.
+        # Must patch both the constants module AND the run_evaluation module's
+        # local binding (from-import creates a separate name binding).
         original_log_dir = None
+        original_run_eval_log_dir = None
+        original_reporting_log_dir = None
         if output_dir:
+            target_dir = Path(output_dir) / "eval_logs"
+            from swebench.harness import run_evaluation as _run_eval
+            from swebench.harness import reporting as _reporting
+
             original_log_dir = constants.RUN_EVALUATION_LOG_DIR
-            constants.RUN_EVALUATION_LOG_DIR = Path(output_dir) / "swebench_logs"
+            original_run_eval_log_dir = _run_eval.RUN_EVALUATION_LOG_DIR
+            original_reporting_log_dir = _reporting.RUN_EVALUATION_LOG_DIR
+
+            constants.RUN_EVALUATION_LOG_DIR = target_dir
+            _run_eval.RUN_EVALUATION_LOG_DIR = target_dir
+            _reporting.RUN_EVALUATION_LOG_DIR = target_dir
 
         try:
             client = docker.from_env()
@@ -66,7 +79,7 @@ def validate_patch_docker(
                 rm_image=rm_image,
                 force_rebuild=False,
                 client=client,
-                run_id="ace_eval",
+                run_id=output_dir.name,
                 timeout=timeout
             )
 
@@ -79,6 +92,10 @@ def validate_patch_docker(
             return False
 
         finally:
-            # Restore original log directory
+            # Restore original log directory in all patched modules
             if original_log_dir is not None:
+                from swebench.harness import run_evaluation as _run_eval
+                from swebench.harness import reporting as _reporting
                 constants.RUN_EVALUATION_LOG_DIR = original_log_dir
+                _run_eval.RUN_EVALUATION_LOG_DIR = original_run_eval_log_dir
+                _reporting.RUN_EVALUATION_LOG_DIR = original_reporting_log_dir
