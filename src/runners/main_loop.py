@@ -13,6 +13,9 @@ from typing import Any, Callable, Dict, List, Optional
 from ace import Skillbook
 from loguru import logger
 
+from phases.evaluate import EvaluateResult
+from phases.predict import PredictResult
+
 from data_io.resume_scanner import ResumePoint, copy_instance_artifacts
 from data_io.writers import save_statistics, save_config
 from utils.llm_observer import get_project_url, is_enabled as is_observability_enabled
@@ -98,6 +101,7 @@ class ExperimentLoop:
         self.concurrency = concurrency
         self.agent_factory = agent_factory
         self.force_learn = force_learn
+        self._baseline_run_dir = None
 
         # Global skillbook for 'global' mode
         self.global_skillbook = Skillbook()
@@ -179,6 +183,7 @@ class ExperimentLoop:
         force_learn: bool = False,
         max_attempts_override: Optional[int] = None,
         phase: Optional[str] = None,
+        skip_baseline_reuse: bool = False,
     ) -> InstanceResult:
         """
         Run experiment loop for a single instance.
@@ -190,6 +195,7 @@ class ExperimentLoop:
             force_learn: If True, run learn even when resolved
             max_attempts_override: Override self.max_attempts for this call
             phase: Phase subdirectory for output ("train", "val_baseline", "val")
+            skip_baseline_reuse: If True, ignore self._baseline_run_dir
 
         Returns:
             InstanceResult with all iteration results
@@ -204,11 +210,13 @@ class ExperimentLoop:
                 force_learn=force_learn,
                 max_attempts_override=max_attempts_override,
                 phase=phase,
+                skip_baseline_reuse=skip_baseline_reuse,
             )
 
     def _run_instance_inner(self, instance, instance_id, repo, initial_skillbook=None,
                             frozen_skillbook=False, force_learn=False,
-                            max_attempts_override=None, phase=None):
+                            max_attempts_override=None, phase=None,
+                            skip_baseline_reuse=False):
         """Inner implementation with instance context set."""
         effective_max = max_attempts_override if max_attempts_override is not None else self.max_attempts
 
@@ -243,21 +251,33 @@ class ExperimentLoop:
         for iteration in range(start_iteration, effective_max):
             logger.info(f"\n--- Iteration {iteration + 1}/{effective_max} ---")
 
-            # Phase 1: Predict
-            predict_result = self.predict.run(
-                instance=instance,
-                skillbook=skillbook,
-                iteration=iteration,
-                phase=phase,
-            )
+            # Try baseline reuse at iter_0 (single-phase per_instance mode)
+            baseline_reused = False
+            if iteration == 0 and start_iteration == 0 and self._baseline_run_dir and not skip_baseline_reuse:
+                baseline_pred, baseline_eval = self._try_load_baseline_iter0(
+                    instance_id, phase=phase
+                )
+                if baseline_pred and baseline_eval:
+                    predict_result = baseline_pred
+                    evaluate_result = baseline_eval
+                    baseline_reused = True
 
-            # Phase 2: Evaluate
-            evaluate_result = self.evaluate.run(
-                instance=instance,
-                patch=predict_result.patch,
-                iteration=iteration,
-                phase=phase,
-            )
+            if not baseline_reused:
+                # Phase 1: Predict
+                predict_result = self.predict.run(
+                    instance=instance,
+                    skillbook=skillbook,
+                    iteration=iteration,
+                    phase=phase,
+                )
+
+                # Phase 2: Evaluate
+                evaluate_result = self.evaluate.run(
+                    instance=instance,
+                    patch=predict_result.patch,
+                    iteration=iteration,
+                    phase=phase,
+                )
 
             # Record iteration
             iter_result = IterationResult(
@@ -349,19 +369,31 @@ class ExperimentLoop:
         for iteration in range(start_iteration, self.max_attempts):
             logger.info(f"[{instance_id}] Iteration {iteration + 1}/{self.max_attempts}")
 
-            # Phase 1: Predict (use worker's own predict phase)
-            predict_result = worker_predict.run(
-                instance=instance,
-                skillbook=skillbook,
-                iteration=iteration,
-            )
+            # Try baseline reuse at iter_0 (single-phase per_instance mode)
+            baseline_reused = False
+            if iteration == 0 and start_iteration == 0 and self._baseline_run_dir:
+                baseline_pred, baseline_eval = self._try_load_baseline_iter0(
+                    instance_id
+                )
+                if baseline_pred and baseline_eval:
+                    predict_result = baseline_pred
+                    evaluate_result = baseline_eval
+                    baseline_reused = True
 
-            # Phase 2: Evaluate
-            evaluate_result = self.evaluate.run(
-                instance=instance,
-                patch=predict_result.patch,
-                iteration=iteration,
-            )
+            if not baseline_reused:
+                # Phase 1: Predict (use worker's own predict phase)
+                predict_result = worker_predict.run(
+                    instance=instance,
+                    skillbook=skillbook,
+                    iteration=iteration,
+                )
+
+                # Phase 2: Evaluate
+                evaluate_result = self.evaluate.run(
+                    instance=instance,
+                    patch=predict_result.patch,
+                    iteration=iteration,
+                )
 
             iter_result = IterationResult(
                 iteration=iteration,
@@ -422,6 +454,9 @@ class ExperimentLoop:
         """
         two_phase = val_instances is not None and len(val_instances) > 0
 
+        # Store baseline_run_dir for single-phase reuse in run_instance()
+        self._baseline_run_dir = baseline_run_dir
+
         # Validate incompatible settings
         if two_phase and self.skillbook_mode == "per_instance":
             raise ValueError(
@@ -429,12 +464,12 @@ class ExperimentLoop:
                 "(train/val split). Use 'per_repo' or 'global' so skills accumulate across "
                 "training instances."
             )
-        if two_phase and self.concurrency > 1:
+        if two_phase and self.concurrency > 1 and not baseline_run_dir:
             raise ValueError(
                 f"concurrency={self.concurrency} is incompatible with two-phase experiments "
-                f"(train/val split). The concurrent path does not support baseline reuse, "
-                f"so it would re-run all train predictions from scratch instead of only "
-                f"learning from existing baseline trajectories. Use concurrency=1."
+                f"without a baseline_run_dir. Without baseline reuse, the concurrent path "
+                f"would re-run all train predictions from scratch. Provide --baseline-run-dir "
+                f"or set concurrency=1."
             )
 
         logger.info(f"\nStarting experiment: {self.run_name}")
@@ -442,6 +477,8 @@ class ExperimentLoop:
         logger.info(f"Max attempts: {self.max_attempts}")
         logger.info(f"Skillbook mode: {self.skillbook_mode}")
         logger.info(f"Concurrency: {self.concurrency}")
+        if baseline_run_dir:
+            logger.info(f"Baseline reuse: {baseline_run_dir}")
         if two_phase:
             logger.info(f"Two-phase mode: {len(instances)} train, {len(val_instances)} val")
         if self.resume_state:
@@ -526,46 +563,97 @@ class ExperimentLoop:
                     else:
                         unresolved_ids.append(instance_id)
             else:
-                # Concurrent mode (only for non-two-phase or train phase)
+                # Concurrent mode
                 results_lock = threading.Lock()
 
-                def _worker(instance):
-                    instance_id = instance.get("instance_id", "unknown")
-                    inst_start = datetime.now()
-                    try:
-                        result = self._run_instance_concurrent(instance)
-                        with results_lock:
-                            all_results[instance_id] = result
-                            instance_durations.append((datetime.now() - inst_start).total_seconds())
-                            if result.final_resolved:
-                                resolved_ids.append(instance_id)
-                            else:
+                if two_phase and baseline_run_dir:
+                    # Concurrent two-phase train with baseline reuse
+                    def _two_phase_worker(instance, idx):
+                        instance_id = instance.get("instance_id", f"unknown-{idx}")
+                        inst_start = datetime.now()
+                        try:
+                            with instance_context(instance_id):
+                                result = self._run_train_instance_reusing_baseline(
+                                    instance, baseline_run_dir, phase="train",
+                                    allow_sb_merge=baseline_sb_compat is not False,
+                                )
+                            with results_lock:
+                                all_results[instance_id] = result
+                                instance_durations.append((datetime.now() - inst_start).total_seconds())
+                                if result.final_resolved:
+                                    resolved_ids.append(instance_id)
+                                else:
+                                    unresolved_ids.append(instance_id)
+                                if result.iterations and result.iterations[0].predict_result is None:
+                                    reused_from_baseline += 1
+                                    if result.final_resolved:
+                                        baseline_resolved_count += 1
+                                    else:
+                                        baseline_unresolved_count += 1
+                            return result
+                        except Exception as e:
+                            logger.error(f"[{instance_id}] Worker failed: {e}")
+                            with results_lock:
+                                instance_durations.append((datetime.now() - inst_start).total_seconds())
                                 unresolved_ids.append(instance_id)
-                        return result
-                    except Exception as e:
-                        logger.error(f"[{instance_id}] Worker failed: {e}")
-                        with results_lock:
-                            instance_durations.append((datetime.now() - inst_start).total_seconds())
-                            unresolved_ids.append(instance_id)
-                            all_results[instance_id] = InstanceResult(
-                                instance_id=instance_id,
-                                final_resolved=False,
-                                total_attempts=0,
-                            )
-                        return None
+                                all_results[instance_id] = InstanceResult(
+                                    instance_id=instance_id,
+                                    final_resolved=False,
+                                    total_attempts=0,
+                                )
+                            return None
 
-                logger.info(f"Launching {len(instances)} instances with concurrency={self.concurrency}")
-                with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-                    futures = {
-                        executor.submit(_worker, inst): inst
-                        for inst in instances
-                    }
-                    done_count = 0
-                    for future in as_completed(futures):
-                        done_count += 1
-                        inst = futures[future]
-                        instance_id = inst.get("instance_id", "unknown")
-                        logger.info(f"[{done_count}/{len(instances)}] Completed {instance_id}")
+                    logger.info(f"Launching {len(instances)} train instances with concurrency={self.concurrency} (baseline reuse)")
+                    with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
+                        futures = {
+                            executor.submit(_two_phase_worker, inst, i): inst
+                            for i, inst in enumerate(instances)
+                        }
+                        done_count = 0
+                        for future in as_completed(futures):
+                            done_count += 1
+                            inst = futures[future]
+                            instance_id = inst.get("instance_id", "unknown")
+                            logger.info(f"[{done_count}/{len(instances)}] Completed {instance_id}")
+                else:
+                    # Concurrent non-two-phase (single-phase per_instance mode)
+                    def _worker(instance):
+                        instance_id = instance.get("instance_id", "unknown")
+                        inst_start = datetime.now()
+                        try:
+                            result = self._run_instance_concurrent(instance)
+                            with results_lock:
+                                all_results[instance_id] = result
+                                instance_durations.append((datetime.now() - inst_start).total_seconds())
+                                if result.final_resolved:
+                                    resolved_ids.append(instance_id)
+                                else:
+                                    unresolved_ids.append(instance_id)
+                            return result
+                        except Exception as e:
+                            logger.error(f"[{instance_id}] Worker failed: {e}")
+                            with results_lock:
+                                instance_durations.append((datetime.now() - inst_start).total_seconds())
+                                unresolved_ids.append(instance_id)
+                                all_results[instance_id] = InstanceResult(
+                                    instance_id=instance_id,
+                                    final_resolved=False,
+                                    total_attempts=0,
+                                )
+                            return None
+
+                    logger.info(f"Launching {len(instances)} instances with concurrency={self.concurrency}")
+                    with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
+                        futures = {
+                            executor.submit(_worker, inst): inst
+                            for inst in instances
+                        }
+                        done_count = 0
+                        for future in as_completed(futures):
+                            done_count += 1
+                            inst = futures[future]
+                            instance_id = inst.get("instance_id", "unknown")
+                            logger.info(f"[{done_count}/{len(instances)}] Completed {instance_id}")
 
             # === Two-phase: Val passes ===
             val_baseline_stats = None
@@ -792,6 +880,76 @@ class ExperimentLoop:
 
         return statistics
 
+    def _try_load_baseline_iter0(self, instance_id: str, phase: str | None = None):
+        """Try to load iter_0 trajectory+result from baseline dir for single-phase reuse.
+
+        If found and valid, copies artifacts to output dir and returns
+        (PredictResult, EvaluateResult). Returns (None, None) otherwise.
+        """
+        baseline_dir = self._baseline_run_dir
+        if not baseline_dir:
+            return None, None
+
+        traj_path = baseline_dir / self.benchmark / "trajectories" / instance_id / "iter_0.json"
+        result_path = baseline_dir / self.benchmark / "results" / instance_id / "iter_0.json"
+
+        if not traj_path.exists() or not result_path.exists():
+            return None, None
+
+        try:
+            with open(traj_path) as f:
+                traj_data = json.load(f)
+            with open(result_path) as f:
+                result_data = json.load(f)
+
+            exit_status = traj_data.get("info", {}).get("exit_status", "")
+            if exit_status not in ("Submitted", "LimitsExceeded"):
+                return None, None
+
+            # Copy artifacts to output dir
+            if phase:
+                dest_traj = self.output_dir / self.benchmark / "trajectories" / phase / instance_id
+                dest_result = self.output_dir / self.benchmark / "results" / phase / instance_id
+            else:
+                dest_traj = self.output_dir / self.benchmark / "trajectories" / instance_id
+                dest_result = self.output_dir / self.benchmark / "results" / instance_id
+
+            dest_traj.mkdir(parents=True, exist_ok=True)
+            dest_result.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(traj_path, dest_traj / "iter_0.json")
+            shutil.copy2(result_path, dest_result / "iter_0.json")
+
+            patch = traj_data.get("info", {}).get("submission", "")
+            resolved = result_data.get("resolved", False)
+            feedback = result_data.get("feedback", "")
+
+            predict_result = PredictResult(
+                instance_id=instance_id,
+                iteration=0,
+                exit_status=exit_status,
+                patch=patch,
+                trajectory=traj_data.get("messages", []),
+                trajectory_path=dest_traj / "iter_0.json",
+            )
+            evaluate_result = EvaluateResult(
+                instance_id=instance_id,
+                iteration=0,
+                resolved=resolved,
+                feedback=feedback,
+                metrics=result_data.get("metrics", {}),
+                result_path=dest_result / "iter_0.json",
+            )
+
+            logger.info(
+                f"[{instance_id}] Reusing baseline iter_0 "
+                f"(exit={exit_status}, resolved={resolved})"
+            )
+            return predict_result, evaluate_result
+
+        except Exception as e:
+            logger.debug(f"[{instance_id}] Baseline iter_0 load failed: {e}")
+            return None, None
+
     def _check_baseline_skillbook_compat(self, baseline_dir: Path) -> bool | None:
         """Check if baseline skillbooks are compatible with current config.
 
@@ -807,13 +965,15 @@ class ExperimentLoop:
         try:
             b_cfg = json.loads(baseline_cfg_path.read_text())
             c_cfg = json.loads(current_cfg_path.read_text())
-            b_sb = b_cfg.get("experiment", {}).get("skillbook", {})
-            c_sb = c_cfg.get("experiment", {}).get("skillbook", {})
+            b_exp = b_cfg.get("experiment", {})
+            c_exp = c_cfg.get("experiment", {})
+            b_sb = b_exp.get("skillbook", {})
+            c_sb = c_exp.get("skillbook", {})
 
             mismatches = []
             for key in ("custom_swe_learn",):
-                b_val = b_sb.get(key, False)
-                c_val = c_sb.get(key, False)
+                b_val = b_sb.get(key, b_exp.get(key, False))
+                c_val = c_sb.get(key, c_exp.get(key, False))
                 if b_val != c_val:
                     mismatches.append(f"{key}: baseline={b_val} vs current={c_val}")
 
@@ -826,7 +986,7 @@ class ExperimentLoop:
 
             logger.info(
                 f"[TRAIN] Baseline skillbook compatible "
-                f"(custom_swe_learn={c_sb.get('custom_swe_learn', False)}, "
+                f"(custom_swe_learn={c_val}, "
                 f"mode: baseline={b_sb.get('mode','?')} -> current={c_sb.get('mode','?')})"
             )
             return True
@@ -921,6 +1081,13 @@ class ExperimentLoop:
                         f"[TRAIN] {instance_id}: merged {merged} baseline skills "
                         f"(skipped relearn, {len(skillbook.skills())} total in skillbook)"
                     )
+
+                    # Consolidate after merge to deduplicate similar skills
+                    if self.learn.dedup_manager is not None and merged > 0:
+                        dedup_ops = self.learn._consolidate(skillbook)
+                        if isinstance(dedup_ops, int) and dedup_ops > 0:
+                            self.update_skillbook(repo, skillbook)
+
                     learn_result = None
                 else:
                     # No baseline skillbook or per_instance mode → run learn
@@ -1014,6 +1181,7 @@ class ExperimentLoop:
                 frozen_skillbook=True,
                 max_attempts_override=1,
                 phase=phase,
+                skip_baseline_reuse=True,
             )
             results[instance_id] = result
 
