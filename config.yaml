@@ -39,6 +39,7 @@ experiment:
       similarity_threshold: 0.85       # Threshold (0-1); higher = stricter matching
       embedding_provider: "sentence_transformers"  # or "litellm"
       local_model_name: "all-MiniLM-L6-v2"         # Local embedding model
+      embedding_device: "cpu"                        # Device for embedding model ("cpu" or "cuda")
       within_section_only: true        # Only compare skills within same skillbook section
       min_pairs_to_report: 1           # Min duplicate pairs to trigger consolidation
 
@@ -103,15 +104,19 @@ benchmark:
 
   # --- Two-phase experiment settings (per_repo/global modes) ---
   # filter_repos: null                 # null = all repos, or list: ["django/django"]
+  # iterate_repos:                     # Run independent per-repo two-phase experiments
+  #   - "django/django"                # Each repo gets its own train/val split and skillbook
+  #   - "sympy/sympy"                  # If concurrency > 1, repos run in parallel
 
-  # --- General instances exculsion from any experiment ---
+  # --- General instances exclusion from any experiment ---
   exclude_instances:                   # Instances that fail to build Docker images
-    # Lite + Verified
+    # Lite + Verified (exist in both datasets)
+    - sympy__sympy-20590                # upstream branch 1.7 renamed to sympy-1.7
+    - scikit-learn__scikit-learn-25747  # --no-use-pep517 removed in pip 25.1
+    # Lite only
     - pylint-dev__pylint-7114           # build_editable hook missing
     - pylint-dev__pylint-7228           # build_editable hook missing
     - pylint-dev__pylint-7993           # build_editable hook missing
-    - sympy__sympy-20590                # upstream branch 1.7 renamed to sympy-1.7
-    # Lite only
     - scikit-learn__scikit-learn-25500  # --no-use-pep517 removed in pip 25.1
     - scikit-learn__scikit-learn-25570  # --no-use-pep517 removed in pip 25.1
     - scikit-learn__scikit-learn-25638  # --no-use-pep517 removed in pip 25.1
@@ -121,11 +126,12 @@ benchmark:
     - pylint-dev__pylint-7277           # build_editable hook missing
     - scikit-learn__scikit-learn-25102  # --no-use-pep517 removed in pip 25.1
     - scikit-learn__scikit-learn-25232  # --no-use-pep517 removed in pip 25.1
-    - scikit-learn__scikit-learn-25747  # --no-use-pep517 removed in pip 25.1
     - scikit-learn__scikit-learn-25931  # --no-use-pep517 removed in pip 25.1
     - scikit-learn__scikit-learn-25973  # --no-use-pep517 removed in pip 25.1
     - scikit-learn__scikit-learn-26194  # --no-use-pep517 removed in pip 25.1
     - scikit-learn__scikit-learn-26323  # --no-use-pep517 removed in pip 25.1
+    - matplotlib__matplotlib-13989      # jQuery UI download hangs during setup.py develop
+    - matplotlib__matplotlib-14623      # jQuery UI download hangs during setup.py develop
 
 # --- Evaluation ---
 evaluation:
@@ -144,6 +150,7 @@ output:
 # --- LiteLLM ---
 litellm:
   suppress_debug_info: true           # Suppress LiteLLM debug output
+  log_level: "WARNING"                # Suppress INFO/DEBUG logs from litellm (completion/Wrapper spam)
 
 # --- Observability (optional, Opik tracing via ACE framework) ---
 observability:

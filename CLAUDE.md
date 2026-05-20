@@ -20,6 +20,9 @@ uv run python -m src.cli.commands --list-repos --filter-repos django/django --va
 uv run python -m src.cli.commands --filter-repos django/django --val-ratio 0.2 --config configs/agent-glm-ace-glm.yaml
 uv run python -m src.cli.commands --filter-repos django/django --val-ratio 0.2 --baseline-run-dir data/run_20260415_xxx
 
+# Two-phase skillbook experiment (multiple repos via iterate_repos)
+uv run python -m src.cli.commands --config configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-verified-iterate-repos-swe.yaml
+
 # Run with override config (deep-merged on top of config.yaml)
 uv run python -m src.cli.commands --config configs/agent-glm-ace-glm.yaml
 uv run python -m src.cli.commands --config configs/agent-qwen3-ace-qwen3-full-4a-swe.yaml --custom-swe-learn --observe
@@ -143,6 +146,11 @@ data/
   - Val baseline: 1 attempt per instance, empty skillbook, no learning
   - Val skillbook: 1 attempt per instance, learned skillbook from train, no learning
   - statistics.json includes `train_phase`, `val_baseline_phase`, `val_skillbook_phase`, `summary`
+- `benchmark.iterate_repos`: run independent per-repo two-phase experiments for each repo listed
+  - Each repo gets its own train/val split and skillbook
+  - If `concurrency > 1`, repos run in parallel (ThreadPoolExecutor)
+  - Per-repo stats in `statistics_per_repo/<repo>.json`, combined in `statistics.json`
+  - Orchestration in `_run_iterate_repos()` / `_run_single_repo_experiment()` in commands.py
 - `--list-repos` prints all repos with counts and optional split preview
 - `--baseline-run-dir` loads existing baseline results to avoid re-running val baseline
 - Docker required for evaluation (SWE-bench images)
