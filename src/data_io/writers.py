@@ -196,6 +196,7 @@ def save_config(config: Dict, run_dir: Path) -> Path:
 def save_statistics(
     statistics: Dict,
     run_dir: Path,
+    filename: str = "statistics.json",
 ) -> Path:
     """
     Save statistics for the run.
@@ -203,6 +204,7 @@ def save_statistics(
     Args:
         statistics: Statistics dict (see format below)
         run_dir: Run directory
+        filename: Output filename (default: statistics.json)
 
     Returns:
         Path to saved file
@@ -232,7 +234,7 @@ def save_statistics(
         "baseline_agent_model": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
     }
     """
-    output_path = run_dir / "statistics.json"
+    output_path = run_dir / filename
     with open(output_path, "w") as f:
         json.dump(statistics, f, indent=2, default=str)
     logger.info(f"Saved statistics to {output_path}")

@@ -61,11 +61,6 @@ llm:
     model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
     api_base: "http://localhost:8800/v1"
 
-evaluation:
-  use_docker: true                    # Use Docker for evaluation (default)
-  timeout: 1800                       # Seconds per patch evaluation (30 min)
-  parallel: 1                         # Number of parallel evaluations
-
 output:
   dir: "data"
   save_trajectories: true
