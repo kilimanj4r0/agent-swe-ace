@@ -193,6 +193,13 @@ def build_system_template() -> str:
     return config["agent"]["system_template"]
 
 
+def _escape_jinja(text: str) -> str:
+    """Wrap text containing Jinja2 delimiters in {% raw %} blocks."""
+    if '{%' in text or '{{' in text or '{#' in text:
+        return '{% raw %}' + text + '{% endraw %}'
+    return text
+
+
 def wrap_skillbook_context(skillbook: Skillbook) -> str:
     """
     Format skillbook skills as context for the agent.
@@ -209,9 +216,9 @@ def wrap_skillbook_context(skillbook: Skillbook) -> str:
 
     sections = []
     for skill in skills:
-        section = f"### {skill.id}\n\n{skill.content}"
+        section = f"### {_escape_jinja(skill.id)}\n\n{_escape_jinja(skill.content)}"
         if getattr(skill, "justification", None):
-            section += f"\n\n**Why this helps:** {skill.justification}"
+            section += f"\n\n**Why this helps:** {_escape_jinja(skill.justification)}"
         sections.append(section)
 
     return "\n\n".join(sections)
