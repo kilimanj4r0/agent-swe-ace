@@ -157,21 +157,30 @@ def get_endpoint_health(provider: str, api_base: str) -> str:
     return status
 
 
+def _parse_log_start_time(log_path: Path) -> str | None:
+    """Parse start time from the first line of a log file."""
+    try:
+        first_line = log_path.read_text().split("\n")[0]
+        ts = first_line.split(" | ")[0].strip()
+        dt = datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
+        return dt.isoformat()
+    except Exception:
+        return None
+
+
 def get_start_time(run_dir: Path, stat: dict) -> str | None:
-    """Get start time from statistics.json, then experiment.log first line."""
+    """Get start time from statistics.json, then earliest experiment.log (incl. rotated)."""
     t = stat.get("start_time") or stat.get("timestamp")
     if t:
         return t
-    log = run_dir / "experiment.log"
-    if log.exists():
-        try:
-            first_line = log.read_text().split("\n")[0]
-            # Format: "2026-04-14 01:51:44 | INFO ..."
-            ts = first_line.split(" | ")[0].strip()
-            dt = datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
-            return dt.isoformat()
-        except Exception:
-            pass
+    # Check all experiment*.log files and use the earliest timestamp
+    candidates = []
+    for log in run_dir.glob("experiment*.log"):
+        ts = _parse_log_start_time(log)
+        if ts:
+            candidates.append(ts)
+    if candidates:
+        return min(candidates)
     return None
 
 
@@ -208,11 +217,47 @@ def get_active_run_dirs() -> set[str]:
 
 # ── progress from file system (for runs without statistics.json) ─────────
 
-def find_dataset_total(dataset: str, filter_repos: list | None = None) -> int | None:
-    """Find the effective total instances for a dataset from completed runs.
+_DATASET_SIZE_CACHE: dict[str, int] = {}
+_DATASET_IDS_CACHE: dict[str, set[str]] = {}
+_DATASET_REPO_COUNTS: dict[str, dict[str, int]] = {}  # dataset -> {repo: count}
 
-    When filter_repos is given, looks for runs with the same filter to find
-    the total for that repo subset.
+
+def _load_dataset_size(dataset: str) -> int | None:
+    """Load dataset size from HuggingFace (cached after first call)."""
+    if dataset in _DATASET_SIZE_CACHE:
+        return _DATASET_SIZE_CACHE[dataset]
+    try:
+        from datasets import load_dataset
+        ds = load_dataset(dataset, split="test")
+        size = len(ds)
+        _DATASET_SIZE_CACHE[dataset] = size
+        _DATASET_IDS_CACHE[dataset] = set(ds['instance_id'])
+        # Also cache per-repo counts
+        from collections import Counter
+        _DATASET_REPO_COUNTS[dataset] = dict(Counter(i['repo'] for i in ds))
+        return size
+    except Exception:
+        return None
+
+
+def compute_eff_total(dataset: str, exclude_instances: list | None = None) -> int | None:
+    """Compute effective total: dataset size minus excluded instances that exist in it."""
+    _load_dataset_size(dataset)
+    ids = _DATASET_IDS_CACHE.get(dataset)
+    if ids is None:
+        return None
+    effective = ids
+    if exclude_instances:
+        effective = effective - set(exclude_instances)
+    return len(effective)
+
+
+def find_dataset_total(dataset: str, filter_repos: list | None = None) -> int | None:
+    """Find the effective total instances for a dataset from any run.
+
+    Checks statistics.json from any run (not just completed) that used the
+    same dataset without max_instances. When filter_repos is given, looks
+    for runs with the same filter to find the total for that repo subset.
     """
     if not dataset:
         return None
@@ -232,12 +277,13 @@ def find_dataset_total(dataset: str, filter_repos: list | None = None) -> int | 
             if cfg_filter is not None:
                 continue
         stat = load_json(d / "statistics.json")
-        if stat.get("status") != "completed":
-            continue
         t = stat.get("total_instances", 0)
         if t > 0:
             return t
-    return None
+    # No run with statistics — load the dataset itself
+    if filter_repos:
+        return None  # can't know repo subset size without loading + filtering
+    return _load_dataset_size(dataset)
 
 
 def find_repo_phase_counts(dataset: str, filter_repos: list) -> dict | None:
@@ -255,9 +301,7 @@ def find_repo_phase_counts(dataset: str, filter_repos: list) -> dict | None:
             continue
         if cfg.get("benchmark", {}).get("filter_repos") != filter_repos:
             continue
-        results_dir = d / "princeton-nlp__SWE-bench_Lite" / "results"
-        if not results_dir.exists():
-            results_dir = d / "results"
+        results_dir = _results_dir_for(d, dataset)
         if not results_dir.exists():
             continue
         vb_dir = results_dir / "val_baseline"
@@ -293,6 +337,20 @@ def _collect_instance_dirs(results_dir: Path):
                 yield inst_dir, None
 
 
+def _results_dir_for(run_dir: Path, dataset: str | None = None) -> Path:
+    """Find the results directory from the run's config.json."""
+    if dataset is None:
+        cfg = load_json(run_dir / "config.json")
+        dataset = cfg.get("benchmark", {}).get("dataset")
+    if dataset:
+        bench_dir = dataset.replace("/", "__")
+        candidate = run_dir / bench_dir / "results"
+        if candidate.exists():
+            return candidate
+    # Flat layout
+    return run_dir / "results"
+
+
 def scan_progress(run_dir: Path, max_attempts: int | None = None,
                    total_instances: int | None = None,
                    dataset: str | None = None,
@@ -303,9 +361,7 @@ def scan_progress(run_dir: Path, max_attempts: int | None = None,
     An instance is 'processed' only when it has exhausted all attempts
     or resolved early.
     """
-    results_dir = run_dir / "princeton-nlp__SWE-bench_Lite" / "results"
-    if not results_dir.exists():
-        results_dir = run_dir / "results"
+    results_dir = _results_dir_for(run_dir, dataset)
     if not results_dir.exists():
         return {"processed": 0, "resolved": 0, "total": 0, "phases": {}}
 
@@ -368,7 +424,7 @@ def scan_progress(run_dir: Path, max_attempts: int | None = None,
                 processed += 1
 
     if total_instances is not None and total_instances > 0:
-        total = total_instances
+        total = max(total_instances, dir_count)
     elif phases:
         # Two-phase: total is the unique instance count (train + val)
         train_total = phases.get("train", [0, 0, 0])[2]
@@ -393,6 +449,258 @@ def scan_progress(run_dir: Path, max_attempts: int | None = None,
         total = max(dataset_total, dir_count) if dataset_total else dir_count
 
     return {"processed": processed, "resolved": resolved, "total": total, "phases": phases}
+
+
+# ── iterate_repos support ─────────────────────────────────────────────────
+
+def _repo_from_instance(instance_id: str) -> str | None:
+    """Extract repo name from instance_id like 'django__django-10914' -> 'django/django'."""
+    parts = instance_id.split("__", 1)
+    if len(parts) != 2:
+        return None
+    owner, rest = parts
+    # rest is like 'django-10914' — project name is everything up to last dash-number
+    segments = rest.rsplit("-", 1)
+    if len(segments) != 2 or not segments[1].isdigit():
+        return None
+    return f"{owner}/{segments[0]}"
+
+
+def _get_repo_expected_sizes(dataset: str, repos: list[str], val_ratio: float | None
+                             ) -> dict[str, dict] | None:
+    """Get expected per-repo sizes from the dataset.
+
+    Returns {repo: {"train": N, "val": N, "total": N}} or None.
+    """
+    _load_dataset_size(dataset)
+    counts = _DATASET_REPO_COUNTS.get(dataset)
+    if not counts:
+        return None
+    result = {}
+    for repo in repos:
+        total = counts.get(repo, 0)
+        if total == 0:
+            continue
+        if val_ratio:
+            val = round(total * val_ratio)
+            train = total - val
+        else:
+            train = total
+            val = 0
+        result[repo] = {"train": train, "val": val, "total": total}
+    return result
+
+
+def _detect_repo_phase(phases_detail: dict, max_attempts: int | None) -> str:
+    """Determine the current active phase for a repo.
+
+    Returns: "train", "vb", "val", "done", or "pending".
+    A phase is "active" if it has dirs without completed iter files.
+    """
+    has_any = False
+    for phase in ("train", "vb", "val"):
+        pd = phases_detail.get(phase)
+        if not pd or pd["total"] == 0:
+            continue
+        has_any = True
+        # Phase is incomplete if some dirs lack terminal iter files
+        if pd["processed"] < pd["total"]:
+            return phase
+
+    if not has_any:
+        return "pending"
+    return "done"
+
+
+def collect_iterate_repos_progress(
+    run_dir: Path, cfg: dict, stat: dict, max_attempts: int | None
+) -> dict | None:
+    """Collect per-repo progress for iterate_repos experiments.
+
+    Returns dict with:
+      - repo_progress: list of per-repo dicts with name, status, phases, totals
+      - total/resolved/processed/unresolved: correct aggregates across all repos
+      - repo_total: number of repos expected
+      - repo_completed: number of repos with completed statistics
+    """
+    iterate_repos_list = cfg.get("benchmark", {}).get("iterate_repos")
+    if not iterate_repos_list:
+        return None
+
+    dataset = cfg.get("benchmark", {}).get("dataset")
+    val_ratio = cfg.get("experiment", {}).get("split", {}).get("val_ratio")
+    results_dir = _results_dir_for(run_dir, dataset)
+
+    # Get expected per-repo sizes from dataset (cached)
+    expected = _get_repo_expected_sizes(dataset, iterate_repos_list, val_ratio)
+
+    # Read per-repo completed stats
+    per_repo_dir = run_dir / "statistics_per_repo"
+    completed_repo_stats: dict[str, dict] = {}
+    if per_repo_dir.is_dir():
+        for f in per_repo_dir.glob("*.json"):
+            repo_name = f.stem.replace("__", "/")
+            completed_repo_stats[repo_name] = load_json(f)
+
+    # Scan filesystem to find per-repo instance progress
+    repo_fs: dict[str, dict[str, list[str]]] = {}
+    repo_fs_resolved: dict[str, dict[str, int]] = {}
+    repo_fs_processed: dict[str, dict[str, int]] = {}
+
+    if results_dir.exists():
+        for inst_dir, phase in _collect_instance_dirs(results_dir):
+            inst_id = inst_dir.name
+            repo = _repo_from_instance(inst_id)
+            if not repo:
+                continue
+            phase_key = phase or "main"
+            repo_fs.setdefault(repo, {}).setdefault(phase_key, []).append(inst_id)
+
+            iters = sorted(inst_dir.glob("iter_*.json"))
+            is_done = False
+            is_resolved = False
+            if iters:
+                last_data = load_json(iters[-1])
+                if last_data.get("resolved"):
+                    is_resolved = True
+                    is_done = True
+                elif max_attempts is not None and len(iters) >= max_attempts:
+                    is_done = True
+            if is_done:
+                repo_fs_processed.setdefault(repo, {}).setdefault(phase_key, 0)
+                repo_fs_processed[repo][phase_key] += 1
+            if is_resolved:
+                repo_fs_resolved.setdefault(repo, {}).setdefault(phase_key, 0)
+                repo_fs_resolved[repo][phase_key] += 1
+
+    # Build per-repo progress list
+    repo_progress = []
+    total_resolved = 0
+    total_processed = 0
+    total_instances = 0
+    total_errors = 0
+
+    for repo in iterate_repos_list:
+        repo_stat = completed_repo_stats.get(repo)
+        fs_data = repo_fs.get(repo, {})
+        exp = expected.get(repo) if expected else None
+
+        if repo_stat and repo_stat.get("status") == "completed":
+            tp = repo_stat.get("train_phase", {})
+            vbp = repo_stat.get("val_baseline_phase", {})
+            vsp = repo_stat.get("val_skillbook_phase", {})
+            r_resolved = repo_stat.get("resolved_count", 0)
+            r_processed = repo_stat.get("processed_instances", 0)
+            r_total = repo_stat.get("total_instances", 0)
+
+            phases_detail = {}
+            if tp.get("total_instances"):
+                phases_detail["train"] = {
+                    "resolved": tp.get("resolved_count", 0),
+                    "processed": tp.get("total_instances", 0),
+                    "total": tp.get("total_instances", 0),
+                }
+            if vbp.get("total_instances"):
+                phases_detail["vb"] = {
+                    "resolved": vbp.get("resolved_count", 0),
+                    "processed": vbp.get("total_instances", 0),
+                    "total": vbp.get("total_instances", 0),
+                }
+            if vsp.get("total_instances"):
+                phases_detail["val"] = {
+                    "resolved": vsp.get("resolved_count", 0),
+                    "processed": vsp.get("total_instances", 0),
+                    "total": vsp.get("total_instances", 0),
+                }
+
+            repo_progress.append({
+                "name": repo,
+                "status": "done",
+                "current_phase": "done",
+                "resolved": r_resolved,
+                "processed": r_processed,
+                "total": r_total,
+                "errors": 0,
+                "phases": phases_detail,
+                "expected": exp,
+            })
+            total_resolved += r_resolved
+            total_processed += r_processed
+            total_instances += r_total
+        else:
+            # In-progress or not started — use filesystem scan
+            train_dirs = fs_data.get("train", [])
+            vb_dirs = fs_data.get("val_baseline", [])
+            val_dirs = fs_data.get("val", [])
+
+            train_resolved = repo_fs_resolved.get(repo, {}).get("train", 0)
+            train_processed = repo_fs_processed.get(repo, {}).get("train", 0)
+            vb_resolved = repo_fs_resolved.get(repo, {}).get("val_baseline", 0)
+            vb_processed = repo_fs_processed.get(repo, {}).get("val_baseline", 0)
+            val_resolved = repo_fs_resolved.get(repo, {}).get("val", 0)
+            val_processed = repo_fs_processed.get(repo, {}).get("val", 0)
+
+            # Use expected sizes for totals; fall back to filesystem counts
+            if exp:
+                train_total = exp["train"]
+                val_total = exp["val"]
+            else:
+                train_total = len(train_dirs)
+                val_total = max(len(val_dirs), len(vb_dirs))
+
+            phases_detail = {}
+            if train_dirs or (exp and exp["train"] > 0):
+                phases_detail["train"] = {
+                    "resolved": train_resolved,
+                    "processed": train_processed,
+                    "total": train_total,
+                }
+            if vb_dirs:
+                phases_detail["vb"] = {
+                    "resolved": vb_resolved,
+                    "processed": vb_processed,
+                    "total": val_total,
+                }
+            if val_dirs:
+                phases_detail["val"] = {
+                    "resolved": val_resolved,
+                    "processed": val_processed,
+                    "total": val_total,
+                }
+
+            r_total = train_total + val_total
+            r_resolved = train_resolved + max(val_resolved, vb_resolved)
+            r_processed = train_processed + max(val_processed, vb_processed)
+
+            current_phase = _detect_repo_phase(phases_detail, max_attempts)
+            r_status = "active" if current_phase not in ("pending",) else "pending"
+
+            repo_progress.append({
+                "name": repo,
+                "status": r_status,
+                "current_phase": current_phase,
+                "resolved": r_resolved,
+                "processed": r_processed,
+                "total": r_total,
+                "errors": 0,
+                "phases": phases_detail,
+                "expected": exp,
+            })
+            total_resolved += r_resolved
+            total_processed += r_processed
+            total_instances += r_total
+
+    return {
+        "repo_progress": repo_progress,
+        "total": total_instances,
+        "resolved": total_resolved,
+        "processed": total_processed,
+        "unresolved": total_processed - total_resolved,
+        "errors": total_errors,
+        "repo_total": len(iterate_repos_list),
+        "repo_completed": len(completed_repo_stats),
+        "rate": total_resolved / total_processed if total_processed else 0.0,
+    }
 
 
 # ── collect ──────────────────────────────────────────────────────────────
@@ -446,14 +754,46 @@ def collect_runs(show_all: bool, only_running: bool):
         rate = stat.get("resolution_rate", 0.0)
         sb = stat.get("skillbook_assisted", {})
         sb_count = sb.get("count", 0) if isinstance(sb, dict) else 0
+        iterate_repos_progress = None
 
-        # If no statistics.json yet, scan filesystem
-        if not has_stats or (total == 0 and is_active):
+        # Check for iterate_repos mode
+        is_iterate_repos = bool(cfg.get("benchmark", {}).get("iterate_repos"))
+
+        if is_iterate_repos:
+            iterate_repos_progress = collect_iterate_repos_progress(
+                d, cfg, stat, attempts if isinstance(attempts, int) else None
+            )
+            if iterate_repos_progress:
+                total = iterate_repos_progress["total"]
+                processed = iterate_repos_progress["processed"]
+                resolved = iterate_repos_progress["resolved"]
+                unresolved = iterate_repos_progress["unresolved"]
+                errors = iterate_repos_progress["errors"]
+                rate = iterate_repos_progress["rate"]
+            phases = {}
+        elif not has_stats or (total == 0 and is_active):
+            # If no statistics.json yet, scan filesystem
             dataset = cfg.get("benchmark", {}).get("dataset")
+            exclude = cfg.get("benchmark", {}).get("exclude_instances") or []
+            # Compute effective total from config
+            eff_total = cfg.get("benchmark", {}).get("max_instances")
+            if eff_total is None:
+                # Try completed run's statistics first, then compute from dataset
+                eff_total = find_dataset_total(dataset, cfg.get("benchmark", {}).get("filter_repos"))
+                if eff_total is None:
+                    eff_total = compute_eff_total(dataset, exclude)
+                elif exclude:
+                    # find_dataset_total may not account for excludes; compute properly
+                    eff_total = compute_eff_total(dataset, exclude) or eff_total
+            elif exclude:
+                # max_instances set — subtract only instances actually in dataset
+                computed = compute_eff_total(dataset, exclude)
+                if computed is not None:
+                    eff_total = min(eff_total, computed)
             prog = scan_progress(
                 d,
                 max_attempts=attempts if isinstance(attempts, int) else None,
-                total_instances=cfg.get("benchmark", {}).get("max_instances"),
+                total_instances=eff_total,
                 dataset=dataset,
                 filter_repos=cfg.get("benchmark", {}).get("filter_repos"),
             )
@@ -467,6 +807,11 @@ def collect_runs(show_all: bool, only_running: bool):
             phases = {}
 
         start_time = get_start_time(d, stat)
+        # For iterate_repos, statistics.json start_time is per-repo; prefer log file
+        if is_iterate_repos:
+            log_start = get_start_time(d, {})
+            if log_start:
+                start_time = log_start
         elapsed = stat.get("experiment_time_seconds")
         if is_active and start_time:
             try:
@@ -503,6 +848,7 @@ def collect_runs(show_all: bool, only_running: bool):
             "sb_assisted": sb_count,
             "start": start_time,
             "llm_config": llm,
+            "iterate_repos_progress": iterate_repos_progress,
         })
 
     entries.sort(key=lambda e: (0 if e["status"] == "RUNNING" else 1, e["start"] or ""))
@@ -596,11 +942,11 @@ def render(entries, term_width: int):
 
     col_name = min(max((len(e["name"]) for e in entries), default=20), 42)
     col_model = min(max((len(e["model_display"]) for e in entries), default=15), 30)
-    bar_w = min(15, max(8, (term_width - 167) // 2))
+    bar_w = min(15, max(8, (term_width - 160) // 2))
 
     # Legend
     print(f"  {DIM}Legend: █ resolved  ░ failed  · remaining | "
-          f"SWE=custom-swe-learn  SB=skillbook assist | "
+          f"SWE=custom-swe-learn | "
           f"Phases: train  vb=val_baseline  val | "
           f"Endpoints: UP/DOWN/cloud{RESET}")
     print()
@@ -614,9 +960,9 @@ def render(entries, term_width: int):
         f"{'Con':>3} "
         f"{'Res/Proc/Total':>16} "
         f"{'Rate':>6} "
-        f"{'SB':>3} "
         f"{'Elapsed':>9} "
         f"{'Avg/inst':>9} "
+        f"{'ETA':>9} "
         f"{'Started':<12}"
     )
     print(f"{BOLD}{hdr}{RESET}")
@@ -632,7 +978,14 @@ def render(entries, term_width: int):
         p = pct_str(e["processed"], e["total"])
         avg = fmt_duration(e["avg_inst_time"]) if e["avg_inst_time"] else "-"
 
-        learn_flag = "swe" if e["swe_learn"] else "-"
+        # ETA: extrapolate remaining instances at current throughput
+        eta_str = "-"
+        if e["elapsed"] and e["processed"] and e["total"] > e["processed"]:
+            remaining = e["total"] - e["processed"]
+            secs_per = e["elapsed"] / e["processed"]
+            eta_secs = remaining * secs_per
+            eta_str = fmt_duration(eta_secs)
+
         line = (
             f"  {sc}{e['status']:<10}{RESET} "
             f"{short_dir(e['dir']):<11} "
@@ -642,9 +995,9 @@ def render(entries, term_width: int):
             f"{e['concurrency']:>3} "
             f"{sc}{e['resolved']:>3}/{e['processed']:>3}/{e['total']:<3}{RESET} "
             f"{e['rate']:>5.1%} "
-            f"{e['sb_assisted']:>3} "
             f"{fmt_duration(e['elapsed']):>9} "
             f"{avg:>7} "
+            f"{eta_str:>9} "
             f"{fmt_time(e['start']):<12}"
         )
         print(line)
@@ -673,6 +1026,58 @@ def render(entries, term_width: int):
             detail += f"  {', '.join(parts)}"
         detail += RESET
         print(detail)
+
+        # Per-repo breakdown for iterate_repos
+        irp = e.get("iterate_repos_progress")
+        if irp:
+            repo_total = irp["repo_total"]
+            repo_done = irp["repo_completed"]
+            # Count how many repos are in each phase
+            phase_counts = {"train": 0, "vb": 0, "val": 0, "done": 0, "pending": 0}
+            for rp in irp["repo_progress"]:
+                cp = rp.get("current_phase", "pending")
+                phase_counts[cp] = phase_counts.get(cp, 0) + 1
+            parts = []
+            for p, c in phase_counts.items():
+                if c > 0:
+                    parts.append(f"{c} {p}")
+            print(f"  {DIM}{'':>22} repos: {', '.join(parts)}{RESET}")
+            for rp in irp["repo_progress"]:
+                short_repo = rp["name"].split("/")[-1]
+                current_phase = rp.get("current_phase", "pending")
+                if current_phase == "done":
+                    r_color = C_DONE
+                    phase_tag = "done "
+                elif current_phase == "pending":
+                    r_color = DIM
+                    phase_tag = "wait "
+                else:
+                    r_color = C_RUNNING
+                    phase_tag = f"{current_phase:>4}"
+
+                # Build pipeline: train→vb→val with progress
+                pipeline = []
+                for plabel in ("train", "vb", "val"):
+                    pd = rp["phases"].get(plabel)
+                    if not pd or pd["total"] == 0:
+                        continue
+                    is_current = (plabel == current_phase)
+                    if pd["processed"] >= pd["total"]:
+                        # Phase complete
+                        pipeline.append(f"{plabel}:{pd['resolved']}/{pd['total']}✓")
+                    elif is_current:
+                        # Active phase — show progress bar feel
+                        pipeline.append(f"{plabel}:{pd['resolved']}/{pd['processed']}/{pd['total']}")
+                    else:
+                        pipeline.append(f"{plabel}:{pd['resolved']}/{pd['processed']}/{pd['total']}")
+                pipe_str = " → ".join(pipeline) if pipeline else "-"
+
+                r_resolved = rp["resolved"]
+                r_total = rp["total"]
+                r_rate = f"{r_resolved}/{r_total}" if r_total else "-"
+
+                print(f"  {DIM}{'':>22}{r_color}{phase_tag}{RESET} {DIM}{short_repo:<16} "
+                      f"{r_rate:>8}  {pipe_str}{RESET}")
 
     # Summary
     print()

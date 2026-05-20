@@ -6,7 +6,8 @@ import json
 import os
 import random
 import sys
-from collections import Counter
+from collections import Counter, defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -47,6 +48,12 @@ def apply_litellm_config(config: dict):
     litellm_settings = config.get("litellm", {})
     if litellm_settings.get("suppress_debug_info", False):
         litellm.suppress_debug_info = True
+    level_name = litellm_settings.get("log_level", "WARNING")
+    litellm.log_level = level_name
+    import logging
+    litellm.verbose_logger.setLevel(level_name)
+    for handler in litellm.verbose_logger.handlers:
+        handler.setLevel(level_name)
 
 
 def deep_merge(base: dict, override: dict) -> dict:
@@ -225,6 +232,11 @@ def main():
         type=Path,
         help="Previous run dir with baseline val results (skip re-running baseline pass)",
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show execution plan without running anything (no LLM calls, no Docker, no files written)",
+    )
 
     args = parser.parse_args()
 
@@ -293,6 +305,598 @@ def _make_agent_factory(config: dict, agent_config: LLMConfig, output_dir: Path)
     return factory
 
 
+def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
+    """Print execution plan without running anything."""
+    benchmark = config["benchmark"]["dataset"].replace("/", "__")
+    exp = config.get("experiment", {})
+    sb = exp.get("skillbook", {})
+    bm = config.get("benchmark", {})
+    agent_cfg = config.get("agent", {})
+    llm_cfg = config.get("llm", {})
+
+    print("\n=== DRY RUN ===")
+
+    # --- Configuration ---
+    print("\nConfiguration:")
+    print(f"  Run name:         {run_name}")
+    print(f"  Output (would be): {output_dir}")
+    print(f"  Benchmark:        {config['benchmark']['dataset']} (split: {bm.get('split', 'test')})")
+    print(f"  Skillbook mode:   {sb.get('mode', 'per_instance')}")
+    print(f"  Custom SWE learn: {sb.get('custom_swe_learn', False)}")
+    print(f"  Concurrency:      {exp.get('concurrency', 1)}")
+    print(f"  Max attempts:     {exp.get('max_attempts', 2)}")
+    print(f"  Force learn:      {exp.get('force_learn', True)}")
+    dedup = sb.get("deduplication")
+    if dedup:
+        print(f"  Deduplication:    enabled (threshold={dedup.get('similarity_threshold', 'default')})")
+
+    baseline_run_dir = getattr(args, "baseline_run_dir", None)
+    if not baseline_run_dir:
+        config_baseline = exp.get("baseline_run_dir")
+        if config_baseline:
+            baseline_run_dir = Path(config_baseline)
+    if baseline_run_dir:
+        print(f"  Baseline run dir: {baseline_run_dir}")
+
+    # --- LLM config ---
+    print("\nLLM:")
+    for role in ("agent", "ace"):
+        role_cfg = llm_cfg.get(role, {})
+        model = role_cfg.get("model", "not set")
+        api_base = role_cfg.get("api_base", "default")
+        max_tokens = role_cfg.get("max_tokens", "default")
+        print(f"  {role}: model={model}, api_base={api_base}, max_tokens={max_tokens}")
+
+    # --- Dataset ---
+    print("\nDataset:")
+    if bm.get("max_instances"):
+        print(f"  Max instances:    {bm['max_instances']}")
+    if bm.get("exclude_instances"):
+        print(f"  Exclude:          {len(bm['exclude_instances'])} instances")
+    if bm.get("filter_repos"):
+        print(f"  Filter repos:     {bm['filter_repos']}")
+
+    instances = get_instances(config)
+    print(f"  Instances loaded: {len(instances)}")
+
+    # Check for iterate_repos mode
+    iterate_repos_list = bm.get("iterate_repos")
+    if iterate_repos_list:
+        print(f"  iterate_repos:   {iterate_repos_list}")
+        # Group by repo
+        from collections import defaultdict
+        repo_groups = defaultdict(list)
+        for inst in instances:
+            repo_groups[inst.get("repo", "unknown")].append(inst)
+
+        print(f"\niterate_repos Plan ({len(iterate_repos_list)} repos):")
+        for repo in iterate_repos_list:
+            repo_insts = repo_groups.get(repo, [])
+            if not repo_insts:
+                print(f"  {repo}: NOT FOUND in dataset")
+                continue
+            train, val = split_instances(repo_insts, config)
+            print(f"  {repo}: {len(repo_insts)} instances → {len(train)} train / {len(val)} val")
+
+        concurrency = exp.get("concurrency", 1)
+        if concurrency > 1:
+            workers = min(concurrency, len(iterate_repos_list))
+            print(f"\n  Parallelism: {workers} repos at a time")
+
+        baseline_run_dir = getattr(args, "baseline_run_dir", None)
+        if not baseline_run_dir:
+            config_baseline = exp.get("baseline_run_dir")
+            if config_baseline:
+                baseline_run_dir = Path(config_baseline)
+        if baseline_run_dir:
+            print(f"  Baseline run dir: {baseline_run_dir}")
+
+        print("\n=== END DRY RUN ===")
+        return
+
+    # Instance filter
+    if args.instance:
+        instances = [i for i in instances if i.get("instance_id") == args.instance]
+        if not instances:
+            print(f"\n  ERROR: Instance not found: {args.instance}")
+            return
+        print(f"  Filtered to:      {args.instance}")
+
+    # --- Split ---
+    train_instances, val_instances = split_instances(instances, config)
+    is_two_phase = len(val_instances) > 0
+
+    print(f"\nSplit:")
+    print(f"  Train: {len(train_instances)} instances")
+    print(f"  Val:   {len(val_instances)} instances")
+    if is_two_phase:
+        split_cfg = exp.get("split", {})
+        print(f"  Val ratio: {split_cfg.get('val_ratio', 0.2)}")
+
+    # --- Resume ---
+    max_attempts = exp.get("max_attempts", 2)
+    cli_resume_dirs = getattr(args, "resume_dir", None)
+    config_resume_dirs = exp.get("resume_dirs")
+    resume_dirs = cli_resume_dirs or (
+        [Path(p) for p in config_resume_dirs] if config_resume_dirs else None
+    )
+
+    print(f"\nResume:")
+    if resume_dirs:
+        from data_io.resume_scanner import scan_resume_dirs
+
+        instance_ids = [i["instance_id"] for i in train_instances]
+        resume_state = scan_resume_dirs(resume_dirs, benchmark, instance_ids, max_attempts)
+
+        complete_ids = {iid for iid, rp in resume_state.items() if rp.is_fully_complete}
+        partial_ids = {
+            iid
+            for iid, rp in resume_state.items()
+            if not rp.is_fully_complete and rp.last_complete_iter >= 0
+        }
+        fresh_ids = set(instance_ids) - set(resume_state.keys())
+
+        print(f"  Resume dirs:       {[str(d) for d in resume_dirs]}")
+        print(f"  Complete (copy):   {len(complete_ids)}")
+        print(f"  Partial (continue): {len(partial_ids)}")
+        print(f"  Fresh (process):   {len(fresh_ids)}")
+    else:
+        print("  No resume dirs")
+        print(f"  All {len(train_instances)} train instances will be processed from scratch")
+
+    # Baseline reuse info
+    if baseline_run_dir and not is_two_phase:
+        baseline_dir = Path(baseline_run_dir)
+        baseline_traj_dir = baseline_dir / benchmark / "trajectories"
+        baseline_count = 0
+        if baseline_traj_dir.exists():
+            baseline_count = sum(
+                1 for iid in (i["instance_id"] for i in train_instances)
+                if (baseline_traj_dir / iid / "iter_0.json").exists()
+            )
+        print(f"\nBaseline reuse (iter_0 predict+eval):")
+        print(f"  {baseline_count}/{len(train_instances)} instances available in baseline")
+        print(f"  Remaining {len(train_instances) - baseline_count} will run from scratch")
+
+    if baseline_run_dir and is_two_phase:
+        print(f"\n  Baseline run dir: {baseline_run_dir} (reuse existing val baseline)")
+
+    # --- Execution Plan ---
+    print(f"\nExecution Plan:")
+    if is_two_phase:
+        print(f"  Mode: Two-phase (train → val baseline → val skillbook)")
+        print(f"  Phase 1 - Train:")
+        print(f"    {len(train_instances)} instances × 1 attempt, force_learn=True")
+        print(f"    Skillbook: {sb.get('mode', 'per_instance')} mode, accumulates across train")
+        if dedup:
+            print(f"    Post-train dedup: enabled")
+        print(f"  Phase 2 - Val baseline:")
+        print(f"    {len(val_instances)} instances × 1 attempt, empty skillbook, frozen")
+        if baseline_run_dir:
+            print(f"    Reuse results from: {baseline_run_dir}")
+        print(f"  Phase 3 - Val skillbook:")
+        print(f"    {len(val_instances)} instances × 1 attempt, learned skillbook, frozen")
+    else:
+        print(f"  Mode: Single-phase (predict → evaluate → learn loop)")
+        print(f"  {len(train_instances)} instances × up to {max_attempts} attempts each")
+        if baseline_run_dir:
+            print(f"  iter_0: reuse predict+eval from baseline, then learn + continue")
+        else:
+            print(f"  Per instance: predict → evaluate → (if unresolved) learn → retry")
+
+    concurrency = exp.get("concurrency", 1)
+    if concurrency > 1:
+        print(f"  Concurrency: {concurrency} workers (prediction parallel, evaluation serialized)")
+
+    # --- Limits ---
+    ctx = agent_cfg.get("context", {})
+    agent_llm = llm_cfg.get("agent", {})
+    print(f"\nLimits:")
+    print(f"  Step limit:       {agent_cfg.get('step_limit', 100)}")
+    print(f"  Cost limit:       ${agent_cfg.get('cost_limit', 5.0):.2f}")
+    print(f"  Context window:   {ctx.get('context_window', 65536)}")
+    print(f"  Max tokens:       {agent_llm.get('max_tokens', 4096)}")
+    print(f"  Keep recent msgs: {ctx.get('keep_recent_messages', 6)}")
+    print(f"  Truncate thresh:  {ctx.get('truncate_threshold', 0.85)}")
+
+    # --- Observability ---
+    obs_cfg = config.get("observability", {})
+    if args.observe or obs_cfg.get("enabled", False):
+        project = obs_cfg.get("project_name", "agent-swe-ace")
+        print(f"\nObservability:")
+        print(f"  Project: {project}_{output_dir.name}")
+
+    # --- Instance IDs ---
+    print(f"\nTrain instances ({len(train_instances)}):")
+    for inst in train_instances[:15]:
+        print(f"  - {inst['instance_id']}")
+    if len(train_instances) > 15:
+        print(f"  ... and {len(train_instances) - 15} more")
+    if val_instances:
+        print(f"\nVal instances ({len(val_instances)}):")
+        for inst in val_instances[:15]:
+            print(f"  - {inst['instance_id']}")
+        if len(val_instances) > 15:
+            print(f"  ... and {len(val_instances) - 15} more")
+
+    print("\n=== END DRY RUN ===")
+
+# ── iterate_repos orchestration ──────────────────────────────────────────
+
+
+def _run_single_repo_experiment(
+    repo: str,
+    repo_instances: list,
+    config: dict,
+    run_dir: Path,
+    run_name: str,
+    agent_config: LLMConfig,
+    ace_config: LLMConfig,
+    agent_factory,
+    evaluate_phase: EvaluatePhase,
+    reflector,
+    skill_manager,
+    baseline_run_dir: Path | None,
+) -> dict:
+    """Run a complete two-phase experiment for a single repo.
+
+    Returns the statistics dict from the experiment run.
+    """
+    from ace import SkillManager, Reflector as DefaultReflector
+
+    # Split repo instances into train/val
+    train_instances, val_instances = split_instances(repo_instances, config)
+    logger.info(f"[{repo}] Split: {len(train_instances)} train, {len(val_instances)} val")
+
+    benchmark = config["benchmark"]["dataset"].replace("/", "__")
+
+    # Per-repo components (each repo needs its own agent + predict + learn)
+    agent = agent_factory()
+    predict_phase = PredictPhase(
+        agent=agent, output_dir=run_dir, run_name=run_name,
+        benchmark=benchmark, model_name=agent_config.model,
+    )
+    learn_phase = LearnPhase(
+        reflector=reflector,
+        skill_manager=skill_manager,
+        output_dir=run_dir,
+        run_name=run_name,
+        benchmark=benchmark,
+        skillbook_mode=config.get("experiment", {}).get("skillbook", {}).get("mode", "per_instance"),
+        dedup_config=config.get("experiment", {}).get("skillbook", {}).get("deduplication"),
+    )
+
+    # Resume state for this repo's instances
+    max_attempts = config["experiment"].get("max_attempts", 2)
+    force_learn = config["experiment"].get("force_learn", True)
+    resume_state = {}
+    cli_resume_dirs = None
+    config_resume_dirs = config.get("experiment", {}).get("resume_dirs")
+    # Resume not typically used with iterate_repos but support it
+    resume_dirs = [Path(p) for p in config_resume_dirs] if config_resume_dirs else None
+    if resume_dirs:
+        from data_io.resume_scanner import scan_resume_dirs
+        instance_ids = [i["instance_id"] for i in train_instances]
+        resume_state = scan_resume_dirs(resume_dirs, benchmark, instance_ids, max_attempts)
+        complete_ids = {iid for iid, rp in resume_state.items() if rp.is_fully_complete}
+        before = len(train_instances)
+        train_instances = [i for i in train_instances if i["instance_id"] not in complete_ids]
+        logger.info(f"[{repo}] Resume: {len(complete_ids)} complete, {len(train_instances)} to process")
+
+    # Within-repo concurrency for train phase (only effective with baseline reuse)
+    repo_concurrency = config.get("experiment", {}).get("train_concurrency", 1)
+    if repo_concurrency > 1 and not baseline_run_dir:
+        logger.warning(f"[{repo}] train_concurrency={repo_concurrency} ignored without baseline_run_dir")
+        repo_concurrency = 1
+
+    loop = ExperimentLoop(
+        predict_phase=predict_phase,
+        evaluate_phase=evaluate_phase,
+        learn_phase=learn_phase,
+        output_dir=run_dir,
+        run_name=run_name,
+        max_attempts=max_attempts,
+        force_learn=force_learn,
+        skillbook_mode=config.get("experiment", {}).get("skillbook", {}).get("mode", "per_instance"),
+        resume_state=resume_state,
+        benchmark=benchmark,
+        concurrency=repo_concurrency,
+        agent_factory=agent_factory,
+    )
+
+    stats = loop.run(
+        train_instances, config,
+        val_instances=val_instances if val_instances else None,
+        baseline_run_dir=baseline_run_dir,
+    )
+    return stats
+
+
+def _aggregate_iterate_stats(repo_stats: dict[str, dict], config: dict, run_dir: Path):
+    """Aggregate per-repo statistics into combined statistics.json."""
+    per_repo_dir = run_dir / "statistics_per_repo"
+    per_repo_dir.mkdir(parents=True, exist_ok=True)
+
+    # Write per-repo stats
+    for repo, stats in repo_stats.items():
+        repo_filename = repo.replace("/", "__") + ".json"
+        save_statistics(statistics=stats, run_dir=per_repo_dir, filename=repo_filename)
+
+    # Aggregate
+    total_resolved = 0
+    total_processed = 0
+    total_instances = 0
+    val_baseline_resolved = 0
+    val_baseline_total = 0
+    val_skillbook_resolved = 0
+    val_skillbook_total = 0
+    train_resolved = 0
+    train_total = 0
+    total_skills = 0
+
+    for repo, stats in repo_stats.items():
+        # Train phase
+        tp = stats.get("train_phase", {})
+        train_resolved += tp.get("resolved_count", 0)
+        train_total += tp.get("total_instances", 0)
+        total_skills += tp.get("total_skills_learned", 0)
+        # Reused baseline
+        reused = tp.get("reused_from_baseline", 0)
+        train_fresh = tp.get("freshly_run", 0)
+
+        # Val baseline
+        vbp = stats.get("val_baseline_phase", {})
+        val_baseline_resolved += vbp.get("resolved_count", 0)
+        val_baseline_total += vbp.get("total_instances", 0)
+
+        # Val skillbook
+        vsp = stats.get("val_skillbook_phase", {})
+        val_skillbook_resolved += vsp.get("resolved_count", 0)
+        val_skillbook_total += vsp.get("total_instances", 0)
+
+        # Overall
+        total_resolved += stats.get("resolved_count", 0)
+        total_processed += stats.get("processed_instances", 0)
+        total_instances += stats.get("total_instances", 0)
+
+    # Determine overall status
+    all_completed = all(
+        s.get("status") == "completed" for s in repo_stats.values()
+    )
+
+    vb_rate = val_baseline_resolved / val_baseline_total if val_baseline_total else 0.0
+    vs_rate = val_skillbook_resolved / val_skillbook_total if val_skillbook_total else 0.0
+    improvement = vs_rate - vb_rate
+
+    # Per-repo improvements
+    repo_improvements = {}
+    for repo, stats in repo_stats.items():
+        summary = stats.get("summary", {})
+        imp_str = summary.get("skillbook_improvement", "N/A")
+        repo_improvements[repo] = {
+            "train_resolved": stats.get("train_phase", {}).get("resolved_count", 0),
+            "train_total": stats.get("train_phase", {}).get("total_instances", 0),
+            "val_baseline_rate": summary.get("val_baseline_resolution_rate", 0),
+            "val_skillbook_rate": summary.get("val_skillbook_resolution_rate", 0),
+            "improvement": imp_str,
+        }
+
+    combined = {
+        "status": "completed" if all_completed else "partial",
+        "mode": "iterate_repos",
+        "run_name": config.get("experiment", {}).get("name", ""),
+        "repos": list(repo_stats.keys()),
+        "start_time": min(s.get("start_time", "") for s in repo_stats.values()),
+        "end_time": max(s.get("end_time", "") for s in repo_stats.values() if s.get("end_time")),
+        "total_instances": total_instances,
+        "processed_instances": total_processed,
+        "resolved_count": total_resolved,
+        "resolution_rate": total_resolved / total_processed if total_processed else 0.0,
+        "train_phase": {
+            "total_instances": train_total,
+            "resolved_count": train_resolved,
+            "resolution_rate": train_resolved / train_total if train_total else 0.0,
+            "total_skills_learned": total_skills,
+        },
+        "val_baseline_phase": {
+            "total_instances": val_baseline_total,
+            "resolved_count": val_baseline_resolved,
+            "resolution_rate": vb_rate,
+        },
+        "val_skillbook_phase": {
+            "total_instances": val_skillbook_total,
+            "resolved_count": val_skillbook_resolved,
+            "resolution_rate": vs_rate,
+        },
+        "summary": {
+            "total_repos": len(repo_stats),
+            "completed_repos": sum(1 for s in repo_stats.values() if s.get("status") == "completed"),
+            "train_resolution_rate": train_resolved / train_total if train_total else 0.0,
+            "val_baseline_resolution_rate": vb_rate,
+            "val_skillbook_resolution_rate": vs_rate,
+            "skillbook_improvement": f"{improvement:+.3f}",
+            "skillbook_improvement_pct": f"{(improvement / vb_rate * 100) if vb_rate > 0 else 0:+.1f}%",
+            "per_repo": repo_improvements,
+        },
+    }
+
+    save_statistics(statistics=combined, run_dir=run_dir)
+    return combined
+
+
+def _run_iterate_repos(config: dict, args, output_dir: Path):
+    """Run independent per-repo two-phase experiments for each repo in iterate_repos."""
+    iterate_repos_list = config["benchmark"]["iterate_repos"]
+    run_name = config["experiment"].get("name", "experiment")
+    concurrency = config["experiment"].get("concurrency", 1)
+
+    # Load all instances (with exclude_instances, but no filter_repos)
+    instances = _get_instances_no_filter(config)
+    logger.info(f"Loaded {len(instances)} instances for iterate_repos mode")
+
+    # Group by repo
+    repo_groups = defaultdict(list)
+    for inst in instances:
+        repo = inst.get("repo", "unknown")
+        repo_groups[repo].append(inst)
+
+    # Validate repos
+    repos_to_run = []
+    for repo in iterate_repos_list:
+        if repo not in repo_groups:
+            logger.warning(f"Repo '{repo}' not found in dataset, skipping")
+            continue
+        repos_to_run.append(repo)
+    logger.info(f"Running {len(repos_to_run)} repos: {repos_to_run}")
+
+    if not repos_to_run:
+        logger.error("No valid repos to run")
+        return
+
+    # Create shared components
+    agent_config = LLMConfig.from_dict(config["llm"]["agent"])
+    ace_config = LLMConfig.from_dict(config["llm"]["ace"])
+    agent_factory = _make_agent_factory(config, agent_config, output_dir)
+
+    benchmark = config["benchmark"]["dataset"].replace("/", "__")
+    evaluate_phase = EvaluatePhase(
+        use_docker=config.get("evaluation", {}).get("use_docker", True),
+        timeout=config.get("evaluation", {}).get("timeout", 1800),
+        rm_image=config.get("evaluation", {}).get("rm_image", True),
+        output_dir=output_dir,
+        run_name=run_name,
+        benchmark=benchmark,
+        namespace=config.get("environment", {}).get("namespace"),
+    )
+
+    # ACE reflector + skill manager (shared, stateless per call)
+    ace_model = create_ace_client(ace_config.to_dict())
+    from ace import SkillManager, Reflector as DefaultReflector
+
+    custom_swe_learn = config.get("experiment", {}).get("skillbook", {}).get("custom_swe_learn", False)
+    if custom_swe_learn:
+        from prompts import SWEReflector, SWESkillManager
+        reflector = SWEReflector(ace_model, api_base=ace_config.api_base, api_key=ace_config.api_key)
+        skill_manager = SWESkillManager(ace_model, api_base=ace_config.api_base, api_key=ace_config.api_key)
+    else:
+        if ace_config.api_base:
+            os.environ["OPENAI_BASE_URL"] = ace_config.api_base
+            os.environ["OPENAI_API_KEY"] = ace_config.api_key
+            os.environ["OPENAI_MAX_RETRIES"] = os.getenv("ACE_LEARN_MAX_RETRIES", "50")
+            default_model = f"openai:{ace_config.model}"
+        else:
+            default_model = ace_model
+        reflector = DefaultReflector(default_model)
+        skill_manager = SkillManager(default_model)
+
+    # Resolve baseline_run_dir
+    baseline_run_dir = getattr(args, 'baseline_run_dir', None)
+    if not baseline_run_dir:
+        config_baseline = config.get("experiment", {}).get("baseline_run_dir")
+        if config_baseline:
+            baseline_run_dir = Path(config_baseline)
+
+    # Run per-repo experiments
+    repo_stats = {}
+
+    if concurrency > 1 and len(repos_to_run) > 1:
+        effective_workers = min(concurrency, len(repos_to_run))
+        logger.info(f"Running {len(repos_to_run)} repos in parallel (workers={effective_workers})")
+
+        def _run_repo(repo):
+            stats = _run_single_repo_experiment(
+                repo=repo,
+                repo_instances=repo_groups[repo],
+                config=config,
+                run_dir=output_dir,
+                run_name=run_name,
+                agent_config=agent_config,
+                ace_config=ace_config,
+                agent_factory=agent_factory,
+                evaluate_phase=evaluate_phase,
+                reflector=reflector,
+                skill_manager=skill_manager,
+                baseline_run_dir=baseline_run_dir,
+            )
+            return repo, stats
+
+        with ThreadPoolExecutor(max_workers=effective_workers) as executor:
+            futures = {executor.submit(_run_repo, repo): repo for repo in repos_to_run}
+            for future in as_completed(futures):
+                repo = futures[future]
+                try:
+                    repo_name, stats = future.result()
+                    repo_stats[repo_name] = stats
+                    logger.info(f"[{repo_name}] completed — "
+                                f"resolved {stats.get('resolved_count', '?')}/{stats.get('total_instances', '?')}")
+                except Exception as e:
+                    logger.error(f"[{repo}] failed: {e}")
+                    repo_stats[repo] = {"status": "error", "error": str(e)}
+    else:
+        for i, repo in enumerate(repos_to_run):
+            logger.info(f"\n{'='*60}")
+            logger.info(f"Repo {i+1}/{len(repos_to_run)}: {repo} ({len(repo_groups[repo])} instances)")
+            logger.info(f"{'='*60}")
+            try:
+                stats = _run_single_repo_experiment(
+                    repo=repo,
+                    repo_instances=repo_groups[repo],
+                    config=config,
+                    run_dir=output_dir,
+                    run_name=run_name,
+                    agent_config=agent_config,
+                    ace_config=ace_config,
+                    agent_factory=agent_factory,
+                    evaluate_phase=evaluate_phase,
+                    reflector=reflector,
+                    skill_manager=skill_manager,
+                    baseline_run_dir=baseline_run_dir,
+                )
+                repo_stats[repo] = stats
+                logger.info(f"[{repo}] completed — "
+                            f"resolved {stats.get('resolved_count', '?')}/{stats.get('total_instances', '?')}")
+            except Exception as e:
+                logger.error(f"[{repo}] failed: {e}")
+                repo_stats[repo] = {"status": "error", "error": str(e)}
+
+    # Aggregate and write combined statistics
+    combined = _aggregate_iterate_stats(repo_stats, config, output_dir)
+
+    # Print summary
+    summary = combined.get("summary", {})
+    logger.info(f"\n{'='*60}")
+    logger.info(f"iterate_repos Complete! ({summary.get('completed_repos', '?')}/{summary.get('total_repos', '?')} repos)")
+    logger.info(f"Train: {combined['train_phase']['resolved_count']}/{combined['train_phase']['total_instances']} "
+                f"({combined['train_phase']['resolution_rate']:.1%})")
+    logger.info(f"Val baseline: {combined['val_baseline_phase']['resolution_rate']:.1%}")
+    logger.info(f"Val skillbook: {combined['val_skillbook_phase']['resolution_rate']:.1%}")
+    logger.info(f"Improvement: {summary.get('skillbook_improvement', 'N/A')}")
+    for repo, imp in summary.get("per_repo", {}).items():
+        logger.info(f"  {repo}: {imp.get('improvement', 'N/A')}")
+    logger.info(f"{'='*60}")
+
+
+def _get_instances_no_filter(config: dict) -> list:
+    """Load instances with max_instances and exclude_instances but without filter_repos."""
+    logger.info(f"Loading dataset: {config['benchmark']['dataset']}")
+    dataset = load_dataset(
+        config["benchmark"]["dataset"],
+        split=config["benchmark"].get("split", "test"),
+    )
+    instances = list(dataset)
+
+    max_instances = config["benchmark"].get("max_instances")
+    if max_instances:
+        instances = instances[:max_instances]
+
+    exclude = config["benchmark"].get("exclude_instances", [])
+    if exclude:
+        exclude_set = set(exclude)
+        instances = [i for i in instances if i["instance_id"] not in exclude_set]
+
+    return instances
+
+
 def run_full_experiment(config: dict, args):
     """Run full experiment loop."""
     # Setup run name and output
@@ -300,6 +904,12 @@ def run_full_experiment(config: dict, args):
     run_name = config["experiment"].get("name", "experiment")
     base_dir = Path(config.get("output", {}).get("dir", "data"))
     output_dir = get_run_dir(base_dir, timestamp)
+
+    # Dry run: show execution plan without side effects
+    if args.dry_run:
+        _run_dry_run(config, args, output_dir, run_name)
+        sys.exit(0)
+
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Setup run-specific logging to experiment.log
@@ -311,6 +921,12 @@ def run_full_experiment(config: dict, args):
 
     # Save config
     save_config(config=config, run_dir=output_dir)
+
+    # Check for iterate_repos mode
+    iterate_repos = config.get("benchmark", {}).get("iterate_repos")
+    if iterate_repos:
+        _run_iterate_repos(config, args, output_dir)
+        return
 
     # Enable observability with run_id as project name (if enabled)
     # This creates a unique Opik project per run for better traceability
@@ -453,9 +1069,28 @@ def run_predict_cmd(config: dict, args):
         logger.error("--instance required for predict phase")
         sys.exit(1)
 
-    # Setup
     output_dir = Path(config.get("output", {}).get("dir", "data"))
     run_name = config["experiment"].get("name", "experiment")
+
+    # Load instance (lightweight, for validation)
+    instances = get_instances(config)
+    instance = next((i for i in instances if i["instance_id"] == args.instance), None)
+    if not instance:
+        logger.error(f"Instance not found: {args.instance}")
+        sys.exit(1)
+
+    if args.dry_run:
+        agent_cfg = config.get("llm", {}).get("agent", {})
+        print(f"\n=== DRY RUN: predict ===")
+        print(f"  Instance:   {args.instance}")
+        print(f"  Iteration:  {args.iteration}")
+        print(f"  Skillbook:  {args.skillbook or '(empty)'}")
+        print(f"  Model:      {agent_cfg.get('model', 'not set')}")
+        print(f"  Step limit: {config.get('agent', {}).get('step_limit', 100)}")
+        print(f"  Cost limit: ${config.get('agent', {}).get('cost_limit', 5.0):.2f}")
+        print(f"  Docker:     {config.get('environment', {}).get('type') == 'docker'}")
+        print(f"\n=== END DRY RUN ===")
+        sys.exit(0)
 
     # Create agent
     agent_config = LLMConfig.from_dict(config["llm"]["agent"])
@@ -473,13 +1108,6 @@ def run_predict_cmd(config: dict, args):
         keep_recent_messages=config.get("agent", {}).get("context", {}).get("keep_recent_messages", 6),
         truncate_threshold=config.get("agent", {}).get("context", {}).get("truncate_threshold", 0.85),
     )
-
-    # Load instance
-    instances = get_instances(config)
-    instance = next((i for i in instances if i["instance_id"] == args.instance), None)
-    if not instance:
-        logger.error(f"Instance not found: {args.instance}")
-        sys.exit(1)
 
     # Load skillbook
     skillbook = load_skillbook(args.skillbook)
@@ -504,12 +1132,26 @@ def run_evaluate_cmd(config: dict, args):
     output_dir = Path(config.get("output", {}).get("dir", "data"))
     run_name = config["experiment"].get("name", "experiment")
 
-    # Load instance
+    # Load instance (lightweight, for validation)
     instances = get_instances(config)
     instance = next((i for i in instances if i["instance_id"] == args.instance), None)
     if not instance:
         logger.error(f"Instance not found: {args.instance}")
         sys.exit(1)
+
+    if args.dry_run:
+        eval_cfg = config.get("evaluation", {})
+        print(f"\n=== DRY RUN: evaluate ===")
+        print(f"  Instance:    {args.instance}")
+        print(f"  Iteration:   {args.iteration}")
+        print(f"  Patch:       {'(from --patch)' if args.patch else '(from --trajectory)' if args.trajectory else 'NOT SPECIFIED'}")
+        if args.trajectory:
+            print(f"  Trajectory:  {args.trajectory}")
+        print(f"  Docker:      {eval_cfg.get('use_docker', True)}")
+        print(f"  Timeout:     {eval_cfg.get('timeout', 1800)}s")
+        print(f"  RM image:    {eval_cfg.get('rm_image', True)}")
+        print(f"\n=== END DRY RUN ===")
+        sys.exit(0)
 
     # Get patch
     if args.patch:
@@ -548,6 +1190,19 @@ def run_learn_cmd(config: dict, args):
 
     output_dir = Path(config.get("output", {}).get("dir", "data"))
     run_name = config["experiment"].get("name", "experiment")
+
+    if args.dry_run:
+        ace_cfg = config.get("llm", {}).get("ace", {})
+        custom_swe = config.get("experiment", {}).get("skillbook", {}).get("custom_swe_learn", False)
+        print(f"\n=== DRY RUN: learn ===")
+        print(f"  Instance:       {args.instance}")
+        print(f"  Trajectory:     {args.trajectory}")
+        print(f"  Iteration:      {args.iteration}")
+        print(f"  ACE model:      {ace_cfg.get('model', 'not set')}")
+        print(f"  Custom SWE:     {custom_swe}")
+        print(f"  Skillbook mode: {config.get('experiment', {}).get('skillbook', {}).get('mode', 'per_instance')}")
+        print(f"\n=== END DRY RUN ===")
+        sys.exit(0)
 
     # Load trajectory
     trajectory = load_trajectory(args.trajectory)
