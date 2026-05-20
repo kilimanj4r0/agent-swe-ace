@@ -41,11 +41,6 @@ benchmark:
   max_instances: null                 # null = all instances, or set number
   filter_repos: null                 # null = all repos, or list: ["django/django"]
 
-evaluation:
-  use_docker: true                    # Use Docker for evaluation (default)
-  timeout: 1800                       # Seconds per patch evaluation (30 min)
-  parallel: 1                         # Number of parallel evaluations
-
 output:
   dir: "data"
   save_trajectories: true

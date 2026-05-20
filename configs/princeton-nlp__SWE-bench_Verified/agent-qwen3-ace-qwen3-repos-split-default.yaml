@@ -1,0 +1,45 @@
+experiment:
+  name: "agent-qwen3-ace-qwen3-verified-iterate-repos-default"
+  description: "ACE skillbook learning — per-repo two-phase experiments (default ACE reflector)"
+  max_attempts: 1
+  concurrency: 6                       # Set >1 to run repos in parallel
+
+  skillbook:
+    mode: "per_repo"
+    custom_swe_learn: false
+    deduplication:
+      enabled: true
+      similarity_threshold: 0.85
+
+  split:
+    val_ratio: 0.2
+  baseline_run_dir: "data/run_20260517_202038_completed_qwen3_4a_default_verified"
+
+agent:
+  step_limit: 250
+
+llm:
+  agent:
+    provider: "hosted_vllm"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://localhost:8800/v1"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+  ace:
+    provider: "hosted_vllm"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://localhost:8800/v1"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+
+benchmark:
+  dataset: "princeton-nlp/SWE-bench_Verified"
+  split: "test"
+  max_instances: null
+  iterate_repos:
+    - "django/django"
+    - "sympy/sympy"
+    - "sphinx-doc/sphinx"
+    # - "matplotlib/matplotlib"
+    - "scikit-learn/scikit-learn"
+    - "astropy/astropy"
+    - "pydata/xarray"
+    - "pytest-dev/pytest"

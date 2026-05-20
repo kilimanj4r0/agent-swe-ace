@@ -1,23 +1,23 @@
 experiment:
-  name: "agent-qwen3-ace-qwen3-django-split-swe"
+  name: "agent-qwen3-ace-qwen3-full-1a-12c-baseline"
   description: "ACE skillbook learning experiment on SWE-bench Lite"
   max_attempts: 1                    # Max retry attempts per instance
-  concurrency: 1
+  concurrency: 12
 
   skillbook:
-    mode: "per_repo"              # "per_instance", "per_repo", or "global"
+    mode: "per_instance"              # "per_instance", "per_repo", or "global"
     custom_swe_learn: true            # SWE-optimized Reflector+SkillManager (anti-patterns, type prefixes)
     deduplication:
       enabled: true
       similarity_threshold: 0.85      # Cosine similarity threshold
-
-  # --- Two-phase experiment settings (per_repo/global modes) ---
-  split:                             # Enable train/val split
-    val_ratio: 0.2                  # Fraction of instances for validation
-  baseline_run_dir: "data/run_20260426_210831_baseline"  # Reuse baseline results (skip re-running val baseline + train predict/eval)
+  
+  resume_dirs:
+   - data/run_20260421_183643
+   - data/run_20260423_142936
+   - data/run_20260424_180215
 
 agent:
-  step_limit: 200                    # Max agent steps per attempt
+  step_limit: 250                    # Max agent steps per attempt
 
 llm:
   agent:
@@ -39,12 +39,6 @@ benchmark:
   dataset: "princeton-nlp/SWE-bench_Lite"
   split: "test"
   max_instances: null                 # null = all instances, or set number
-  filter_repos: ["django/django"]                 # null = all repos, or list: ["django/django"]
-
-evaluation:
-  use_docker: true                    # Use Docker for evaluation (default)
-  timeout: 1800                       # Seconds per patch evaluation (30 min)
-  parallel: 1                         # Number of parallel evaluations
 
 output:
   dir: "data"

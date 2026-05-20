@@ -1,12 +1,12 @@
 experiment:
-  name: "agent-qwen3-ace-qwen3-sympy-split-swe"
+  name: "agent-qwen3-ace-qwen3-django-split-default"
   description: "ACE skillbook learning experiment on SWE-bench Lite"
   max_attempts: 1                    # Max retry attempts per instance
   concurrency: 1
 
   skillbook:
     mode: "per_repo"              # "per_instance", "per_repo", or "global"
-    custom_swe_learn: true            # SWE-optimized Reflector+SkillManager (anti-patterns, type prefixes)
+    custom_swe_learn: false            # SWE-optimized Reflector+SkillManager (anti-patterns, type prefixes)
     deduplication:
       enabled: true
       similarity_threshold: 0.85      # Cosine similarity threshold
@@ -39,12 +39,7 @@ benchmark:
   dataset: "princeton-nlp/SWE-bench_Lite"
   split: "test"
   max_instances: null                 # null = all instances, or set number
-  filter_repos: ["sympy/sympy"]                 # null = all repos, or list: ["django/django"]
-
-evaluation:
-  use_docker: true                    # Use Docker for evaluation (default)
-  timeout: 1800                       # Seconds per patch evaluation (30 min)
-  parallel: 1                         # Number of parallel evaluations
+  filter_repos: ["django/django"]                 # null = all repos, or list: ["django/django"]
 
 output:
   dir: "data"

@@ -1,0 +1,43 @@
+experiment:
+  name: "agent-qwen3-ace-qwen3-lite-iterate-repos-swe"
+  description: "ACE skillbook learning per-repo two-phase experiments for SWE-bench Lite repos"
+  max_attempts: 1
+  concurrency: 6                       # Set >1 to run repos in parallel
+
+  skillbook:
+    mode: "per_repo"
+    custom_swe_learn: true
+    deduplication:
+      enabled: true
+      similarity_threshold: 0.85
+
+  split:
+    val_ratio: 0.2
+  baseline_run_dir: "data/run_20260402_235456_completed_qwen3_6a_swe"
+
+agent:
+  step_limit: 250
+
+llm:
+  agent:
+    provider: "hosted_vllm"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://localhost:8800/v1"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+  ace:
+    provider: "hosted_vllm"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://localhost:8800/v1"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+
+benchmark:
+  dataset: "princeton-nlp/SWE-bench_Lite"
+  split: "test"
+  max_instances: null
+  iterate_repos:
+    - "django/django"
+    - "sympy/sympy"
+    - "sphinx-doc/sphinx"
+    - "matplotlib/matplotlib"
+    - "scikit-learn/scikit-learn"
+    - "pytest-dev/pytest"

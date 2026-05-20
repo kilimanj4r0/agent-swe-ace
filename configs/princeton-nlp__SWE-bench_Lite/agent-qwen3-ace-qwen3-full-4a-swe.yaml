@@ -1,18 +1,19 @@
 experiment:
-  name: "agent-qwen3-ace-qwen3-full-4a-6c-default"
+  name: "agent-qwen3-ace-qwen3-full-4a-6c-swe"
   description: "ACE skillbook learning experiment on SWE-bench Lite"
   max_attempts: 4                    # Max retry attempts per instance
   concurrency: 6
 
   skillbook:
     mode: "per_instance"              # "per_instance", "per_repo", or "global"
-    custom_swe_learn: false            # SWE-optimized Reflector+SkillManager (anti-patterns, type prefixes)
+    custom_swe_learn: true            # SWE-optimized Reflector+SkillManager (anti-patterns, type prefixes)
     deduplication:
       enabled: true
       similarity_threshold: 0.85      # Cosine similarity threshold
-
+  
   resume_dirs:
-   - data/run_20260421_183728
+   - data/run_20260421_183643
+   - data/run_20260423_134902
 
 agent:
   step_limit: 200                    # Max agent steps per attempt
@@ -37,11 +38,6 @@ benchmark:
   dataset: "princeton-nlp/SWE-bench_Lite"
   split: "test"
   max_instances: null                 # null = all instances, or set number
-
-evaluation:
-  use_docker: true                    # Use Docker for evaluation (default)
-  timeout: 1800                       # Seconds per patch evaluation (30 min)
-  parallel: 1                         # Number of parallel evaluations
 
 output:
   dir: "data"
