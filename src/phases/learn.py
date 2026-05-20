@@ -1,6 +1,7 @@
 # src/phases/learn.py
 """Phase 3: Update skillbook from failed attempts."""
 
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -11,6 +12,27 @@ from ace.protocols.deduplication import DeduplicationConfig
 from loguru import logger
 
 from data_io.writers import save_skillbook
+
+# Module-level shared SentenceTransformer model and lock.
+# Concurrent threads (iterate_repos) must share one model to avoid
+# "Cannot copy out of meta tensor" errors from simultaneous model loading.
+_shared_model = None
+_shared_model_name = None
+_shared_model_lock = threading.Lock()
+
+
+def _get_shared_st_model(model_name: str, device: str):
+    """Get or create the shared SentenceTransformer model (thread-safe)."""
+    global _shared_model, _shared_model_name
+    if _shared_model is not None and _shared_model_name == model_name:
+        return _shared_model
+    with _shared_model_lock:
+        if _shared_model is not None and _shared_model_name == model_name:
+            return _shared_model
+        from sentence_transformers import SentenceTransformer
+        _shared_model = SentenceTransformer(model_name, device=device)
+        _shared_model_name = model_name
+    return _shared_model
 
 
 @dataclass
@@ -68,9 +90,20 @@ class LearnPhase:
 
         # Setup deduplication manager
         if dedup_config:
+            embedding_device = dedup_config.pop("embedding_device", "cpu")
             cfg = DeduplicationConfig(**dedup_config)
             self.dedup_manager = DeduplicationManager(cfg)
-            logger.info(f"[Learn] Deduplication enabled with threshold {cfg.similarity_threshold}")
+            _detector = self.dedup_manager.detector
+            model_name = cfg.local_model_name
+
+            # Eagerly load the shared model on the correct device, then inject
+            # it into the detector. This avoids concurrent SentenceTransformer
+            # loading which causes "Cannot copy out of meta tensor" errors.
+            model = _get_shared_st_model(model_name, embedding_device)
+            with _detector._model_lock:
+                _detector._model = model
+
+            logger.info(f"[Learn] Deduplication enabled with threshold {cfg.similarity_threshold} (device={embedding_device})")
         else:
             self.dedup_manager = None
 
