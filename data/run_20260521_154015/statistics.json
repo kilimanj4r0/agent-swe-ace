@@ -1,0 +1,29 @@
+{
+  "run_name": "agent-qwen3-full-verified-4a-no-skillbook",
+  "timestamp": "2026-05-21T15:42:13.015571",
+  "start_time": "2026-05-21T15:40:27.126501",
+  "end_time": "2026-05-21T15:42:13.015571",
+  "experiment_time_seconds": 105.9,
+  "avg_instance_time_seconds": 0.1,
+  "total_instances": 487,
+  "processed_instances": 2,
+  "resolved_count": 2,
+  "unresolved_count": 0,
+  "resolution_rate": 1.0,
+  "resolved_ids": [
+    "astropy__astropy-12907",
+    "astropy__astropy-14309"
+  ],
+  "unresolved_ids": [],
+  "config": {
+    "max_attempts": 4,
+    "skillbook_mode": "per_instance",
+    "concurrency": 12
+  },
+  "status": "completed",
+  "skillbook_assisted": {
+    "count": 0,
+    "ids": [],
+    "by_iteration": {}
+  }
+}

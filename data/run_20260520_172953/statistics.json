@@ -1,0 +1,134 @@
+{
+  "run_name": "agent-qwen3-ace-qwen3-verified-iterate-repos-swe",
+  "timestamp": "2026-05-21T10:29:49.643920",
+  "start_time": "2026-05-20T17:30:04.951731",
+  "end_time": "2026-05-21T10:29:49.643920",
+  "experiment_time_seconds": 61184.7,
+  "avg_instance_time_seconds": 13.1,
+  "total_instances": 26,
+  "processed_instances": 26,
+  "resolved_count": 4,
+  "unresolved_count": 22,
+  "resolution_rate": 0.15384615384615385,
+  "resolved_ids": [
+    "matplotlib__matplotlib-25311",
+    "matplotlib__matplotlib-26342",
+    "matplotlib__matplotlib-20859",
+    "matplotlib__matplotlib-26291"
+  ],
+  "unresolved_ids": [
+    "matplotlib__matplotlib-22865",
+    "matplotlib__matplotlib-24970",
+    "matplotlib__matplotlib-24026",
+    "matplotlib__matplotlib-24627",
+    "matplotlib__matplotlib-23314",
+    "matplotlib__matplotlib-26208",
+    "matplotlib__matplotlib-24177",
+    "matplotlib__matplotlib-25479",
+    "matplotlib__matplotlib-25122",
+    "matplotlib__matplotlib-20676",
+    "matplotlib__matplotlib-24149",
+    "matplotlib__matplotlib-24870",
+    "matplotlib__matplotlib-20826",
+    "matplotlib__matplotlib-24637",
+    "matplotlib__matplotlib-25287",
+    "matplotlib__matplotlib-21568",
+    "matplotlib__matplotlib-26113",
+    "matplotlib__matplotlib-26466",
+    "matplotlib__matplotlib-23299",
+    "matplotlib__matplotlib-25332",
+    "matplotlib__matplotlib-20488",
+    "matplotlib__matplotlib-22871"
+  ],
+  "config": {
+    "max_attempts": 1,
+    "skillbook_mode": "per_repo",
+    "concurrency": 1
+  },
+  "status": "completed",
+  "train_phase": {
+    "total_instances": 26,
+    "resolved_count": 4,
+    "unresolved_count": 22,
+    "resolution_rate": 0.15384615384615385,
+    "resolved_ids": [
+      "matplotlib__matplotlib-25311",
+      "matplotlib__matplotlib-26342",
+      "matplotlib__matplotlib-20859",
+      "matplotlib__matplotlib-26291"
+    ],
+    "unresolved_ids": [
+      "matplotlib__matplotlib-22865",
+      "matplotlib__matplotlib-24970",
+      "matplotlib__matplotlib-24026",
+      "matplotlib__matplotlib-24627",
+      "matplotlib__matplotlib-23314",
+      "matplotlib__matplotlib-26208",
+      "matplotlib__matplotlib-24177",
+      "matplotlib__matplotlib-25479",
+      "matplotlib__matplotlib-25122",
+      "matplotlib__matplotlib-20676",
+      "matplotlib__matplotlib-24149",
+      "matplotlib__matplotlib-24870",
+      "matplotlib__matplotlib-20826",
+      "matplotlib__matplotlib-24637",
+      "matplotlib__matplotlib-25287",
+      "matplotlib__matplotlib-21568",
+      "matplotlib__matplotlib-26113",
+      "matplotlib__matplotlib-26466",
+      "matplotlib__matplotlib-23299",
+      "matplotlib__matplotlib-25332",
+      "matplotlib__matplotlib-20488",
+      "matplotlib__matplotlib-22871"
+    ],
+    "total_skills_learned": 200,
+    "reused_from_baseline": 26,
+    "freshly_run": 0,
+    "baseline_resolved_count": 4,
+    "baseline_unresolved_count": 22,
+    "baseline_resolution_rate": 0.15384615384615385
+  },
+  "val_baseline_phase": {
+    "total_instances": 6,
+    "resolved_count": 2,
+    "unresolved_count": 4,
+    "resolution_rate": 0.3333333333333333,
+    "resolved_ids": [
+      "matplotlib__matplotlib-22719",
+      "matplotlib__matplotlib-25775"
+    ],
+    "unresolved_ids": [
+      "matplotlib__matplotlib-25960",
+      "matplotlib__matplotlib-23412",
+      "matplotlib__matplotlib-24570",
+      "matplotlib__matplotlib-23476"
+    ],
+    "skillbook_skills": 0
+  },
+  "val_skillbook_phase": {
+    "total_instances": 6,
+    "resolved_count": 2,
+    "unresolved_count": 4,
+    "resolution_rate": 0.3333333333333333,
+    "resolved_ids": [
+      "matplotlib__matplotlib-22719",
+      "matplotlib__matplotlib-25775"
+    ],
+    "unresolved_ids": [
+      "matplotlib__matplotlib-25960",
+      "matplotlib__matplotlib-23412",
+      "matplotlib__matplotlib-24570",
+      "matplotlib__matplotlib-23476"
+    ],
+    "skillbook_skills": 200
+  },
+  "summary": {
+    "train_resolution_rate": 0.15384615384615385,
+    "val_baseline_resolution_rate": 0.3333333333333333,
+    "val_skillbook_resolution_rate": 0.3333333333333333,
+    "skillbook_improvement": "+0.000",
+    "skillbook_improvement_pct": "+0.0%",
+    "newly_resolved_by_skillbook": [],
+    "lost_by_skillbook": []
+  }
+}

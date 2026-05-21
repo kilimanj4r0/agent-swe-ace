@@ -1,0 +1,88 @@
+{
+  "status": "completed",
+  "mode": "iterate_repos",
+  "run_name": "agent-qwen3-ace-qwen3-lite-iterate-repos-swe",
+  "repos": [
+    "sphinx-doc/sphinx",
+    "scikit-learn/scikit-learn",
+    "matplotlib/matplotlib",
+    "pytest-dev/pytest",
+    "sympy/sympy",
+    "django/django"
+  ],
+  "start_time": "2026-05-21T03:40:22.917562",
+  "end_time": "2026-05-21T11:54:02.867322",
+  "total_instances": 215,
+  "processed_instances": 215,
+  "resolved_count": 41,
+  "resolution_rate": 0.19069767441860466,
+  "train_phase": {
+    "total_instances": 215,
+    "resolved_count": 41,
+    "resolution_rate": 0.19069767441860466,
+    "total_skills_learned": 1822
+  },
+  "val_baseline_phase": {
+    "total_instances": 50,
+    "resolved_count": 7,
+    "resolution_rate": 0.14
+  },
+  "val_skillbook_phase": {
+    "total_instances": 50,
+    "resolved_count": 6,
+    "resolution_rate": 0.12
+  },
+  "summary": {
+    "total_repos": 6,
+    "completed_repos": 6,
+    "train_resolution_rate": 0.19069767441860466,
+    "val_baseline_resolution_rate": 0.14,
+    "val_skillbook_resolution_rate": 0.12,
+    "skillbook_improvement": "-0.020",
+    "skillbook_improvement_pct": "-14.3%",
+    "per_repo": {
+      "sphinx-doc/sphinx": {
+        "train_resolved": 0,
+        "train_total": 13,
+        "val_baseline_rate": 0.0,
+        "val_skillbook_rate": 0.0,
+        "improvement": "+0.000"
+      },
+      "scikit-learn/scikit-learn": {
+        "train_resolved": 4,
+        "train_total": 16,
+        "val_baseline_rate": 0.3333333333333333,
+        "val_skillbook_rate": 0.3333333333333333,
+        "improvement": "+0.000"
+      },
+      "matplotlib/matplotlib": {
+        "train_resolved": 4,
+        "train_total": 19,
+        "val_baseline_rate": 0.0,
+        "val_skillbook_rate": 0.0,
+        "improvement": "+0.000"
+      },
+      "pytest-dev/pytest": {
+        "train_resolved": 2,
+        "train_total": 14,
+        "val_baseline_rate": 0.0,
+        "val_skillbook_rate": 0.0,
+        "improvement": "+0.000"
+      },
+      "sympy/sympy": {
+        "train_resolved": 7,
+        "train_total": 61,
+        "val_baseline_rate": 0.2,
+        "val_skillbook_rate": 0.13333333333333333,
+        "improvement": "-0.067"
+      },
+      "django/django": {
+        "train_resolved": 24,
+        "train_total": 92,
+        "val_baseline_rate": 0.13636363636363635,
+        "val_skillbook_rate": 0.13636363636363635,
+        "improvement": "+0.000"
+      }
+    }
+  }
+}
