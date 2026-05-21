@@ -50,6 +50,7 @@ experiment:
   # split:                             # Enable train/val split
   #   val_ratio: 0.2                  # Fraction of instances for validation
   # baseline_run_dir: "data/run_20260415_020540"  # Reuse baseline results (skip re-running val baseline + train predict/eval)
+  # val_pass_k: 4                     # Number of attempts per val instance (default: 1)
 
 # --- Environment ---
 # Docker is required for SWE-bench evaluation (swebench images).

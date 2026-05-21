@@ -604,10 +604,14 @@ def _run_single_repo_experiment(
         agent_factory=agent_factory,
     )
 
+    # Check for val_pass_k setting
+    val_pass_k = config.get("experiment", {}).get("val_pass_k", 1)
+
     stats = loop.run(
         train_instances, config,
         val_instances=val_instances if val_instances else None,
         baseline_run_dir=baseline_run_dir,
+        val_pass_k=val_pass_k,
     )
     return stats
 

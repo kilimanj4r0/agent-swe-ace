@@ -322,7 +322,10 @@ class ExperimentLoop:
                 self.update_skillbook(repo, skillbook)
 
             if evaluate_result.resolved:
-                break
+                # When max_attempts > 1 was explicitly set, run all attempts
+                # (val_pass_k > 1 means "always K attempts for measurement")
+                if effective_max <= 1:
+                    break
 
         return result
 
@@ -434,6 +437,7 @@ class ExperimentLoop:
         config: Optional[Dict] = None,
         val_instances: Optional[List[Dict[str, Any]]] = None,
         baseline_run_dir: Optional[Path] = None,
+        val_pass_k: int = 1,
     ) -> Dict[str, Any]:
         """
         Run experiment loop on multiple instances.
@@ -448,6 +452,7 @@ class ExperimentLoop:
             config: Optional config to save
             val_instances: Optional list of val instances for two-phase mode
             baseline_run_dir: Optional path to previous run with baseline results
+            val_pass_k: Number of attempts per val instance (default: 1)
 
         Returns:
             Summary dict with statistics
@@ -705,6 +710,7 @@ class ExperimentLoop:
                     skillbook=Skillbook(),  # Empty skillbook
                     phase="val_baseline",
                     baseline_run_dir=baseline_run_dir,
+                    max_attempts=val_pass_k,
                 )
 
                 # Val skillbook pass (learned skillbook)
@@ -712,6 +718,7 @@ class ExperimentLoop:
                     val_instances=val_instances,
                     skillbook=final_skillbook,
                     phase="val",
+                    max_attempts=val_pass_k,
                 )
 
         except Exception as e:
@@ -1137,6 +1144,7 @@ class ExperimentLoop:
         skillbook: Skillbook,
         phase: str,
         baseline_run_dir: Optional[Path] = None,
+        max_attempts: int = 1,
     ) -> Dict[str, Any]:
         """Run validation pass on instances with a given skillbook.
 
@@ -1145,13 +1153,14 @@ class ExperimentLoop:
             skillbook: Skillbook to use (empty for baseline, learned for skillbook pass)
             phase: Phase name ("val_baseline" or "val")
             baseline_run_dir: Optional previous run dir to load baseline results from
+            max_attempts: Number of attempts per val instance (default: 1)
 
         Returns:
             Dict with resolution statistics
         """
         logger.info(f"\n{'='*60}")
         logger.info(f"VAL {phase.upper()} PASS")
-        logger.info(f"Instances: {len(val_instances)}, Skills: {len(skillbook.skills())}")
+        logger.info(f"Instances: {len(val_instances)}, Skills: {len(skillbook.skills())}, Attempts: {max_attempts}")
         logger.info(f"{'='*60}")
 
         resolved_ids = []
@@ -1159,10 +1168,12 @@ class ExperimentLoop:
         results = {}
 
         # For val_baseline with baseline_run_dir, try loading existing results first
+        # But skip loading when max_attempts > 1: we need K fresh attempts per instance
+        # for a proper multi-attempt measurement, not single-attempt reused results.
         loaded_ids = {}
         instances_to_run = list(val_instances)
 
-        if phase == "val_baseline" and baseline_run_dir:
+        if phase == "val_baseline" and baseline_run_dir and max_attempts <= 1:
             loaded_ids, missing = self._load_baseline_results(baseline_run_dir, val_instances)
             instances_to_run = missing
             logger.info(
@@ -1179,7 +1190,7 @@ class ExperimentLoop:
                 instance,
                 initial_skillbook=skillbook,
                 frozen_skillbook=True,
-                max_attempts_override=1,
+                max_attempts_override=max_attempts,
                 phase=phase,
                 skip_baseline_reuse=True,
             )
@@ -1200,7 +1211,7 @@ class ExperimentLoop:
         total = len(val_instances)
         resolved_count = len(resolved_ids)
 
-        return {
+        stats = {
             "total_instances": total,
             "resolved_count": resolved_count,
             "unresolved_count": len(unresolved_ids),
@@ -1209,6 +1220,37 @@ class ExperimentLoop:
             "unresolved_ids": unresolved_ids,
             "skillbook_skills": len(skillbook.skills()),
         }
+
+        # Per-attempt breakdown for val_pass_k > 1
+        if max_attempts > 1:
+            pass_at = {}
+            all_attempts = {}  # iid -> [resolved_per_iter]
+
+            for iid, result in results.items():
+                attempts = []
+                for ir in result.iterations:
+                    r = ir.evaluate_result.resolved if ir.evaluate_result else False
+                    attempts.append(r)
+                all_attempts[iid] = attempts
+
+            # Include loaded baseline instances as single-attempt results
+            for iid, was_resolved in loaded_ids.items():
+                all_attempts[iid] = [was_resolved]
+
+            for n in range(1, max_attempts + 1):
+                count = sum(
+                    1 for a in all_attempts.values() if any(a[:n])
+                )
+                pass_at[f"pass@{n}"] = {
+                    "count": count,
+                    "total": total,
+                    "rate": count / total if total else 0.0,
+                }
+
+            stats["max_attempts"] = max_attempts
+            stats["pass_at_k"] = pass_at
+
+        return stats
 
     def _load_baseline_results(
         self, baseline_dir: Path, val_instances: list
@@ -1226,10 +1268,23 @@ class ExperimentLoop:
 
         for inst in val_instances:
             iid = inst["instance_id"]
-            traj_path = baseline_dir / self.benchmark / "trajectories" / iid / "iter_0.json"
-            result_path = baseline_dir / self.benchmark / "results" / iid / "iter_0.json"
 
-            if traj_path.exists() and result_path.exists():
+            # Try phase-based path first (two-phase runs), then flat layout
+            traj_path = None
+            result_path = None
+            for prefix in ["val_baseline", None]:
+                if prefix:
+                    tp = baseline_dir / self.benchmark / "trajectories" / prefix / iid / "iter_0.json"
+                    rp = baseline_dir / self.benchmark / "results" / prefix / iid / "iter_0.json"
+                else:
+                    tp = baseline_dir / self.benchmark / "trajectories" / iid / "iter_0.json"
+                    rp = baseline_dir / self.benchmark / "results" / iid / "iter_0.json"
+                if tp.exists() and rp.exists():
+                    traj_path = tp
+                    result_path = rp
+                    break
+
+            if traj_path and result_path:
                 try:
                     with open(traj_path) as f:
                         traj_data = json.load(f)
