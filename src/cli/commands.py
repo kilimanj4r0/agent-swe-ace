@@ -613,6 +613,30 @@ def _run_single_repo_experiment(
         baseline_run_dir=baseline_run_dir,
         val_pass_k=val_pass_k,
     )
+
+    # Persist per-repo skillbook to disk (only after training)
+    repo_sb = loop.repo_skillbooks.get(repo, loop.global_skillbook)
+    if repo_sb and len(repo_sb.skills()) > 0:
+        repo_sb_dir = run_dir / benchmark / "skillbooks" / "per_repo" / repo.replace("/", "__")
+        repo_sb_dir.mkdir(parents=True, exist_ok=True)
+        out_path = repo_sb_dir / "final_skillbook.json"
+        skills_data = {
+            "skill_count": len(repo_sb.skills()),
+            "skills": {
+                s.id: {
+                    "id": s.id,
+                    "section": s.section,
+                    "content": s.content,
+                    "justification": s.justification,
+                    "evidence": s.evidence,
+                }
+                for s in repo_sb.skills()
+            },
+        }
+        with open(out_path, "w") as f:
+            json.dump(skills_data, f, indent=2)
+        logger.debug(f"[{repo}] Saved per-repo skillbook ({skills_data['skill_count']} skills) to {out_path}")
+
     return stats
 
 
@@ -723,6 +747,92 @@ def _aggregate_iterate_stats(repo_stats: dict[str, dict], config: dict, run_dir:
             "per_repo": repo_improvements,
         },
     }
+
+    # Save per-repo skillbook statistics
+    benchmark = config["benchmark"]["dataset"].replace("/", "__")
+    skillbooks_dir = run_dir / benchmark / "skillbooks"
+    per_repo_sb_dir = skillbooks_dir / "per_repo"
+    if per_repo_sb_dir.exists():
+        from utils.token_estimation import estimate_skillbook_injected_tokens
+
+        sb_stats = {}
+        for repo_dir in sorted(per_repo_sb_dir.iterdir()):
+            if not repo_dir.is_dir():
+                continue
+            sb_file = repo_dir / "final_skillbook.json"
+            if sb_file.exists():
+                try:
+                    with open(sb_file) as f:
+                        sb_data = json.load(f)
+                    repo_name = repo_dir.name
+                    skills = sb_data.get("skills", {})
+                    skill_list = list(skills.values())
+                    skill_count = len(skill_list)
+
+                    # Group by section
+                    sections = {}
+                    for s in skill_list:
+                        sec = s.get("section", "unknown")
+                        sections[sec] = sections.get(sec, 0) + 1
+
+                    # Field population
+                    justification_count = sum(1 for s in skill_list if s.get("justification"))
+                    evidence_count = sum(1 for s in skill_list if s.get("evidence"))
+
+                    # SWE type prefixes
+                    type_prefixes = {}
+                    for s in skill_list:
+                        content = s.get("content", "")
+                        for prefix in ("AVOID:", "VERIFIED:", "CONSIDER:"):
+                            if content.startswith(prefix):
+                                key = prefix.rstrip(":")
+                                type_prefixes[key] = type_prefixes.get(key, 0) + 1
+                                break
+                    type_prefixes_pct = {
+                        k: round(v / skill_count * 100, 1) for k, v in type_prefixes.items()
+                    } if skill_count else {}
+
+                    # Estimate injected token count
+                    injected_tokens = estimate_skillbook_injected_tokens(skill_list)
+
+                    # Train instances from per-repo stats
+                    repo_key = repo_name.replace("__", "/")
+                    train_total = repo_stats.get(repo_key, {}).get("train_phase", {}).get("total_instances", 0)
+
+                    repo_stat = {
+                        "skill_count": skill_count,
+                        "train_instances": train_total,
+                        "skills_per_train_instance": round(skill_count / train_total, 1) if train_total else 0,
+                        "injected_tokens": injected_tokens,
+                        "sections": dict(sorted(sections.items(), key=lambda x: -x[1])),
+                        "field_population": {
+                            "justification_count": justification_count,
+                            "justification_pct": round(justification_count / skill_count * 100, 1) if skill_count else 0,
+                            "evidence_count": evidence_count,
+                            "evidence_pct": round(evidence_count / skill_count * 100, 1) if skill_count else 0,
+                        },
+                    }
+                    if type_prefixes:
+                        repo_stat["type_prefixes"] = dict(sorted(type_prefixes.items(), key=lambda x: -x[1]))
+                        repo_stat["type_prefixes_pct"] = dict(sorted(type_prefixes_pct.items(), key=lambda x: -x[1]))
+                    sb_stats[repo_name] = repo_stat
+                except Exception:
+                    pass
+        if sb_stats:
+            total_skills = sum(v["skill_count"] for v in sb_stats.values())
+            total_train = sum(v["train_instances"] for v in sb_stats.values())
+            total_tokens = sum(v["injected_tokens"] for v in sb_stats.values())
+            sb_stats["_summary"] = {
+                "total_skills": total_skills,
+                "total_train_instances": total_train,
+                "total_injected_tokens": total_tokens,
+                "repos": len(sb_stats),
+                "avg_skills_per_repo": round(total_skills / len(sb_stats), 1),
+                "avg_skills_per_train_instance": round(total_skills / total_train, 1) if total_train else 0,
+                "avg_injected_tokens_per_repo": round(total_tokens / len(sb_stats)),
+            }
+            with open(skillbooks_dir / "skillbooks_statistics.json", "w") as f:
+                json.dump(sb_stats, f, indent=2)
 
     save_statistics(statistics=combined, run_dir=run_dir)
     return combined
