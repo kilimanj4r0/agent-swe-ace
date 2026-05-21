@@ -458,6 +458,7 @@ class ExperimentLoop:
         config: Optional[Dict] = None,
         val_instances: Optional[List[Dict[str, Any]]] = None,
         baseline_run_dir: Optional[Path] = None,
+        preloaded_skillbook: Optional[Skillbook] = None,
         val_pass_k: int = 1,
     ) -> Dict[str, Any]:
         """
@@ -473,6 +474,7 @@ class ExperimentLoop:
             config: Optional config to save
             val_instances: Optional list of val instances for two-phase mode
             baseline_run_dir: Optional path to previous run with baseline results
+            preloaded_skillbook: If provided, skip training and use this skillbook for val passes
             val_pass_k: Number of attempts per val instance (default: 1)
 
         Returns:
@@ -686,44 +688,53 @@ class ExperimentLoop:
             val_skillbook_stats = None
 
             if two_phase:
-                # Get the final learned skillbook
-                if self.skillbook_mode == "global":
-                    final_skillbook = self.global_skillbook
-                elif self.skillbook_mode == "per_repo":
-                    # Use the first (should be only) repo's skillbook
-                    final_skillbook = next(iter(self.repo_skillbooks.values()), Skillbook())
+                if preloaded_skillbook is not None:
+                    # Validation-only mode: skip training, use preloaded skillbook
+                    final_skillbook = preloaded_skillbook
+                    skill_count = len(final_skillbook.skills())
+                    logger.info(f"\n{'='*60}")
+                    logger.info(f"VALIDATION-ONLY MODE (training skipped)")
+                    logger.info(f"Loaded skillbook: {skill_count} skills")
+                    logger.info(f"{'='*60}")
                 else:
-                    final_skillbook = Skillbook()
+                    # Normal training: get the final learned skillbook
+                    if self.skillbook_mode == "global":
+                        final_skillbook = self.global_skillbook
+                    elif self.skillbook_mode == "per_repo":
+                        # Use the first (should be only) repo's skillbook
+                        final_skillbook = next(iter(self.repo_skillbooks.values()), Skillbook())
+                    else:
+                        final_skillbook = Skillbook()
 
-                skill_count = len(final_skillbook.skills())
-                logger.info(f"\n{'='*60}")
-                logger.info(f"TRAIN PHASE COMPLETE")
-                logger.info(f"Skills learned: {skill_count}")
-                logger.info(f"{'='*60}")
+                    skill_count = len(final_skillbook.skills())
+                    logger.info(f"\n{'='*60}")
+                    logger.info(f"TRAIN PHASE COMPLETE")
+                    logger.info(f"Skills learned: {skill_count}")
+                    logger.info(f"{'='*60}")
 
-                # Post-train dedup sweep
-                if self.learn.dedup_manager is not None:
-                    dedup_ops = self.learn._consolidate(final_skillbook)
-                    if isinstance(dedup_ops, int) and dedup_ops > 0:
-                        skill_count = len(final_skillbook.skills())
-                        logger.info(f"Post-train dedup: applied {dedup_ops} operations, {skill_count} skills remain")
+                    # Post-train dedup sweep
+                    if self.learn.dedup_manager is not None:
+                        dedup_ops = self.learn._consolidate(final_skillbook)
+                        if isinstance(dedup_ops, int) and dedup_ops > 0:
+                            skill_count = len(final_skillbook.skills())
+                            logger.info(f"Post-train dedup: applied {dedup_ops} operations, {skill_count} skills remain")
 
-                # Save final skillbook snapshot
-                from data_io.writers import save_skillbook
-                save_skillbook(
-                    skillbook=final_skillbook,
-                    run_dir=self.output_dir,
-                    benchmark=self.benchmark,
-                    iteration=0,
-                    phase=None,  # Save to skillbooks/ root as final_skillbook.json
-                )
-                # Also save as final_skillbook.json
-                import shutil as sh
-                skillbooks_dir = self.output_dir / self.benchmark / "skillbooks"
-                if skillbooks_dir.exists():
-                    latest = sorted(skillbooks_dir.glob("iter_*.json"))
-                    if latest:
-                        sh.copy2(latest[-1], skillbooks_dir / "final_skillbook.json")
+                    # Save final skillbook snapshot
+                    from data_io.writers import save_skillbook
+                    save_skillbook(
+                        skillbook=final_skillbook,
+                        run_dir=self.output_dir,
+                        benchmark=self.benchmark,
+                        iteration=0,
+                        phase=None,  # Save to skillbooks/ root as final_skillbook.json
+                    )
+                    # Also save as final_skillbook.json
+                    import shutil as sh
+                    skillbooks_dir = self.output_dir / self.benchmark / "skillbooks"
+                    if skillbooks_dir.exists():
+                        latest = sorted(skillbooks_dir.glob("iter_*.json"))
+                        if latest:
+                            sh.copy2(latest[-1], skillbooks_dir / "final_skillbook.json")
 
                 # Val baseline pass (empty skillbook)
                 val_baseline_stats = self._run_val_pass(

@@ -95,6 +95,37 @@ def load_skillbook(source: Optional[Union[Path, str, Dict]]) -> "Skillbook":
     return skillbook
 
 
+def load_skillbook_for_repo(source_dir: Path, benchmark: str, repo: str) -> "Skillbook":
+    """Load a per-repo skillbook from an iterate_repos run.
+
+    Tries per-repo path first, falls back to global final_skillbook.json.
+
+    Args:
+        source_dir: Run directory containing skillbooks
+        benchmark: Benchmark subdir name (e.g. "princeton-nlp__SWE-bench_Verified")
+        repo: Repository name (e.g. "django/django")
+
+    Returns:
+        Skillbook instance (empty if no skillbook found)
+    """
+    from ace import Skillbook
+
+    repo_name = repo.replace("/", "__")
+    repo_sb = source_dir / benchmark / "skillbooks" / "per_repo" / repo_name / "final_skillbook.json"
+    if repo_sb.exists():
+        return load_skillbook(repo_sb)
+
+    global_sb = source_dir / benchmark / "skillbooks" / "final_skillbook.json"
+    if global_sb.exists():
+        logger.warning(
+            f"Per-repo skillbook not found for {repo}, falling back to global final_skillbook.json"
+        )
+        return load_skillbook(global_sb)
+
+    logger.warning(f"No skillbook found for {repo} in {source_dir}")
+    return Skillbook()
+
+
 def load_trajectory(source: Union[Path, Dict]) -> Dict:
     """
     Load an agent trajectory from file or dict.

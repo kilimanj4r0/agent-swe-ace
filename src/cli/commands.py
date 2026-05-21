@@ -607,12 +607,35 @@ def _run_single_repo_experiment(
     # Check for val_pass_k setting
     val_pass_k = config.get("experiment", {}).get("val_pass_k", 1)
 
-    stats = loop.run(
-        train_instances, config,
-        val_instances=val_instances if val_instances else None,
-        baseline_run_dir=baseline_run_dir,
-        val_pass_k=val_pass_k,
-    )
+    # Check for validation-only mode
+    skillbook_source_dir = config.get("experiment", {}).get("skillbook_source_dir")
+
+    if skillbook_source_dir:
+        # Validation-only mode: skip training, load skillbook from source run
+        from data_io.readers import load_skillbook_for_repo
+        repo_skillbook = load_skillbook_for_repo(
+            Path(skillbook_source_dir), benchmark, repo
+        )
+        logger.info(
+            f"[{repo}] Validation-only mode: loaded {len(repo_skillbook.skills())} skills "
+            f"from {skillbook_source_dir}, val_pass_k={val_pass_k}"
+        )
+
+        stats = loop.run(
+            [], config,  # No train instances
+            val_instances=val_instances if val_instances else None,
+            baseline_run_dir=baseline_run_dir,
+            preloaded_skillbook=repo_skillbook,
+            val_pass_k=val_pass_k,
+        )
+    else:
+        # Normal two-phase: train then validate
+        stats = loop.run(
+            train_instances, config,
+            val_instances=val_instances if val_instances else None,
+            baseline_run_dir=baseline_run_dir,
+            val_pass_k=val_pass_k,
+        )
 
     # Persist per-repo skillbook to disk (only after training)
     repo_sb = loop.repo_skillbooks.get(repo, loop.global_skillbook)
