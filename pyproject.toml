@@ -3,7 +3,7 @@ name = "agent-swe-ace"
 version = "0.3.0"
 description = "ACE skillbook learning with mini-swe-agent for SWE-bench evaluation"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"
 license = { text = "MIT" }
 authors = [
     { name = "Vladimir Makharev" }
@@ -19,7 +19,8 @@ dependencies = [
     "python-dotenv",
     "litellm",
     "loguru",
-    "vllm>=0.18.0",
+    "torch>=2.10,<2.11",
+    "vllm>=0.18.0,<0.21",
 ]
 
 [tool.uv.sources]

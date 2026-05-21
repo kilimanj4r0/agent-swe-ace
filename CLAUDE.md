@@ -82,7 +82,8 @@ scripts/
 ├── transform_baseline_to_run_format.py   # Convert baseline trajectories to run format
 ├── compare_runs.py                       # Compare completed experiment runs (summary table)
 ├── watch_experiments.py                  # Live CLI dashboard for running experiments
-└── run_vllm_on_crash.sh                  # vLLM watchdog auto-restart
+├── run_vllm_watchdog.sh                  # vLLM watchdog auto-restart (parameterized port/GPU/model)
+│                                          # Usage: CUDA_VISIBLE_DEVICES=0,1 PORT=8800 bash run_vllm_watchdog.sh
 
 configs/                                   # Override configs (deep-merged on top of config.yaml)
 ├── agent-glm-ace-glm.yaml
