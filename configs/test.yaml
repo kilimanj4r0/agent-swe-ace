@@ -34,39 +34,33 @@ benchmark:
   # filter_repos: ["matplotlib/matplotlib"]                 # null = all repos, or list: ["django/django"]
 
 agent:
-  step_limit: 2                    # Max agent steps per attempt
+  step_limit: 3                    # Max agent steps per attempt (3 = one real tool-use cycle)
   cost_limit: 0.0                    # Effectively disabled for local vLLM (no real cost)
 
 llm:
   agent:
-    # provider: "zai"
-    # model: "glm-4.7-flash"
-    # api_key_env: "ZAI_API_KEY"
-    # api_base: "https://open.bigmodel.cn/api/coding/paas/v4"
-    provider: "hosted_vllm"
-    api_key_env: "HOSTED_VLLM_API_KEY"
+    provider: "zai"
+    model: "glm-4.5-flash"
+    api_key_env: "ZAI_API_KEY"
+    api_base: "https://open.bigmodel.cn/api/coding/paas/v4"
+    # provider: "hosted_vllm"
+    # api_key_env: "HOSTED_VLLM_API_KEY"
     # model: "Qwen/Qwen3-Coder-Next-FP8"
     # api_base: "http://10.100.30.241:8800/v1"
-    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
-    api_base: "http://localhost:8800/v1"
+    # model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    # api_base: "http://localhost:8800/v1"
   ace:
-    # provider: "zai"
-    # model: "glm-4.7-flash"
-    # api_key_env: "ZAI_API_KEY"
-    # api_base: "https://open.bigmodel.cn/api/coding/paas/v4"
-    provider: "hosted_vllm"
-    api_key_env: "HOSTED_VLLM_API_KEY"
+    provider: "zai"
+    model: "glm-4.5-flash"
+    api_key_env: "ZAI_API_KEY"
+    api_base: "https://open.bigmodel.cn/api/coding/paas/v4"
+    # provider: "hosted_vllm"
+    # api_key_env: "HOSTED_VLLM_API_KEY"
     # model: "Qwen/Qwen3-Coder-Next-FP8"
     # api_base: "http://10.100.30.241:8800/v1"
-    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
-    api_base: "http://localhost:8800/v1"
+    # model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    # api_base: "http://localhost:8800/v1"
 
 output:
-  dir: "data"
-  save_trajectories: true
-  save_skillbooks: true
-  save_logs: true
-  log_level: "INFO"                   # DEBUG, INFO, WARNING, ERROR
-
-observability:
-  enabled: false
+  dir: "_data"
+  log_level: "DEBUG"                   # DEBUG, INFO, WARNING, ERROR

@@ -34,6 +34,9 @@ uv run python -m src.cli.commands --resume-dir data/run_20260415_020540 data/run
 # Requires skillbook_source_dir + val_pass_k in config
 uv run python -m src.cli.commands --config configs/val_only_k4.yaml
 
+# Raw multi-attempt benchmark (no skillbooks, 4 attempts per instance)
+uv run python -m src.cli.commands --config configs/no_skillbook.yaml
+
 # Run with Opik observability
 uv run python -m src.cli.commands --observe
 
@@ -160,6 +163,7 @@ data/
 - `experiment.val_pass_k`: number of attempts per val instance (default: 1). Works in both normal and validation-only mode.
 - `experiment.skillbook_source_dir`: load per-repo skillbooks from a completed run, skip training entirely (validation-only mode)
   - Loads from `skillbooks/per_repo/<repo>/final_skillbook.json`, falls back to global `final_skillbook.json`
+- `experiment.skip_learn`: when true, completely skip Learn phase. Use with `max_attempts > 1` for raw multi-attempt benchmark runs without skillbooks. Resolved instances are not retried.
 - `--list-repos` prints all repos with counts and optional split preview
 - `--baseline-run-dir` loads existing baseline results to avoid re-running val baseline
 - Docker required for evaluation (SWE-bench images)
@@ -175,6 +179,28 @@ data/
 - Model `n_calls`/`cost` counters reset to 0 before each agent run (accumulation would trigger immediate LimitsExceeded)
 - Concurrency (`experiment.concurrency > 1`): each worker gets its own agent via `agent_factory()`; evaluation still serialized via global lock
 - Context window: `max_input_tokens = context_window - max_tokens - 2000` (hardcoded safety buffer)
+
+## Testing with Real Runs
+
+When `uv run pytest` (dry-run / mocked) isn't enough — e.g. testing config changes, new phases, resume logic, skillbook pipeline — use `configs/test.yaml` for a minimal real run:
+
+```bash
+# Baseline quick test (1 instance, 1 attempt, 3 agent steps, cheap model)
+uv run python -m src.cli.commands --config configs/test.yaml
+```
+
+Adjust params per test case by overriding config keys or CLI flags:
+
+| What you're testing | Override |
+|---|---|
+| Learn/retry flow | `--max-attempts 2` (so the loop actually retries) |
+| Skip-learn mode | `--config configs/no_skillbook.yaml` |
+| Resume from previous run | `--resume-dir data/run_<from_test> --config configs/test.yaml` |
+| Specific instance | `--instance django__django-12345` |
+| Multiple instances | `--max-instances 3` |
+| Two-phase experiment | add `--filter-repos django/django --val-ratio 0.2` + set skillbook mode to `per_repo` |
+
+The test config uses `glm-4.5-flash` (fast/cheap), `step_limit: 3`, `max_instances: 1`, `max_attempts: 1`. Tweak only what the specific test case requires — everything else stays minimal.
 
 ## Gotchas
 
