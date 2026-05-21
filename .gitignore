@@ -3,6 +3,8 @@ opik/
 .other/
 logs/
 .docs/
+.claude/
+_data/
 
 # Run data — block everything, then whitelist key files
 data/**
