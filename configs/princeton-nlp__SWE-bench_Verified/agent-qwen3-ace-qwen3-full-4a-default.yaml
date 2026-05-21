@@ -1,6 +1,6 @@
 experiment:
   name: "agent-qwen3-ace-qwen3-full-verified-4a-default"
-  description: "ACE skillbook learning experiment on SWE-bench Lite"
+  description: "ACE skillbook learning experiment on SWE-bench Verified"
   max_attempts: 4                    # Max retry attempts per instance
   concurrency: 6
 

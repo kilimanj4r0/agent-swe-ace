@@ -1,0 +1,33 @@
+experiment:
+  name: "agent-qwen3-full-4a-no-skillbook"
+  description: "Simple experiment on SWE-bench Lite"
+  max_attempts: 4                    # Max retry attempts per instance
+  concurrency: 12
+  skip_learn: true
+
+  skillbook:
+    mode: "per_instance"
+  baseline_run_dir: "data/run_20260402_235456_completed_qwen3_6a_swe"
+
+agent:
+  step_limit: 250                    # Max agent steps per attempt
+
+llm:
+  agent:
+    provider: "hosted_vllm"
+    # model: "Qwen/Qwen3-Coder-Next-FP8"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://10.100.30.241:8801/v1"
+    # api_base: "http://localhost:8800/v1"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+  ace:
+    provider: "hosted_vllm"
+    # model: "Qwen/Qwen3-Coder-Next-FP8"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://10.100.30.241:8801/v1"
+    # api_base: "http://localhost:8800/v1"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+
+benchmark:
+  dataset: "princeton-nlp/SWE-bench_Lite"
+  max_instances: null
