@@ -466,20 +466,33 @@ def _repo_from_instance(instance_id: str) -> str | None:
     return f"{owner}/{segments[0]}"
 
 
-def _get_repo_expected_sizes(dataset: str, repos: list[str], val_ratio: float | None
+def _get_repo_expected_sizes(dataset: str, repos: list[str], val_ratio: float | None,
+                             exclude_instances: list | None = None
                              ) -> dict[str, dict] | None:
     """Get expected per-repo sizes from the dataset.
 
     Returns {repo: {"train": N, "val": N, "total": N}} or None.
+    Subtracts excluded instances (that actually exist in the dataset) per repo
+    before computing train/val split.
     """
     _load_dataset_size(dataset)
     counts = _DATASET_REPO_COUNTS.get(dataset)
+    ds_ids = _DATASET_IDS_CACHE.get(dataset)
     if not counts:
         return None
+    # Build per-repo exclude counts (only for instances that exist in the dataset)
+    repo_excludes: dict[str, int] = {}
+    if exclude_instances and ds_ids:
+        for iid in exclude_instances:
+            if iid not in ds_ids:
+                continue
+            repo = _repo_from_instance(iid)
+            if repo:
+                repo_excludes[repo] = repo_excludes.get(repo, 0) + 1
     result = {}
     for repo in repos:
-        total = counts.get(repo, 0)
-        if total == 0:
+        total = counts.get(repo, 0) - repo_excludes.get(repo, 0)
+        if total <= 0:
             continue
         if val_ratio:
             val = round(total * val_ratio)
@@ -531,8 +544,9 @@ def collect_iterate_repos_progress(
     val_ratio = cfg.get("experiment", {}).get("split", {}).get("val_ratio")
     results_dir = _results_dir_for(run_dir, dataset)
 
-    # Get expected per-repo sizes from dataset (cached)
-    expected = _get_repo_expected_sizes(dataset, iterate_repos_list, val_ratio)
+    # Get expected per-repo sizes from dataset (cached, accounts for excluded instances)
+    exclude_instances = cfg.get("benchmark", {}).get("exclude_instances")
+    expected = _get_repo_expected_sizes(dataset, iterate_repos_list, val_ratio, exclude_instances)
 
     # Read per-repo completed stats
     per_repo_dir = run_dir / "statistics_per_repo"
