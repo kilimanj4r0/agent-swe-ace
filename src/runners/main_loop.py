@@ -175,6 +175,27 @@ class ExperimentLoop:
                 pass
         return None
 
+    def _load_resolving_iteration(self, instance_id: str) -> Optional[int]:
+        """Find which iteration resolved the instance in the resume source.
+
+        Returns the iteration number that first shows resolved=True,
+        or None if not found.
+        """
+        rp = self.resume_state.get(instance_id)
+        if rp is None:
+            return None
+        results_dir = rp.resume_dir / self.benchmark / "results" / instance_id
+        for k in range(rp.last_complete_iter + 1):
+            result_file = results_dir / f"iter_{k}.json"
+            if result_file.exists():
+                try:
+                    with open(result_file) as f:
+                        if json.load(f).get("resolved", False):
+                            return k
+                except Exception:
+                    continue
+        return None
+
     def run_instance(
         self,
         instance: Dict[str, Any],
@@ -853,6 +874,14 @@ class ExperimentLoop:
                             skillbook_assisted_ids.append(instance_id)
                             iter_key = str(resolving_iter)
                             skillbook_by_iteration.setdefault(iter_key, []).append(instance_id)
+
+                # Include resumed-complete resolved instances that resolved at iter > 0
+                for iid in resumed_resolved:
+                    resolving_iter = self._load_resolving_iteration(iid)
+                    if resolving_iter is not None and resolving_iter > 0:
+                        skillbook_assisted_ids.append(iid)
+                        iter_key = str(resolving_iter)
+                        skillbook_by_iteration.setdefault(iter_key, []).append(iid)
 
                 statistics["skillbook_assisted"] = {
                     "count": len(skillbook_assisted_ids),
