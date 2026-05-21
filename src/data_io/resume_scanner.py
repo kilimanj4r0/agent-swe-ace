@@ -78,6 +78,7 @@ def scan_resume_state(
     benchmark: str,
     instance_id: str,
     max_attempts: int,
+    skip_learn: bool = False,
 ) -> Optional[ResumePoint]:
     """Check resume state for a single instance in a resume directory.
 
@@ -135,8 +136,8 @@ def scan_resume_state(
                 is_fully_complete=True,
             )
 
-        # Not resolved — need skillbook for next iteration
-        if k < max_attempts - 1:
+        # Not resolved — need skillbook for next iteration (unless skip_learn)
+        if k < max_attempts - 1 and not skip_learn:
             skillbook_file = (
                 resume_dir / benchmark / "skillbooks" / instance_id / f"iter_{k + 1}.json"
             )
@@ -187,6 +188,7 @@ def scan_resume_dirs(
     benchmark: str,
     instance_ids: List[str],
     max_attempts: int,
+    skip_learn: bool = False,
 ) -> Dict[str, ResumePoint]:
     """Scan multiple resume directories and find the best resume point per instance.
 
@@ -201,7 +203,7 @@ def scan_resume_dirs(
             continue
 
         for instance_id in instance_ids:
-            rp = scan_resume_state(resume_dir, benchmark, instance_id, max_attempts)
+            rp = scan_resume_state(resume_dir, benchmark, instance_id, max_attempts, skip_learn=skip_learn)
             if rp is None:
                 continue
 

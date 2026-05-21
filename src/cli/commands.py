@@ -325,7 +325,11 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
     print(f"  Custom SWE learn: {sb.get('custom_swe_learn', False)}")
     print(f"  Concurrency:      {exp.get('concurrency', 1)}")
     print(f"  Max attempts:     {exp.get('max_attempts', 2)}")
-    print(f"  Force learn:      {exp.get('force_learn', True)}")
+    _skip_learn = exp.get("skip_learn", False)
+    if _skip_learn:
+        print(f"  Skip learn:       True (Learn phase disabled)")
+    else:
+        print(f"  Force learn:      {exp.get('force_learn', True)}")
     dedup = sb.get("deduplication")
     if dedup:
         print(f"  Deduplication:    enabled (threshold={dedup.get('similarity_threshold', 'default')})")
@@ -574,10 +578,11 @@ def _run_single_repo_experiment(
     config_resume_dirs = config.get("experiment", {}).get("resume_dirs")
     # Resume not typically used with iterate_repos but support it
     resume_dirs = [Path(p) for p in config_resume_dirs] if config_resume_dirs else None
+    skip_learn = config.get("experiment", {}).get("skip_learn", False)
     if resume_dirs:
         from data_io.resume_scanner import scan_resume_dirs
         instance_ids = [i["instance_id"] for i in train_instances]
-        resume_state = scan_resume_dirs(resume_dirs, benchmark, instance_ids, max_attempts)
+        resume_state = scan_resume_dirs(resume_dirs, benchmark, instance_ids, max_attempts, skip_learn=skip_learn)
         complete_ids = {iid for iid, rp in resume_state.items() if rp.is_fully_complete}
         before = len(train_instances)
         train_instances = [i for i in train_instances if i["instance_id"] not in complete_ids]
@@ -597,6 +602,7 @@ def _run_single_repo_experiment(
         run_name=run_name,
         max_attempts=max_attempts,
         force_learn=force_learn,
+        skip_learn=skip_learn,
         skillbook_mode=config.get("experiment", {}).get("skillbook", {}).get("mode", "per_instance"),
         resume_state=resume_state,
         benchmark=benchmark,
@@ -1156,11 +1162,12 @@ def run_full_experiment(config: dict, args):
     resume_state = {}
     max_attempts = config["experiment"].get("max_attempts", 2)
     force_learn = config["experiment"].get("force_learn", True)
+    skip_learn = config.get("experiment", {}).get("skip_learn", False)
 
     if resume_dirs:
         from data_io.resume_scanner import scan_resume_dirs
         instance_ids = [i["instance_id"] for i in train_instances]
-        resume_state = scan_resume_dirs(resume_dirs, benchmark, instance_ids, max_attempts)
+        resume_state = scan_resume_dirs(resume_dirs, benchmark, instance_ids, max_attempts, skip_learn=skip_learn)
 
         # Filter out fully complete instances (they get copied, not re-run)
         complete_ids = {iid for iid, rp in resume_state.items() if rp.is_fully_complete}
@@ -1181,6 +1188,7 @@ def run_full_experiment(config: dict, args):
         run_name=run_name,
         max_attempts=max_attempts,
         force_learn=force_learn,
+        skip_learn=skip_learn,
         skillbook_mode=config.get("experiment", {}).get("skillbook", {}).get("mode", "per_instance"),
         resume_state=resume_state,
         benchmark=benchmark,

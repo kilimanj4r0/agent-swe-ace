@@ -41,7 +41,7 @@ class TestMainLoop:
             learn_phase=mock_learn,
             output_dir=tmp_path,
             run_name="test-run",
-            max_attempts=3,
+            max_attempts=1,
         )
 
         instance = {"instance_id": "test__repo-123", "problem_statement": "Fix"}
@@ -80,13 +80,13 @@ class TestMainLoop:
             learn_phase=mock_learn,
             output_dir=tmp_path,
             run_name="test-run",
-            max_attempts=3,
+            max_attempts=2,
         )
 
         instance = {"instance_id": "test__repo-123", "problem_statement": "Fix"}
         results = loop.run_instance(instance)
 
-        # Should run twice
+        # Should run twice (fail→learn→resolve→break since max_attempts=2)
         assert mock_predict.run.call_count == 2
         assert mock_learn.run.call_count == 1  # Learn after first failure
 
@@ -342,7 +342,7 @@ class TestForceLearn:
             learn_phase=mock_learn,
             output_dir=tmp_path,
             run_name="test-run",
-            max_attempts=3,
+            max_attempts=1,
         )
 
         instance = {"instance_id": "test__repo-123", "problem_statement": "Fix"}
@@ -859,3 +859,83 @@ class TestTrainBaselineReuse:
         assert stats["train_phase"]["reused_from_baseline"] == 1
         assert stats["train_phase"]["freshly_run"] == 1
         assert stats["train_phase"]["total_instances"] == 2
+
+    def test_skip_learn_no_learning(self, tmp_path):
+        """When skip_learn=True, Learn phase never runs even on failure."""
+        from runners.main_loop import ExperimentLoop
+
+        mock_predict = Mock()
+        mock_predict.run.return_value = Mock(
+            instance_id="test__repo-123", exit_status="submitted",
+            patch="patch", trajectory=[],
+        )
+        mock_evaluate = Mock()
+        mock_evaluate.run.return_value = Mock(
+            instance_id="test__repo-123", resolved=False, feedback="Bad",
+        )
+        mock_learn = Mock()
+
+        loop = ExperimentLoop(
+            predict_phase=mock_predict, evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn, output_dir=tmp_path, run_name="test",
+            max_attempts=3, skip_learn=True,
+        )
+        result = loop.run_instance({"instance_id": "test__repo-123", "repo": "test/repo"})
+
+        assert mock_predict.run.call_count == 3  # All 3 attempts
+        mock_learn.run.assert_not_called()       # Never learns
+        assert result.final_resolved is False
+
+    def test_skip_learn_breaks_on_resolve(self, tmp_path):
+        """When skip_learn=True, stops on resolve even with max_attempts > 1."""
+        from runners.main_loop import ExperimentLoop
+
+        mock_predict = Mock()
+        mock_predict.run.return_value = Mock(
+            instance_id="test__repo-123", exit_status="submitted",
+            patch="patch", trajectory=[],
+        )
+        mock_evaluate = Mock()
+        mock_evaluate.run.side_effect = [
+            Mock(instance_id="test__repo-123", resolved=False, feedback="Bad"),
+            Mock(instance_id="test__repo-123", resolved=True, feedback="Good"),
+        ]
+        mock_learn = Mock()
+
+        loop = ExperimentLoop(
+            predict_phase=mock_predict, evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn, output_dir=tmp_path, run_name="test",
+            max_attempts=4, skip_learn=True,
+        )
+        result = loop.run_instance({"instance_id": "test__repo-123", "repo": "test/repo"})
+
+        assert mock_predict.run.call_count == 2  # Stopped after resolve
+        assert result.final_resolved is True
+        mock_learn.run.assert_not_called()
+
+    def test_skip_learn_default_still_learns(self, tmp_path):
+        """When skip_learn=False (default), Learn runs on unresolved with force_learn=True."""
+        from runners.main_loop import ExperimentLoop
+
+        mock_predict = Mock()
+        mock_predict.run.return_value = Mock(
+            instance_id="test__repo-123", exit_status="submitted",
+            patch="patch", trajectory=[],
+        )
+        mock_evaluate = Mock()
+        mock_evaluate.run.return_value = Mock(
+            instance_id="test__repo-123", resolved=False, feedback="Bad",
+        )
+        mock_learn = Mock()
+        mock_learn.run.return_value = Mock(skills_added=1)
+
+        loop = ExperimentLoop(
+            predict_phase=mock_predict, evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn, output_dir=tmp_path, run_name="test",
+            max_attempts=1, force_learn=True,  # Default force_learn in production
+        )
+        result = loop.run_instance({"instance_id": "test__repo-123", "repo": "test/repo"})
+
+        assert mock_predict.run.call_count == 1
+        mock_learn.run.assert_called_once()  # Learned from failure
+        assert result.final_resolved is False

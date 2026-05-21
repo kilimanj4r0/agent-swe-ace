@@ -52,6 +52,7 @@ experiment:
   # baseline_run_dir: "data/run_20260415_020540"  # Reuse baseline results (skip re-running val baseline + train predict/eval)
   # val_pass_k: 4                     # Number of attempts per val instance (default: 1)
   # skillbook_source_dir: "data/run_xxx"  # Load per-repo skillbooks from this run (skips training, validation-only mode)
+  # skip_learn: false               # When true: never run Learn phase, always use empty skillbook
 
 # --- Environment ---
 # Docker is required for SWE-bench evaluation (swebench images).

@@ -255,3 +255,43 @@ class TestCopyInstanceArtifacts:
 
         assert (dest / BENCHMARK / "trajectories" / INSTANCE / "iter_0.json").exists()
         assert not (dest / BENCHMARK / "trajectories" / INSTANCE / "notes.txt").exists()
+
+    def test_skip_learn_no_skillbook_required(self, tmp_path):
+        """With skip_learn=True, unresolved iteration chain continues without skillbook files."""
+        _write_iter(tmp_path, "trajectories", INSTANCE, 0, _make_trajectory("Submitted"))
+        _write_iter(tmp_path, "results", INSTANCE, 0, _make_result(resolved=False))
+        # No skillbook file for iter_1 — normally breaks the chain
+
+        # Without skip_learn: chain breaks at iter_0 (no skillbook)
+        rp = scan_resume_state(tmp_path, BENCHMARK, INSTANCE, max_attempts=4)
+        assert rp is not None
+        assert rp.last_complete_iter == -1  # broken chain
+
+        # With skip_learn: chain continues, skillbook not required
+        rp = scan_resume_state(tmp_path, BENCHMARK, INSTANCE, max_attempts=4, skip_learn=True)
+        assert rp is not None
+        assert rp.last_complete_iter == 0  # iter_0 is complete
+        assert rp.is_fully_complete is False
+
+    def test_skip_learn_resolved_still_detected(self, tmp_path):
+        """With skip_learn=True, resolved instances are still fully complete."""
+        _write_iter(tmp_path, "trajectories", INSTANCE, 0, _make_trajectory("Submitted"))
+        _write_iter(tmp_path, "results", INSTANCE, 0, _make_result(resolved=True))
+        # No skillbook file — but resolved, so should be fully complete either way
+
+        rp = scan_resume_state(tmp_path, BENCHMARK, INSTANCE, max_attempts=4, skip_learn=True)
+        assert rp is not None
+        assert rp.is_fully_complete is True
+
+    def test_skip_learn_multi_iter_chain(self, tmp_path):
+        """With skip_learn=True, multi-iteration chain works without skillbooks."""
+        _write_iter(tmp_path, "trajectories", INSTANCE, 0, _make_trajectory("Submitted"))
+        _write_iter(tmp_path, "results", INSTANCE, 0, _make_result(resolved=False))
+        _write_iter(tmp_path, "trajectories", INSTANCE, 1, _make_trajectory("Submitted"))
+        _write_iter(tmp_path, "results", INSTANCE, 1, _make_result(resolved=False))
+        # No skillbook files at all
+
+        rp = scan_resume_state(tmp_path, BENCHMARK, INSTANCE, max_attempts=4, skip_learn=True)
+        assert rp is not None
+        assert rp.last_complete_iter == 1
+        assert rp.is_fully_complete is False

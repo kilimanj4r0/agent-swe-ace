@@ -72,6 +72,7 @@ class ExperimentLoop:
         concurrency: int = 1,
         agent_factory: Optional[Callable] = None,
         force_learn: bool = True,
+        skip_learn: bool = False,
     ):
         """
         Initialize experiment loop.
@@ -101,6 +102,7 @@ class ExperimentLoop:
         self.concurrency = concurrency
         self.agent_factory = agent_factory
         self.force_learn = force_learn
+        self.skip_learn = skip_learn
         self._baseline_run_dir = None
 
         # Global skillbook for 'global' mode
@@ -316,7 +318,7 @@ class ExperimentLoop:
 
             # Phase 3: Learn (conditionally)
             # Skip learn when: single attempt AND config force_learn=False AND not overridden by runtime force_learn
-            skip_learn = effective_max <= 1 and not self.force_learn and not force_learn
+            skip_learn = (effective_max <= 1 and not self.force_learn and not force_learn) or self.skip_learn
             should_learn = not frozen_skillbook and not skip_learn and (force_learn or not evaluate_result.resolved)
             if should_learn:
                 if evaluate_result.resolved:
@@ -345,7 +347,8 @@ class ExperimentLoop:
             if evaluate_result.resolved:
                 # When max_attempts > 1 was explicitly set, run all attempts
                 # (val_pass_k > 1 means "always K attempts for measurement")
-                if effective_max <= 1:
+                # Exception: skip_learn mode — no point re-running resolved instances
+                if effective_max <= 1 or self.skip_learn:
                     break
 
         return result
@@ -433,7 +436,7 @@ class ExperimentLoop:
                 break
 
             # Phase 3: Learn (run on unresolved unless single-attempt with force_learn=False)
-            skip_learn = self.max_attempts <= 1 and not self.force_learn
+            skip_learn = (self.max_attempts <= 1 and not self.force_learn) or self.skip_learn
             if not evaluate_result.resolved and not skip_learn:
                 logger.info(f"[{instance_id}] Not resolved, learning from failure...")
                 trajectory = {
