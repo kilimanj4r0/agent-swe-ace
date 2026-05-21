@@ -30,6 +30,10 @@ uv run python -m src.cli.commands --config configs/agent-qwen3-ace-qwen3-full-4a
 # Resume from previous runs (copies completed instances, continues partial)
 uv run python -m src.cli.commands --resume-dir data/run_20260415_020540 data/run_20260415_020217
 
+# Validation-only mode: reuse skillbooks from a previous run, skip training
+# Requires skillbook_source_dir + val_pass_k in config
+uv run python -m src.cli.commands --config configs/val_only_k4.yaml
+
 # Run with Opik observability
 uv run python -m src.cli.commands --observe
 
@@ -116,7 +120,8 @@ data/
 │   ├── trajectories/{train,val_baseline,val}/<instance>/iter_N.json
 │   ├── results/{train,val_baseline,val}/<instance>/iter_N.json
 │   ├── skillbooks/train/iter_N.json
-│   └── skillbooks/final_skillbook.json
+│   ├── skillbooks/final_skillbook.json
+│   └── skillbooks/per_repo/<repo>/final_skillbook.json  # Per-repo skillbooks (iterate_repos mode)
 ```
 
 ## Experiment Flow
@@ -143,14 +148,18 @@ data/
 - Skillbook modes: `per_instance`, `per_repo`, or `global`
 - Two-phase experiment: `--filter-repos <repo> --val-ratio 0.2` splits into train/val
   - Train: 1 attempt per instance, force learn (even on success), skillbook accumulates
-  - Val baseline: 1 attempt per instance, empty skillbook, no learning
-  - Val skillbook: 1 attempt per instance, learned skillbook from train, no learning
+  - Val baseline: K attempts per instance (default 1), empty skillbook, no learning
+  - Val skillbook: K attempts per instance (default 1), learned skillbook from train, no learning
   - statistics.json includes `train_phase`, `val_baseline_phase`, `val_skillbook_phase`, `summary`
 - `benchmark.iterate_repos`: run independent per-repo two-phase experiments for each repo listed
   - Each repo gets its own train/val split and skillbook
+  - Per-repo skillbooks persisted to `skillbooks/per_repo/<repo>/final_skillbook.json`
   - If `concurrency > 1`, repos run in parallel (ThreadPoolExecutor)
   - Per-repo stats in `statistics_per_repo/<repo>.json`, combined in `statistics.json`
   - Orchestration in `_run_iterate_repos()` / `_run_single_repo_experiment()` in commands.py
+- `experiment.val_pass_k`: number of attempts per val instance (default: 1). Works in both normal and validation-only mode.
+- `experiment.skillbook_source_dir`: load per-repo skillbooks from a completed run, skip training entirely (validation-only mode)
+  - Loads from `skillbooks/per_repo/<repo>/final_skillbook.json`, falls back to global `final_skillbook.json`
 - `--list-repos` prints all repos with counts and optional split preview
 - `--baseline-run-dir` loads existing baseline results to avoid re-running val baseline
 - Docker required for evaluation (SWE-bench images)

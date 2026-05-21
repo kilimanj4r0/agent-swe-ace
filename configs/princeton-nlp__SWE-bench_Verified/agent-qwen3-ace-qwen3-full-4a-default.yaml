@@ -13,7 +13,8 @@ experiment:
   
   # baseline_run_dir: "data/run_20260515_141809_completed_qwen3_4a_swe_verified"
   resume_dirs:
-    - data/run_20260517_202038_completed_qwen3_4a_default_verified
+    # - data/run_20260517_202038_completed_qwen3_4a_default_verified
+    - data/run_20260520_123635
 
 agent:
   step_limit: 250                    # Max agent steps per attempt

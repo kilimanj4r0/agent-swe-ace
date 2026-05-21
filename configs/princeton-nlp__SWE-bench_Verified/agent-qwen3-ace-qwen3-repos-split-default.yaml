@@ -13,7 +13,8 @@ experiment:
 
   split:
     val_ratio: 0.2
-  baseline_run_dir: "data/run_20260517_202038_completed_qwen3_4a_default_verified"
+  baseline_run_dir: "data/run_20260520_144216_completed_qwen3_4a_default_verified"
+  val_pass_k: 3                          # Attempts per val instance (default: 1)
 
 agent:
   step_limit: 250
@@ -38,7 +39,7 @@ benchmark:
     - "django/django"
     - "sympy/sympy"
     - "sphinx-doc/sphinx"
-    # - "matplotlib/matplotlib"
+    - "matplotlib/matplotlib"
     - "scikit-learn/scikit-learn"
     - "astropy/astropy"
     - "pydata/xarray"
