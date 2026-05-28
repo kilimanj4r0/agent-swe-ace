@@ -23,8 +23,22 @@ from datetime import datetime
 from pathlib import Path
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+DATA_DIRS = [DATA_DIR, Path(__file__).resolve().parent.parent / "_data"]
 
 # ── helpers ──────────────────────────────────────────────────────────────
+
+def _all_run_dirs(reverse: bool = False):
+    """Yield (dir_path, dir_name) from all data directories, sorted."""
+    entries = []
+    for ddir in DATA_DIRS:
+        if not ddir.exists():
+            continue
+        for d in ddir.iterdir():
+            if d.is_dir():
+                entries.append(d)
+    entries.sort(key=lambda d: d.name, reverse=reverse)
+    return entries
+
 
 def load_json(path: Path) -> dict:
     try:
@@ -203,7 +217,7 @@ def get_active_run_dirs() -> set[str]:
             for fd in Path(f"/proc/{pid}/fd").iterdir():
                 try:
                     target = os.readlink(fd)
-                    if "experiment.log" in target and "data/run_" in target:
+                    if "experiment.log" in target and ("/data/run_" in target or "/_data/run_" in target):
                         for p in target.split("/"):
                             if p.startswith("run_"):
                                 active.add(p)
@@ -261,9 +275,7 @@ def find_dataset_total(dataset: str, filter_repos: list | None = None) -> int | 
     """
     if not dataset:
         return None
-    for d in sorted(DATA_DIR.iterdir(), reverse=True):
-        if not d.is_dir():
-            continue
+    for d in _all_run_dirs(reverse=True):
         cfg = load_json(d / "config.json")
         if cfg.get("benchmark", {}).get("dataset") != dataset:
             continue
@@ -293,9 +305,7 @@ def find_repo_phase_counts(dataset: str, filter_repos: list) -> dict | None:
     has val_baseline dirs, so we can estimate the full workload even when
     the current run hasn't reached the val phase yet.
     """
-    for d in sorted(DATA_DIR.iterdir(), reverse=True):
-        if not d.is_dir():
-            continue
+    for d in _all_run_dirs(reverse=True):
         cfg = load_json(d / "config.json")
         if cfg.get("benchmark", {}).get("dataset") != dataset:
             continue
@@ -720,13 +730,13 @@ def collect_iterate_repos_progress(
 # ── collect ──────────────────────────────────────────────────────────────
 
 def collect_runs(show_all: bool, only_running: bool):
-    if not DATA_DIR.exists():
+    if not any(d.exists() for d in DATA_DIRS):
         return []
 
     active_dirs = get_active_run_dirs()
     entries = []
 
-    for d in sorted(DATA_DIR.iterdir()):
+    for d in _all_run_dirs():
         if not d.is_dir():
             continue
 

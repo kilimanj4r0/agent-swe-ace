@@ -40,7 +40,90 @@ def _extract_phase_data(stats: dict, phase_key: str) -> dict:
         "rate": ps.get("resolution_rate", 0.0),
         "resolved_ids": ps.get("resolved_ids", []),
         "unresolved_ids": ps.get("unresolved_ids", []),
+        "pass_at_k": ps.get("pass_at_k", {}),
+        "per_attempt_rate": ps.get("per_attempt_rate", {}),
     }
+
+
+def _extract_exit_status(path: Path) -> str | None:
+    """Extract info.exit_status from a trajectory file using ijson-like streaming.
+
+    Avoids loading the full JSON (trajectories contain large message arrays).
+    """
+    import re
+    # Read only enough of the file to find "info":{"exit_status":"..."}
+    # The info object is typically near the top of the file
+    with open(path) as f:
+        chunk = f.read(4096)
+    # Try to find exit_status in the first chunk
+    m = re.search(r'"exit_status"\s*:\s*"([^"]*)"', chunk)
+    if m:
+        return m[1]
+    # Fallback: null or missing
+    if '"exit_status": null' in chunk or '"exit_status":null' in chunk:
+        return None
+    return "Unknown"
+
+
+def _count_exit_statuses(run_dir: Path) -> dict[str, dict[int, int]]:
+    """Count exit statuses per iteration from trajectory files.
+
+    Returns {exit_status: {iteration: count, ...}, ...}.
+    """
+    bench_dir = _find_benchmark_dir(run_dir)
+    if bench_dir is None:
+        return {}
+
+    trajs_dir = bench_dir / "trajectories"
+    if not trajs_dir.exists():
+        return {}
+
+    # Check for phase subdirs (split mode)
+    known_phases = {"train", "val", "val_baseline"}
+    phase_dirs = [d for d in trajs_dir.iterdir() if d.is_dir() and d.name in known_phases]
+
+    result: dict[str, dict[int, int]] = {}
+    scan_dirs = []
+    if phase_dirs:
+        for pd in phase_dirs:
+            scan_dirs.extend(d for d in pd.iterdir() if d.is_dir())
+    else:
+        scan_dirs = [d for d in trajs_dir.iterdir() if d.is_dir()]
+
+    for inst_dir in scan_dirs:
+        for fname in inst_dir.iterdir():
+            if not fname.name.endswith(".json") or not fname.name.startswith("iter_"):
+                continue
+            it = int(fname.name.replace("iter_", "").replace(".json", ""))
+            es = _extract_exit_status(fname)
+            if es is None:
+                continue
+            result.setdefault(es, {}).setdefault(it, 0)
+            result[es][it] += 1
+
+    return result
+
+
+def _fmt_exit_statuses(es_data: dict[str, dict[int, int]]) -> str:
+    """Format exit status data as multi-line string with i0 count and raw per-iter counts."""
+    if not es_data:
+        return "-"
+
+    max_iter = max(it for counts in es_data.values() for it in counts)
+    lines = []
+    for status in sorted(es_data):
+        counts = es_data[status]
+        i0 = counts.get(0, 0)
+        total_i0 = sum(c.get(0, 0) for c in es_data.values())
+        pct = f" {i0/total_i0*100:.0f}%" if total_i0 > 0 else ""
+        parts = []
+        for it in range(1, max_iter + 1):
+            n = counts.get(it, 0)
+            if n > 0:
+                parts.append(f"i{it}:{n}")
+        iter_str = "\n  [" + " ".join(parts) + "]" if parts else ""
+        lines.append(f"{status}: i0:{i0}{pct}{iter_str}")
+    return "\n".join(lines)
 
 
 def _count_iter0_resolved(run_dir: Path) -> tuple[int, int]:
@@ -101,9 +184,12 @@ def load_run(run_dir: Path, iteration: int | None = None, phase: str | None = No
 
     is_baseline = stats.get("config", {}).get("baseline", False)
 
+    skip_learn = exp.get("skip_learn", False)
     custom_swe = exp.get("skillbook", {}).get("custom_swe_learn", exp.get("custom_swe_learn", False))
     learn_phase = "custom_swe" if custom_swe else "default"
-    if is_baseline:
+    if skip_learn:
+        learn_phase = "no skillbook"
+    elif is_baseline:
         learn_phase = "baseline"
 
     skillbook_assisted = stats.get("skillbook_assisted", {"count": 0, "ids": [], "by_iteration": {}})
@@ -133,11 +219,24 @@ def load_run(run_dir: Path, iteration: int | None = None, phase: str | None = No
         except (KeyError, ValueError):
             pass
 
+    train_trajs_dir = exp.get("train_trajs_dir")
     filter_repos = config.get("benchmark", {}).get("filter_repos")
     experiment_name = exp.get("name", "")
 
     # Count iter_0 resolved (for comparing baseline vs skillbook-assisted)
     iter0_resolved, iter0_total = _count_iter0_resolved(run_dir)
+
+    # Exit status counts per iteration
+    exit_statuses = _count_exit_statuses(run_dir)
+
+    # Step limit from agent config
+    step_limit = config.get("agent", {}).get("step_limit", "N/A")
+
+    # Detect iterate_repos mode
+    is_iterate_repos = stats.get("mode") == "iterate_repos" or bool(
+        config.get("benchmark", {}).get("iterate_repos")
+    )
+    repos = stats.get("repos", None)
 
     result = {
         "run_dir": run_dir.name,
@@ -166,6 +265,11 @@ def load_run(run_dir: Path, iteration: int | None = None, phase: str | None = No
         "experiment_name": experiment_name,
         "iter0_resolved": iter0_resolved,
         "iter0_total": iter0_total,
+        "is_iterate_repos": is_iterate_repos,
+        "repos": repos,
+        "train_trajs_dir": train_trajs_dir,
+        "step_limit": step_limit,
+        "exit_statuses": exit_statuses,
     }
 
     # --phase override: replace top-level data with specific phase
@@ -285,7 +389,7 @@ def format_assisted(sa: dict) -> str:
 
 
 def _format_sb_assist(r: dict) -> str:
-    """SB Assist with delta: count (per-iter) +Δrate%pp"""
+    """SB Assist: count +Δpp [i0:N i1:N ...]"""
     sa = r["skillbook_assisted"]
     count = sa.get("count", 0)
     by_iter = sa.get("by_iteration", {})
@@ -299,15 +403,38 @@ def _format_sb_assist(r: dict) -> str:
     else:
         delta_str = ""
 
-    iter_counts = ",".join(f"i{k}:{len(v)}" for k, v in sorted(by_iter.items(), key=lambda x: int(x[0])))
-    return f"{count} ({iter_counts}){delta_str}"
+    iter_parts = [f"i{k}:{len(v)}" for k, v in sorted(by_iter.items(), key=lambda x: int(x[0]))]
+    if iter_parts:
+        iter_str = "\n[" + " ".join(iter_parts) + "]"
+    else:
+        iter_str = ""
+
+    return f"{count}{delta_str}{iter_str}"
 
 
-def _fmt_phase(pd: dict) -> str:
-    """Format a phase dict as 'resolved/total rate%'."""
+def _fmt_phase(pd: dict, distil: bool = False) -> str:
+    """Format a phase dict as 'resolved/total rate% [p@1:N p@2:M ...]'.
+    If distil=True, prefix with 'distil'."""
     r, t = pd["resolved"], pd["total"]
     pct = f"{pd['rate'] * 100:.1f}%"
-    return f"{r}/{t} {pct}"
+    base = f"{r}/{t} {pct}"
+    if distil:
+        base = f"distil {base}"
+
+    pak = pd.get("pass_at_k", {})
+    if len(pak) > 1:
+        # Show per-pass@k resolved counts (skip last since it equals overall resolved)
+        parts = []
+        for k_label in sorted(pak, key=lambda x: int(x.split("@")[1])):
+            n = int(k_label.split("@")[1])
+            info = pak[k_label]
+            # Skip pass@k that matches the overall resolved count
+            if n < len(pak):
+                short_label = k_label.replace("pass@", "p@")
+                parts.append(f"{short_label}:{info['count']}")
+        if parts:
+            return f"{base} [{', '.join(parts)}]"
+    return base
 
 
 def _fmt_delta_pp(delta) -> str:
@@ -318,21 +445,60 @@ def _fmt_delta_pp(delta) -> str:
 
 
 def _print_table_rows(headers: list[str], rows: list[dict]):
-    """Print a formatted table with auto-width columns."""
+    """Print a formatted table with auto-width columns, supporting multi-line cells."""
+    # Compute widths: for multi-line cells, take max line width
     col_widths = {}
     for h in headers:
-        col_widths[h] = max(len(h), *(len(row.get(h, "")) for row in rows))
+        max_w = len(h)
+        for row in rows:
+            val = row.get(h, "")
+            for line in val.split("\n"):
+                max_w = max(max_w, len(line))
+        col_widths[h] = max_w
 
     header_line = " | ".join(h.ljust(col_widths[h]) for h in headers)
     sep_line = "-+-".join("-" * col_widths[h] for h in headers)
     print(header_line)
     print(sep_line)
     for row in rows:
-        line = " | ".join(row.get(h, "").ljust(col_widths[h]) for h in headers)
-        print(line)
+        # Split each cell into lines
+        cell_lines = {}
+        max_lines = 1
+        for h in headers:
+            lines = row.get(h, "").split("\n")
+            cell_lines[h] = lines
+            max_lines = max(max_lines, len(lines))
+        for i in range(max_lines):
+            parts = []
+            for h in headers:
+                line = cell_lines[h][i] if i < len(cell_lines[h]) else ""
+                parts.append(line.ljust(col_widths[h]))
+            print(" | ".join(parts))
 
 
-def print_table(runs: list[dict], iteration: int | None = None):
+_DATASET_ALIASES = {
+    "SWE-bench_Lite": "lite",
+    "SWE-bench_Verified": "verified",
+}
+
+
+def _shorten_dataset(dataset: str) -> str:
+    """Short dataset alias (e.g. 'princeton-nlp/SWE-bench_Lite' → 'lite')."""
+    short = dataset.rsplit("/", 1)[-1] if "/" in dataset else dataset
+    return _DATASET_ALIASES.get(short, short)
+
+
+def _load_per_repo_stats(run_dir: Path, repo: str) -> dict | None:
+    """Load per-repo statistics from statistics_per_repo/<owner>__<repo>.json."""
+    repo_filename = repo.replace("/", "__") + ".json"
+    path = run_dir / "statistics_per_repo" / repo_filename
+    if not path.exists():
+        return None
+    with open(path) as f:
+        return json.load(f)
+
+
+def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[str] | None = None):
     # Sort: baselines first, then by run dir name
     runs.sort(key=lambda r: (0 if r["is_baseline"] else 1, r["run_dir"]))
 
@@ -342,8 +508,23 @@ def print_table(runs: list[dict], iteration: int | None = None):
         tag = f"#{idx:03d}"
         run_id_map[r["run_dir"]] = tag
 
+    # Map run_dir name -> full Path for loading per-repo files
+    run_dir_paths: dict[str, Path] = {}
+    if run_paths:
+        for p in run_paths:
+            path = Path(p)
+            if path.exists():
+                run_dir_paths[path.name] = path.resolve()
+
+    _MODEL_ALIASES = {
+        "Qwen3-Coder-30B": "qwen3coder",
+        "Qwen3-Coder-Next-FP8": "qwen3coder-next",
+        "glm-4.5-flash": "glm45-flash",
+    }
+
     def model_short(m):
-        return m.split("/")[-1].replace("-Instruct", "").replace("-A3B", "") if m != "N/A" else "-"
+        base = m.split("/")[-1].replace("-Instruct", "").replace("-A3B", "") if m != "N/A" else "-"
+        return _MODEL_ALIASES.get(base, base)
 
     def llm_col(r):
         a, b = model_short(r["agent_llm"]), model_short(r["ace_llm"])
@@ -359,13 +540,14 @@ def print_table(runs: list[dict], iteration: int | None = None):
     if flat_runs:
         if split_runs:
             print("per_instance runs:")
-        flat_headers = ["ID", "Proc", "Unres", "Res", "Rate", "i0 Rate", "LLM", "Att", "Time", "Learn", "SB Assist"]
+        flat_headers = ["ID", "Dataset", "Proc", "Unres", "Res", "Rate", "i0 Rate", "LLM", "Att", "Steps", "Learn", "SB Assist", "Traj Exit Status"]
         flat_rows = []
         for r in flat_runs:
             i0_r, i0_t = r["iter0_resolved"], r["iter0_total"]
             i0_str = f"{i0_r} {i0_r/i0_t*100:.1f}%" if i0_t > 0 else "-"
             flat_rows.append({
                 "ID": run_id_map[r["run_dir"]],
+                "Dataset": _shorten_dataset(r["benchmark"]),
                 "Proc": str(r["processed_instances"]),
                 "Unres": str(r["unresolved_count"]),
                 "Res": str(r["resolved_count"]),
@@ -373,9 +555,10 @@ def print_table(runs: list[dict], iteration: int | None = None):
                 "i0 Rate": i0_str,
                 "LLM": llm_col(r),
                 "Att": str(r["max_attempts"]),
-                "Time": f"{r['duration_h']}h" if r["duration_h"] is not None else "-",
+                "Steps": str(r["step_limit"]),
                 "Learn": r["learn_phase"],
                 "SB Assist": _format_sb_assist(r),
+                "Traj Exit Status": _fmt_exit_statuses(r["exit_statuses"]),
             })
         _print_table_rows(flat_headers, flat_rows)
         print()
@@ -384,33 +567,92 @@ def print_table(runs: list[dict], iteration: int | None = None):
     if split_runs:
         if flat_runs:
             print("Split-mode runs (per_repo/global):")
-        split_headers = ["ID", "Repo", "Train", "ValBL", "ValSB", "SB Δ", "New/Lost", "LLM", "Time", "Learn"]
+        split_headers = ["ID", "Dataset", "Repo", "Train", "ValBL", "ValSB", "SB Δ", "New/Lost", "LLM", "Learn"]
         split_rows = []
+        # Track per-repo rows for details printing
+        per_repo_details: list[tuple[str, dict]] = []  # (display_tag, per_repo_split_data)
+
         for r in split_runs:
-            s = r["split"]
-            repos = r["filter_repos"]
-            repo_str = ",".join(repos) if repos else "all"
-            split_rows.append({
-                "ID": run_id_map[r["run_dir"]],
-                "Repo": repo_str,
-                "Train": _fmt_phase(s["train"]),
-                "ValBL": _fmt_phase(s["val_baseline"]),
-                "ValSB": _fmt_phase(s["val_skillbook"]),
-                "SB Δ": _fmt_delta_pp(s["skillbook_improvement"]),
-                "New/Lost": f"{len(s['newly_resolved'])}/{len(s['lost'])}",
-                "LLM": llm_col(r),
-                "Time": f"{r['duration_h']}h" if r["duration_h"] is not None else "-",
-                "Learn": r["learn_phase"],
-            })
+            parent_tag = run_id_map[r["run_dir"]]
+
+            if r["is_iterate_repos"] and r.get("repos"):
+                # Expand iterate_repos into per-repo rows
+                full_path = run_dir_paths.get(r["run_dir"])
+                for repo in r["repos"]:
+                    per_repo_data = None
+                    if full_path:
+                        per_repo_data = _load_per_repo_stats(full_path, repo)
+
+                    if per_repo_data:
+                        train_phase_raw = per_repo_data.get("train_phase", {})
+                        is_distil = bool(train_phase_raw.get("teacher_trajs_dir")) or bool(r.get("train_trajs_dir"))
+                        s = {
+                            "train": _extract_phase_data(per_repo_data, "train_phase"),
+                            "val_baseline": _extract_phase_data(per_repo_data, "val_baseline_phase"),
+                            "val_skillbook": _extract_phase_data(per_repo_data, "val_skillbook_phase"),
+                            "skillbook_improvement": per_repo_data.get("summary", {}).get("skillbook_improvement", "N/A"),
+                            "skillbook_improvement_pct": per_repo_data.get("summary", {}).get("skillbook_improvement_pct", "N/A"),
+                            "newly_resolved": per_repo_data.get("summary", {}).get("newly_resolved_by_skillbook", []),
+                            "lost": per_repo_data.get("summary", {}).get("lost_by_skillbook", []),
+                        }
+                    else:
+                        # Fallback: show placeholder
+                        is_distil = bool(r.get("train_trajs_dir"))
+                        s = {
+                            "train": {"resolved": 0, "total": 0, "rate": 0.0, "resolved_ids": [], "unresolved_ids": []},
+                            "val_baseline": {"resolved": 0, "total": 0, "rate": 0.0, "resolved_ids": [], "unresolved_ids": []},
+                            "val_skillbook": {"resolved": 0, "total": 0, "rate": 0.0, "resolved_ids": [], "unresolved_ids": []},
+                            "skillbook_improvement": "N/A",
+                            "newly_resolved": [],
+                            "lost": [],
+                        }
+
+                    split_rows.append({
+                        "ID": parent_tag,
+                        "Dataset": _shorten_dataset(r["benchmark"]),
+                        "Repo": repo,
+                        "Train": _fmt_phase(s["train"], distil=is_distil),
+                        "ValBL": _fmt_phase(s["val_baseline"]),
+                        "ValSB": _fmt_phase(s["val_skillbook"]),
+                        "SB Δ": _fmt_delta_pp(s["skillbook_improvement"]),
+                        "New/Lost": f"{len(s['newly_resolved'])}/{len(s['lost'])}",
+                        "LLM": llm_col(r),
+                        "Learn": r["learn_phase"],
+                    })
+                    per_repo_details.append((parent_tag, s))
+            else:
+                # Regular split run (single row)
+                s = r["split"]
+                repos = r["filter_repos"]
+                if repos:
+                    repo_str = ",".join(repos)
+                elif (r["skillbook_mode"] == "global"
+                      and not r["is_iterate_repos"]):
+                    repo_str = "global"
+                else:
+                    repo_str = "all"
+                is_distil = bool(r.get("train_trajs_dir"))
+                split_rows.append({
+                    "ID": parent_tag,
+                    "Dataset": _shorten_dataset(r["benchmark"]),
+                    "Repo": repo_str,
+                    "Train": _fmt_phase(s["train"], distil=is_distil),
+                    "ValBL": _fmt_phase(s["val_baseline"]),
+                    "ValSB": _fmt_phase(s["val_skillbook"]),
+                    "SB Δ": _fmt_delta_pp(s["skillbook_improvement"]),
+                    "New/Lost": f"{len(s['newly_resolved'])}/{len(s['lost'])}",
+                    "LLM": llm_col(r),
+                    "Learn": r["learn_phase"],
+                })
+                per_repo_details.append((parent_tag, s))
+
         _print_table_rows(split_headers, split_rows)
 
         # Print details for newly resolved / lost
-        has_details = any(r["split"]["newly_resolved"] or r["split"]["lost"] for r in split_runs)
+        has_details = any(s["newly_resolved"] or s["lost"] for _, s in per_repo_details)
         if has_details:
             print()
-            for r in split_runs:
-                s = r["split"]
-                tag = run_id_map[r["run_dir"]]
+            for tag, s in per_repo_details:
                 if s["newly_resolved"]:
                     print(f"  {tag} newly resolved by skillbook: {s['newly_resolved']}")
                 if s["lost"]:
@@ -519,7 +761,7 @@ def main():
         save_path = args.json if isinstance(args.json, str) else None
         print_json(runs, save_path=save_path)
     else:
-        print_table(runs, iteration=args.iter)
+        print_table(runs, iteration=args.iter, run_paths=args.runs)
 
 
 if __name__ == "__main__":

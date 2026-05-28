@@ -63,6 +63,15 @@ def collect_per_attempt_stats(results_dir: Path, repo_prefix: str | None = None)
             "rate": count / total if total else 0.0,
         }
 
+    per_attempt = {}
+    for i in range(k):
+        resolved_at_i = sum(1 for _, a in instances if i < len(a) and a[i])
+        per_attempt[f"iter_{i}"] = {
+            "resolved": resolved_at_i,
+            "total": total,
+            "rate": resolved_at_i / total if total else 0.0,
+        }
+
     resolved_count = sum(1 for _, a in instances if any(a))
 
     return {
@@ -71,6 +80,7 @@ def collect_per_attempt_stats(results_dir: Path, repo_prefix: str | None = None)
         "resolution_rate": resolved_count / total if total else 0.0,
         "max_attempts": k,
         "pass_at_k": pass_at,
+        "per_attempt_rate": per_attempt,
     }
 
 

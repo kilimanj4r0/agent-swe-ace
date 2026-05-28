@@ -8,21 +8,22 @@ set -u
 PORT="${PORT:-8800}"
 GPUS="${CUDA_VISIBLE_DEVICES:-0,1}"
 MODEL="${MODEL:-Qwen/Qwen3-Coder-30B-A3B-Instruct}"
+# Qwen/Qwen3-Coder-Next-FP8
 RESTART_DELAY=10
 SHUTDOWN_FLAG="/tmp/vllm_watchdog_shutdown_${PORT}"
 
 echo "[watchdog] Config: port=$PORT, gpus=$GPUS, model=$MODEL"
 
 start_vllm() {
-  CUDA_VISIBLE_DEVICES="$GPUS" uv run --no-sync vllm serve "$MODEL" \
+  CUDA_VISIBLE_DEVICES="$GPUS" uv run vllm serve "$MODEL" \
     --port "$PORT" \
     --api-key API_KEY \
     --tensor-parallel-size 2 \
     --enable-expert-parallel \
     --dtype bfloat16 \
-    --gpu-memory-utilization 0.75 \
+    --gpu-memory-utilization 0.8 \
     --max-model-len 256K \
-    --max-num-seqs 12 \
+    --max-num-seqs 6 \
     --enable-prefix-caching \
     --enable-auto-tool-choice \
     --tool-call-parser qwen3_coder \
