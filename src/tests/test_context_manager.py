@@ -3,6 +3,7 @@
 
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -182,3 +183,147 @@ class TestTruncateMessages:
         # Last 3 messages should match the original last 3
         for i in range(3):
             assert result[-(i + 1)]["role"] == msgs[-(i + 1)]["role"]
+
+
+# --- I2: TestContextAwareDefaultAgent ---
+
+
+class TestContextAwareDefaultAgent:
+    """Tests for ContextAwareDefaultAgent wrapper."""
+
+    @patch("minisweagent.agents.default.DefaultAgent")
+    def test_no_truncation_below_threshold(self, MockDefaultAgent):
+        """Messages below threshold should pass through unchanged."""
+        from agents.context_manager import ContextAwareDefaultAgent
+
+        # Configure mock agent instance
+        mock_agent_instance = MagicMock()
+        mock_agent_instance.messages = [
+            {"role": "system", "content": "system"},
+            {"role": "user", "content": "short message"},
+        ]
+        mock_agent_instance.query = MagicMock(return_value={"exit_status": "submitted"})
+        MockDefaultAgent.return_value = mock_agent_instance
+
+        # Create wrapper with small max_input_tokens so threshold is low but
+        # messages are still well below it
+        wrapper = ContextAwareDefaultAgent(
+            model="test-model",
+            env=MagicMock(),
+            config_class=MagicMock(),
+            max_input_tokens=10000,
+        )
+
+        original_messages = list(mock_agent_instance.messages)
+        wrapper._query_with_context_management()
+
+        # Messages should be unchanged — no truncation triggered
+        assert mock_agent_instance.messages == original_messages
+        assert wrapper._truncation_count == 0
+
+    @patch("minisweagent.agents.default.DefaultAgent")
+    def test_truncation_above_threshold(self, MockDefaultAgent):
+        """Messages above threshold should be truncated."""
+        from agents.context_manager import ContextAwareDefaultAgent
+
+        # Configure mock agent instance
+        mock_agent_instance = MagicMock()
+        # Create enough long messages to exceed 850 tokens (1000 * 0.85)
+        mock_agent_instance.messages = [
+            {"role": "system", "content": "system"},
+            {"role": "user", "content": "instance"},
+        ]
+        # Add many long messages to push past 850 tokens
+        for i in range(20):
+            mock_agent_instance.messages.append(
+                {"role": "user", "content": "x" * 300}
+            )
+        mock_agent_instance.query = MagicMock(return_value={"exit_status": "submitted"})
+        MockDefaultAgent.return_value = mock_agent_instance
+
+        wrapper = ContextAwareDefaultAgent(
+            model="test-model",
+            env=MagicMock(),
+            config_class=MagicMock(),
+            max_input_tokens=1000,
+        )
+
+        tokens_before = estimate_tokens(mock_agent_instance.messages)
+        assert tokens_before > 850  # Sanity: above threshold
+
+        wrapper._query_with_context_management()
+
+        tokens_after = estimate_tokens(mock_agent_instance.messages)
+        assert wrapper._truncation_count == 1
+        assert tokens_after < tokens_before
+
+
+# --- M5: TestTruncateMessagesEdgeCases ---
+
+
+class TestTruncateMessagesEdgeCases:
+    """Edge-case tests for truncate_messages."""
+
+    def test_all_format_errors_dropped(self):
+        """When ALL middle messages are format errors, none remain after truncation."""
+        # Use large padding on format error messages so dropping them actually
+        # brings the token count below the threshold.
+        padding = "x" * 3000  # ~1000 tokens each
+        msgs = [
+            {"role": "system", "content": "system"},
+            {"role": "user", "content": "instance"},
+            {"role": "user", "content": "Please always provide EXACTLY ONE action " + padding},
+            {"role": "user", "content": "Please format your action in triple backticks " + padding},
+            {"role": "user", "content": "Please always provide EXACTLY ONE action " + padding},
+            {"role": "user", "content": "recent"},
+        ]
+        # With format errors: ~3000+ tokens. Without (just protected + recent): ~20 tokens.
+        # Set threshold so dropping errors gets us under.
+        result = truncate_messages(msgs, max_tokens=1000, keep_recent=1)
+        contents = [m["content"] for m in result]
+        # Only system, instance, and recent should remain
+        assert result[0]["content"] == "system"
+        assert result[1]["content"] == "instance"
+        assert "Please always provide EXACTLY ONE action" not in contents
+        assert "Please format your action in triple backticks" not in contents
+
+    def test_zero_length_content(self):
+        """Messages with empty string content don't crash."""
+        msgs = [
+            {"role": "system", "content": "system"},
+            {"role": "user", "content": "instance"},
+            {"role": "user", "content": ""},
+            {"role": "assistant", "content": ""},
+            {"role": "user", "content": "final"},
+        ]
+        # Should not raise
+        result = truncate_messages(msgs, max_tokens=100, keep_recent=1)
+        assert isinstance(result, list)
+
+    def test_messages_without_content_key(self):
+        """Messages missing the 'content' key are handled gracefully."""
+        msgs = [
+            {"role": "system", "content": "system"},
+            {"role": "user", "content": "instance"},
+            {"role": "user"},  # No content key
+            {"role": "assistant"},  # No content key
+            {"role": "user", "content": "final"},
+        ]
+        # Should not raise KeyError
+        result = truncate_messages(msgs, max_tokens=100, keep_recent=1)
+        assert isinstance(result, list)
+
+    def test_max_tokens_small(self):
+        """Very small max_tokens still returns protected messages (first 2)."""
+        msgs = [
+            {"role": "system", "content": "system prompt here"},
+            {"role": "user", "content": "instance description here"},
+            {"role": "user", "content": "x" * 3000},
+            {"role": "assistant", "content": "y" * 3000},
+            {"role": "user", "content": "z" * 3000},
+        ]
+        result = truncate_messages(msgs, max_tokens=1, keep_recent=1)
+        # Protected messages (first 2) should always be present
+        assert len(result) >= 2
+        assert result[0]["content"] == "system prompt here"
+        assert result[1]["content"] == "instance description here"

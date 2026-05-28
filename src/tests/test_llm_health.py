@@ -103,11 +103,20 @@ def _make_llm_request(config_dict: dict) -> dict:
     response = model.query(PROMPT)
     elapsed = time.time() - t0
 
-    content = (
-        response.get("content", str(response))
-        if isinstance(response, dict)
-        else str(response)
-    )
+    content = None
+    if isinstance(response, dict):
+        raw_content = response.get("content")
+        if isinstance(raw_content, list):
+            content = " ".join(
+                part.get("text", str(part)) for part in raw_content
+                if isinstance(part, dict)
+            )
+        elif raw_content is not None:
+            content = str(raw_content)
+        else:
+            content = str(response)
+    else:
+        content = str(response)
 
     return {
         "provider": llm_config.provider,

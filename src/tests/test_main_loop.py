@@ -544,17 +544,22 @@ class TestPerRepoMode:
             trajectory=[],
         )
 
+        def evaluate_side_effect(*args, **kwargs):
+            instance = kwargs.get("instance") or args[0]
+            iid = instance.get("instance_id", "unknown")
+            if iid == "train-1":
+                return Mock(instance_id=iid, resolved=True, feedback="OK")
+            elif iid == "train-2":
+                return Mock(instance_id=iid, resolved=False, feedback="Bad")
+            else:
+                phase = kwargs.get("phase", "")
+                if "baseline" in phase:
+                    return Mock(instance_id=iid, resolved=False, feedback="Bad")
+                else:
+                    return Mock(instance_id=iid, resolved=True, feedback="OK")
+
         mock_evaluate = Mock()
-        mock_evaluate.run.side_effect = [
-            # Train instance 1
-            Mock(instance_id="train-1", resolved=True, feedback="OK"),
-            # Train instance 2
-            Mock(instance_id="train-2", resolved=False, feedback="Bad"),
-            # Val baseline
-            Mock(instance_id="val-1", resolved=False, feedback="Bad"),
-            # Val skillbook
-            Mock(instance_id="val-1", resolved=True, feedback="OK"),
-        ]
+        mock_evaluate.run.side_effect = evaluate_side_effect
 
         mock_learn = Mock()
         mock_learn.run.return_value = Mock(skills_added=1)

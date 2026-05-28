@@ -23,6 +23,27 @@ class TestExtractBenchmarkName:
         """Test extracting from simple name."""
         assert readers.extract_benchmark_name("SWE-bench_Lite") == "SWE-bench_Lite"
 
+    # --- I9: additional extract_benchmark_name tests ---
+
+    def test_extract_from_writers(self):
+        """Test extract_benchmark_name from writers module."""
+        assert writers.extract_benchmark_name("princeton-nlp/SWE-bench_Lite") == "princeton-nlp__SWE-bench_Lite"
+
+    def test_both_modules_identical(self):
+        """Readers and writers produce identical results for various inputs."""
+        test_inputs = [
+            "princeton-nlp/SWE-bench_Lite",
+            "princeton-nlp/SWE-bench_Verified",
+            "SWE-bench_Lite",
+            "some-org/some-dataset",
+            "no-slashes",
+            "a/b/c",
+        ]
+        for inp in test_inputs:
+            assert readers.extract_benchmark_name(inp) == writers.extract_benchmark_name(inp), (
+                f"Mismatch for input: {inp}"
+            )
+
 
 class TestReaders:
     """Test data loading functions."""
@@ -227,3 +248,179 @@ class TestWriters:
 
         assert output_path == run_dir / "statistics.json"
         assert output_path.exists()
+
+
+# --- I4: Additional test classes ---
+
+
+class TestLoadSkillbookForRepo:
+    """Tests for load_skillbook_for_repo."""
+
+    def test_per_repo_found(self, tmp_path):
+        """Per-repo skillbook file is loaded when it exists."""
+        from ace import Skillbook, Skill
+
+        benchmark = "princeton-nlp__SWE-bench_Verified"
+        repo = "django/django"
+        repo_name = repo.replace("/", "__")
+
+        skillbook_data = {
+            "skills": {
+                "skill-1": {
+                    "id": "skill-1",
+                    "section": "general",
+                    "content": "Check migrations",
+                }
+            }
+        }
+
+        per_repo_dir = tmp_path / benchmark / "skillbooks" / "per_repo" / repo_name
+        per_repo_dir.mkdir(parents=True)
+        (per_repo_dir / "final_skillbook.json").write_text(json.dumps(skillbook_data))
+
+        result = readers.load_skillbook_for_repo(tmp_path, benchmark, repo)
+
+        assert len(result.skills()) == 1
+        assert result.skills()[0].id == "skill-1"
+
+    def test_fallback_to_global(self, tmp_path):
+        """Falls back to global final_skillbook.json when per-repo not found."""
+        benchmark = "princeton-nlp__SWE-bench_Verified"
+        repo = "django/django"
+
+        global_data = {
+            "skills": {
+                "skill-g": {
+                    "id": "skill-g",
+                    "section": "general",
+                    "content": "Global skill",
+                }
+            }
+        }
+
+        skillbooks_dir = tmp_path / benchmark / "skillbooks"
+        skillbooks_dir.mkdir(parents=True)
+        (skillbooks_dir / "final_skillbook.json").write_text(json.dumps(global_data))
+
+        result = readers.load_skillbook_for_repo(tmp_path, benchmark, repo)
+
+        assert len(result.skills()) == 1
+        assert result.skills()[0].id == "skill-g"
+
+    def test_empty_when_nothing_found(self, tmp_path):
+        """Returns empty Skillbook when no file exists."""
+        from ace import Skillbook
+
+        result = readers.load_skillbook_for_repo(
+            tmp_path, "princeton-nlp__SWE-bench_Verified", "django/django"
+        )
+
+        assert isinstance(result, Skillbook)
+        assert len(result.skills()) == 0
+
+
+class TestLoadTeacherTrajectory:
+    """Tests for load_teacher_trajectory."""
+
+    def test_returns_none_when_not_found(self, tmp_path):
+        """Returns None when trajectory file does not exist."""
+        result = readers.load_teacher_trajectory(tmp_path, "django__django-12345")
+        assert result is None
+
+    def test_returns_dict_when_found(self, tmp_path):
+        """Returns dict with info and messages when trajectory exists."""
+        instance_id = "django__django-12345"
+        traj_data = {
+            "info": {"exit_status": "submitted", "model": "opus"},
+            "messages": [
+                {"role": "user", "content": "Fix the bug"},
+                {"role": "assistant", "content": "Here is the fix"},
+            ],
+        }
+
+        traj_dir = tmp_path / instance_id
+        traj_dir.mkdir()
+        (traj_dir / f"{instance_id}.traj.json").write_text(json.dumps(traj_data))
+
+        result = readers.load_teacher_trajectory(tmp_path, instance_id)
+
+        assert result is not None
+        assert result["info"]["exit_status"] == "submitted"
+        assert len(result["messages"]) == 2
+
+
+class TestLoadResults:
+    """Tests for load_results."""
+
+    def test_empty_when_no_dir(self, tmp_path):
+        """Returns empty dict when results directory does not exist."""
+        result = readers.load_results(tmp_path, "princeton-nlp__SWE-bench_Lite")
+        assert result == {}
+
+    def test_loads_latest_iteration(self, tmp_path):
+        """Returns the latest iteration file for each instance."""
+        benchmark = "princeton-nlp__SWE-bench_Lite"
+        instance_id = "django__django-12345"
+
+        results_dir = tmp_path / benchmark / "results" / instance_id
+        results_dir.mkdir(parents=True)
+
+        # iter_0: unresolved
+        (results_dir / "iter_0.json").write_text(json.dumps({
+            "resolved": False,
+            "feedback": "Tests failed",
+        }))
+        # iter_1: resolved
+        (results_dir / "iter_1.json").write_text(json.dumps({
+            "resolved": True,
+            "feedback": "All tests passed",
+        }))
+
+        result = readers.load_results(tmp_path, benchmark)
+
+        assert instance_id in result
+        assert result[instance_id]["resolved"] is True
+        assert result[instance_id]["feedback"] == "All tests passed"
+
+    def test_multiple_instances(self, tmp_path):
+        """Loads results for multiple instances."""
+        benchmark = "princeton-nlp__SWE-bench_Lite"
+
+        for iid in ["django__django-111", "django__django-222"]:
+            results_dir = tmp_path / benchmark / "results" / iid
+            results_dir.mkdir(parents=True)
+            (results_dir / "iter_0.json").write_text(json.dumps({
+                "resolved": False,
+                "instance_id": iid,
+            }))
+
+        result = readers.load_results(tmp_path, benchmark)
+
+        assert len(result) == 2
+        assert "django__django-111" in result
+        assert "django__django-222" in result
+
+
+class TestLoadStatistics:
+    """Tests for load_statistics."""
+
+    def test_returns_none_when_missing(self, tmp_path):
+        """Returns None when statistics.json does not exist."""
+        result = readers.load_statistics(tmp_path)
+        assert result is None
+
+    def test_returns_parsed_json(self, tmp_path):
+        """Returns parsed JSON dict when statistics.json exists."""
+        stats = {
+            "run_name": "run_20260319_143052",
+            "total_instances": 10,
+            "resolved_count": 3,
+        }
+        (tmp_path / "statistics.json").write_text(json.dumps(stats))
+
+        result = readers.load_statistics(tmp_path)
+
+        assert result is not None
+        assert result["run_name"] == "run_20260319_143052"
+        assert result["total_instances"] == 10
+        assert result["resolved_count"] == 3
