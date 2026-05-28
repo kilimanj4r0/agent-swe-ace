@@ -318,10 +318,18 @@
   ],
   "resumed_complete_count": 196,
   "skillbook_assisted": {
-    "count": 10,
+    "count": 18,
     "ids": [
+      "astropy__astropy-6938",
+      "django__django-10914",
+      "django__django-12284",
+      "django__django-13447",
+      "django__django-13658",
+      "django__django-14855",
+      "psf__requests-2674",
       "pydata__xarray-5131",
       "pytest-dev__pytest-11143",
+      "scikit-learn__scikit-learn-13439",
       "sympy__sympy-12481",
       "sympy__sympy-15346",
       "sympy__sympy-18621",
@@ -333,6 +341,11 @@
     ],
     "by_iteration": {
       "1": [
+        "astropy__astropy-6938",
+        "django__django-12284",
+        "django__django-13447",
+        "django__django-13658",
+        "psf__requests-2674",
         "pydata__xarray-5131",
         "pytest-dev__pytest-11143",
         "sympy__sympy-18621",
@@ -341,11 +354,14 @@
         "sympy__sympy-22714"
       ],
       "2": [
+        "django__django-10914",
+        "django__django-14855",
         "sympy__sympy-12481",
         "sympy__sympy-15346",
         "sympy__sympy-21055"
       ],
       "3": [
+        "scikit-learn__scikit-learn-13439",
         "sympy__sympy-24066"
       ]
     }

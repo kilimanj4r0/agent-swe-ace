@@ -1,4 +1,4 @@
-{
+  {
   "experiment": {
     "name": "agent-qwen3-ace-qwen3-6-full",
     "description": "ACE skillbook learning experiment on SWE-bench Lite",
