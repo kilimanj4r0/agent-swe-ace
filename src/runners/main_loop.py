@@ -161,24 +161,37 @@ class ExperimentLoop:
         )
 
     def _load_resolved_status(self, instance_id: str) -> Optional[bool]:
-        """Read resolved status from the last completed iteration's result file."""
+        """Read resolved status from the last completed iteration's result file.
+
+        Checks the current run dir first (artifacts copied from resume source),
+        then falls back to the resume source dir.
+        """
         rp = self.resume_state.get(instance_id)
         if rp is None:
             return None
-        results_dir = rp.resume_dir / self.benchmark / "results" / instance_id
-        iter_files = sorted(results_dir.glob("iter_*.json"))
-        # Find the result for last_complete_iter
-        target = results_dir / f"iter_{rp.last_complete_iter}.json"
-        if target.exists():
-            try:
-                with open(target) as f:
-                    return json.load(f).get("resolved", False)
-            except Exception:
-                pass
+        iter_idx = rp.last_complete_iter
+
+        search_dirs = [
+            self.output_dir / self.benchmark / "results" / instance_id,
+        ]
+        if rp is not None:
+            search_dirs.append(rp.resume_dir / self.benchmark / "results" / instance_id)
+
+        for results_dir in search_dirs:
+            target = results_dir / f"iter_{iter_idx}.json"
+            if target.exists():
+                try:
+                    with open(target) as f:
+                        return json.load(f).get("resolved", False)
+                except Exception:
+                    pass
         return None
 
     def _load_resolving_iteration(self, instance_id: str) -> Optional[int]:
-        """Find which iteration resolved the instance in the resume source.
+        """Find which iteration resolved the instance.
+
+        Checks the current run dir first (artifacts copied from resume source),
+        then falls back to the resume source dir.
 
         Returns the iteration number that first shows resolved=True,
         or None if not found.
@@ -186,16 +199,28 @@ class ExperimentLoop:
         rp = self.resume_state.get(instance_id)
         if rp is None:
             return None
-        results_dir = rp.resume_dir / self.benchmark / "results" / instance_id
-        for k in range(rp.last_complete_iter + 1):
-            result_file = results_dir / f"iter_{k}.json"
-            if result_file.exists():
-                try:
-                    with open(result_file) as f:
-                        if json.load(f).get("resolved", False):
-                            return k
-                except Exception:
-                    continue
+
+        # Prefer current run dir — artifacts were copied there at start,
+        # so this works even if the resume source was renamed/removed.
+        search_dirs = [
+            self.output_dir / self.benchmark / "results" / instance_id,
+        ]
+        if rp is not None:
+            search_dirs.append(rp.resume_dir / self.benchmark / "results" / instance_id)
+
+        for results_dir in search_dirs:
+            if not results_dir.is_dir():
+                continue
+            # Scan all available iteration files
+            for k in range(10):
+                result_file = results_dir / f"iter_{k}.json"
+                if result_file.exists():
+                    try:
+                        with open(result_file) as f:
+                            if json.load(f).get("resolved", False):
+                                return k
+                    except Exception:
+                        continue
         return None
 
     def run_instance(
@@ -463,6 +488,7 @@ class ExperimentLoop:
         baseline_run_dir: Optional[Path] = None,
         preloaded_skillbook: Optional[Skillbook] = None,
         val_pass_k: int = 1,
+        train_trajs_dir: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Run experiment loop on multiple instances.
@@ -479,6 +505,7 @@ class ExperimentLoop:
             baseline_run_dir: Optional path to previous run with baseline results
             preloaded_skillbook: If provided, skip training and use this skillbook for val passes
             val_pass_k: Number of attempts per val instance (default: 1)
+            train_trajs_dir: Optional path to teacher trajectories dir for distillation
 
         Returns:
             Summary dict with statistics
@@ -487,6 +514,14 @@ class ExperimentLoop:
 
         # Store baseline_run_dir for single-phase reuse in run_instance()
         self._baseline_run_dir = baseline_run_dir
+        self._train_trajs_dir = Path(train_trajs_dir) if train_trajs_dir else None
+
+        if self._train_trajs_dir and not two_phase:
+            logger.warning(
+                "train_trajs_dir is set but no val_ratio configured — "
+                "train_trajs_dir only works in two-phase mode. Ignoring."
+            )
+            self._train_trajs_dir = None
 
         # Validate incompatible settings
         if two_phase and self.skillbook_mode == "per_instance":
@@ -544,6 +579,9 @@ class ExperimentLoop:
         reused_from_baseline = 0  # Count of train instances reused from baseline
         baseline_resolved_count = 0
         baseline_unresolved_count = 0
+        teacher_trajs_found = 0
+        teacher_trajs_skipped = 0
+        teacher_trajs_resolved = 0
 
         # Train phase parameters
         train_force_learn = two_phase  # Force learn in two-phase mode
@@ -553,6 +591,8 @@ class ExperimentLoop:
         # Timing
         start_time = datetime.now()
         instance_durations: List[float] = []
+        val_baseline_stats = None
+        val_skillbook_stats = None
 
         try:
             # Pre-check baseline skillbook compatibility (once, before train loop)
@@ -567,7 +607,21 @@ class ExperimentLoop:
                     logger.info(f"\n[TRAIN {i+1}/{len(instances)}] Processing {instance_id}")
 
                     inst_start = datetime.now()
-                    if two_phase and baseline_run_dir:
+                    if two_phase and self._train_trajs_dir is not None:
+                        # Teacher trajectory distillation (priority for train)
+                        teacher_result = self._run_train_instance_from_teacher(
+                            instance, self._train_trajs_dir, phase="train",
+                        )
+                        if teacher_result is not None:
+                            teacher_trajs_found += 1
+                            if teacher_result.final_resolved:
+                                teacher_trajs_resolved += 1
+                            result = teacher_result
+                        else:
+                            teacher_trajs_skipped += 1
+                            logger.warning(f"[TRAIN] {instance_id}: no teacher trajectory, skipping")
+                            continue
+                    elif two_phase and baseline_run_dir:
                         result = self._run_train_instance_reusing_baseline(
                             instance, baseline_run_dir, phase="train",
                             allow_sb_merge=baseline_sb_compat is not False,
@@ -597,8 +651,70 @@ class ExperimentLoop:
                 # Concurrent mode
                 results_lock = threading.Lock()
 
-                if two_phase and baseline_run_dir:
+                if two_phase and self._train_trajs_dir is not None:
+                    # Concurrent teacher distillation
+                    _teacher_trajs_found = [0]
+                    _teacher_trajs_skipped = [0]
+                    _teacher_trajs_resolved = [0]
+
+                    def _teacher_worker(instance, idx):
+                        instance_id = instance.get("instance_id", f"unknown-{idx}")
+                        inst_start = datetime.now()
+                        try:
+                            with instance_context(instance_id):
+                                teacher_result = self._run_train_instance_from_teacher(
+                                    instance, self._train_trajs_dir, phase="train",
+                                )
+                            if teacher_result is not None:
+                                with results_lock:
+                                    _teacher_trajs_found[0] += 1
+                                    if teacher_result.final_resolved:
+                                        _teacher_trajs_resolved[0] += 1
+                                    all_results[instance_id] = teacher_result
+                                    instance_durations.append((datetime.now() - inst_start).total_seconds())
+                                    if teacher_result.final_resolved:
+                                        resolved_ids.append(instance_id)
+                                    else:
+                                        unresolved_ids.append(instance_id)
+                                return teacher_result
+                            else:
+                                with results_lock:
+                                    _teacher_trajs_skipped[0] += 1
+                                logger.warning(f"[TRAIN] {instance_id}: no teacher trajectory, skipping")
+                                return None
+                        except Exception as e:
+                            logger.error(f"[{instance_id}] Teacher worker failed: {e}")
+                            with results_lock:
+                                instance_durations.append((datetime.now() - inst_start).total_seconds())
+                                unresolved_ids.append(instance_id)
+                                all_results[instance_id] = InstanceResult(
+                                    instance_id=instance_id,
+                                    final_resolved=False,
+                                    total_attempts=0,
+                                )
+                            return None
+
+                    logger.info(f"Launching {len(instances)} train instances with concurrency={self.concurrency} (teacher distillation)")
+                    with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
+                        futures = {
+                            executor.submit(_teacher_worker, inst, i): inst
+                            for i, inst in enumerate(instances)
+                        }
+                        done_count = 0
+                        for future in as_completed(futures):
+                            done_count += 1
+                            inst = futures[future]
+                            instance_id = inst.get("instance_id", "unknown")
+                            logger.info(f"[{done_count}/{len(instances)}] Completed {instance_id}")
+                    teacher_trajs_found = _teacher_trajs_found[0]
+                    teacher_trajs_skipped = _teacher_trajs_skipped[0]
+                    teacher_trajs_resolved = _teacher_trajs_resolved[0]
+                elif two_phase and baseline_run_dir:
                     # Concurrent two-phase train with baseline reuse
+                    _reused_from_baseline = [0]
+                    _baseline_resolved_count = [0]
+                    _baseline_unresolved_count = [0]
+
                     def _two_phase_worker(instance, idx):
                         instance_id = instance.get("instance_id", f"unknown-{idx}")
                         inst_start = datetime.now()
@@ -616,11 +732,11 @@ class ExperimentLoop:
                                 else:
                                     unresolved_ids.append(instance_id)
                                 if result.iterations and result.iterations[0].predict_result is None:
-                                    reused_from_baseline += 1
+                                    _reused_from_baseline[0] += 1
                                     if result.final_resolved:
-                                        baseline_resolved_count += 1
+                                        _baseline_resolved_count[0] += 1
                                     else:
-                                        baseline_unresolved_count += 1
+                                        _baseline_unresolved_count[0] += 1
                             return result
                         except Exception as e:
                             logger.error(f"[{instance_id}] Worker failed: {e}")
@@ -646,6 +762,9 @@ class ExperimentLoop:
                             inst = futures[future]
                             instance_id = inst.get("instance_id", "unknown")
                             logger.info(f"[{done_count}/{len(instances)}] Completed {instance_id}")
+                    reused_from_baseline = _reused_from_baseline[0]
+                    baseline_resolved_count = _baseline_resolved_count[0]
+                    baseline_unresolved_count = _baseline_unresolved_count[0]
                 else:
                     # Concurrent non-two-phase (single-phase per_instance mode)
                     def _worker(instance):
@@ -687,8 +806,6 @@ class ExperimentLoop:
                             logger.info(f"[{done_count}/{len(instances)}] Completed {instance_id}")
 
             # === Two-phase: Val passes ===
-            val_baseline_stats = None
-            val_skillbook_stats = None
 
             if two_phase:
                 if preloaded_skillbook is not None:
@@ -849,6 +966,10 @@ class ExperimentLoop:
                     "baseline_resolved_count": baseline_resolved_count,
                     "baseline_unresolved_count": baseline_unresolved_count,
                     "baseline_resolution_rate": baseline_resolved_count / reused_from_baseline if reused_from_baseline > 0 else 0.0,
+                    "teacher_trajs_dir": str(self._train_trajs_dir) if self._train_trajs_dir else None,
+                    "teacher_trajs_found": teacher_trajs_found,
+                    "teacher_trajs_skipped": teacher_trajs_skipped,
+                    "teacher_trajs_resolved": teacher_trajs_resolved,
                 }
 
                 if val_baseline_stats:
@@ -1181,6 +1302,62 @@ class ExperimentLoop:
                 instance, force_learn=True, max_attempts_override=1, phase=phase,
             )
 
+    def _run_train_instance_from_teacher(
+        self, instance: Dict[str, Any], train_trajs_dir: Path, phase: str = "train",
+    ) -> Optional[InstanceResult]:
+        """Run learn phase using a teacher trajectory.
+
+        Returns None if no teacher trajectory found for this instance.
+        """
+        from data_io.readers import load_teacher_trajectory
+        from data_io.writers import save_trajectory
+
+        instance_id = instance.get("instance_id", "unknown")
+        repo = instance.get("repo", "unknown")
+
+        traj_data = load_teacher_trajectory(train_trajs_dir, instance_id)
+        if traj_data is None:
+            return None
+
+        patch = traj_data["info"].get("submission", "")
+        resolved = traj_data["info"].get("resolved", False)
+        skillbook = self.get_skillbook(repo)
+
+        logger.info(
+            f"[TRAIN] {instance_id}: using teacher trajectory "
+            f"(resolved={resolved}, {len(traj_data['messages'])} messages)"
+        )
+
+        # Run learn phase (always, since force_learn=True in train phase)
+        learn_result = None
+        try:
+            learn_result = self.learn.run(
+                skillbook=skillbook,
+                instance=instance,
+                trajectory=traj_data,
+                patch=patch,
+                iteration=0,
+                phase=phase,
+            )
+            self.update_skillbook(repo, skillbook)
+        except Exception as e:
+            logger.error(f"[TRAIN] {instance_id}: teacher learn failed: {e}")
+
+        # Save teacher trajectory to output for reproducibility
+        save_trajectory(traj_data, self.output_dir, self.benchmark,
+                        instance_id, iteration=0, phase=phase)
+
+        result = InstanceResult(instance_id=instance_id)
+        result.final_resolved = resolved
+        result.total_attempts = 1
+        result.iterations.append(IterationResult(
+            iteration=0,
+            predict_result=None,
+            evaluate_result=None,
+            learn_result=learn_result,
+        ))
+        return result
+
     def _run_val_pass(
         self,
         val_instances: List[Dict[str, Any]],
@@ -1211,17 +1388,17 @@ class ExperimentLoop:
         results = {}
 
         # For val_baseline with baseline_run_dir, try loading existing results first
-        # But skip loading when max_attempts > 1: we need K fresh attempts per instance
-        # for a proper multi-attempt measurement, not single-attempt reused results.
         loaded_ids = {}
+        loaded_iter_details = {}  # iid -> {iter: resolved} for pass@k stats
         instances_to_run = list(val_instances)
 
-        if phase == "val_baseline" and baseline_run_dir and max_attempts <= 1:
-            loaded_ids, missing = self._load_baseline_results(baseline_run_dir, val_instances)
-            instances_to_run = missing
+        if phase == "val_baseline" and baseline_run_dir:
+            loaded_ids, loaded_iter_details, instances_to_run = self._load_baseline_results_multi(
+                baseline_run_dir, val_instances, max_attempts=max_attempts,
+            )
             logger.info(
                 f"Loaded {len(loaded_ids)} baseline results from {baseline_run_dir}, "
-                f"{len(missing)} need re-execution"
+                f"{len(instances_to_run)} need re-execution"
             )
 
         # Run instances
@@ -1276,9 +1453,9 @@ class ExperimentLoop:
                     attempts.append(r)
                 all_attempts[iid] = attempts
 
-            # Include loaded baseline instances as single-attempt results
-            for iid, was_resolved in loaded_ids.items():
-                all_attempts[iid] = [was_resolved]
+            # Include loaded baseline instances (multi-iteration aware)
+            for iid, iter_resolved in loaded_iter_details.items():
+                all_attempts[iid] = [iter_resolved[n] for n in sorted(iter_resolved)]
 
             for n in range(1, max_attempts + 1):
                 count = sum(
@@ -1295,70 +1472,86 @@ class ExperimentLoop:
 
         return stats
 
-    def _load_baseline_results(
-        self, baseline_dir: Path, val_instances: list
+    def _load_baseline_results_multi(
+        self, baseline_dir: Path, val_instances: list, max_attempts: int = 1,
     ) -> tuple:
-        """Load baseline results from a previous run.
+        """Load baseline val results, supporting multi-iteration reuse.
+
+        For each val instance, finds existing iterations in baseline_run_dir.
+        Only fully reuses an instance if >= max_attempts iterations exist.
+        Otherwise falls back to fresh execution.
 
         Returns:
-            (loaded_results, missing_instances) where loaded_results maps
-            instance_id -> resolved status and missing_instances are instances
-            that need to be re-executed.
+            (loaded_ids, loaded_iter_details, missing_instances) where:
+            - loaded_ids: dict of iid -> resolved (bool), fully reused instances
+            - loaded_iter_details: dict of iid -> {iter_num: resolved}, for pass@k stats
+            - missing_instances: list of instance dicts that need fresh execution
         """
         loaded = {}
+        loaded_iter_details = {}
         missing = []
         baseline_dir = Path(baseline_dir)
 
         for inst in val_instances:
             iid = inst["instance_id"]
 
-            # Try phase-based path first (two-phase runs), then flat layout
-            traj_path = None
-            result_path = None
+            # Find existing iterations across phase-based and flat layouts
+            iters_found = []  # list of (traj_path, result_path, resolved)
             for prefix in ["val_baseline", None]:
                 if prefix:
-                    tp = baseline_dir / self.benchmark / "trajectories" / prefix / iid / "iter_0.json"
-                    rp = baseline_dir / self.benchmark / "results" / prefix / iid / "iter_0.json"
+                    traj_dir = baseline_dir / self.benchmark / "trajectories" / prefix / iid
+                    result_dir = baseline_dir / self.benchmark / "results" / prefix / iid
                 else:
-                    tp = baseline_dir / self.benchmark / "trajectories" / iid / "iter_0.json"
-                    rp = baseline_dir / self.benchmark / "results" / iid / "iter_0.json"
-                if tp.exists() and rp.exists():
-                    traj_path = tp
-                    result_path = rp
-                    break
+                    traj_dir = baseline_dir / self.benchmark / "trajectories" / iid
+                    result_dir = baseline_dir / self.benchmark / "results" / iid
 
-            if traj_path and result_path:
-                try:
-                    with open(traj_path) as f:
-                        traj_data = json.load(f)
-                    with open(result_path) as f:
-                        result_data = json.load(f)
+                if traj_dir.exists() and result_dir.exists():
+                    for n in range(max_attempts):
+                        tp = traj_dir / f"iter_{n}.json"
+                        rp = result_dir / f"iter_{n}.json"
+                        if tp.exists() and rp.exists():
+                            try:
+                                with open(tp) as f:
+                                    traj_data = json.load(f)
+                                with open(rp) as f:
+                                    result_data = json.load(f)
 
-                    exit_status = traj_data.get("info", {}).get("exit_status", "")
-                    if exit_status not in ("Submitted", "LimitsExceeded"):
-                        logger.info(
-                            f"[VAL_BASELINE] {iid}: baseline trajectory has invalid "
-                            f"exit_status='{exit_status}', will re-run"
-                        )
-                        missing.append(inst)
-                        continue
+                                exit_status = traj_data.get("info", {}).get("exit_status", "")
+                                if exit_status not in ("Submitted", "LimitsExceeded"):
+                                    break  # Stop at invalid iteration
 
-                    # Copy artifacts to current run's val_baseline/ dirs
+                                iters_found.append((tp, rp, result_data.get("resolved", False)))
+                            except Exception:
+                                break  # Stop at broken iteration
+                    break  # Found data in this prefix, don't check others
+
+            if len(iters_found) >= max_attempts:
+                # Fully covered — copy all iterations to output
+                iter_resolved = {}
+                for n, (tp, rp, resolved) in enumerate(iters_found[:max_attempts]):
                     dest_traj_dir = self.output_dir / self.benchmark / "trajectories" / "val_baseline" / iid
                     dest_result_dir = self.output_dir / self.benchmark / "results" / "val_baseline" / iid
                     dest_traj_dir.mkdir(parents=True, exist_ok=True)
                     dest_result_dir.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(traj_path, dest_traj_dir / "iter_0.json")
-                    shutil.copy2(result_path, dest_result_dir / "iter_0.json")
+                    shutil.copy2(tp, dest_traj_dir / f"iter_{n}.json")
+                    shutil.copy2(rp, dest_result_dir / f"iter_{n}.json")
+                    iter_resolved[n] = resolved
 
-                    loaded[iid] = result_data.get("resolved", False)
-                except Exception as e:
-                    logger.warning(f"Failed to load baseline for {iid}: {e}")
-                    missing.append(inst)
+                loaded[iid] = any(iter_resolved.values())
+                loaded_iter_details[iid] = iter_resolved
+                logger.debug(
+                    f"[VAL_BASELINE] {iid}: reused {len(iters_found)} iterations from baseline"
+                )
             else:
+                # Not enough iterations — needs fresh run
+                if iters_found:
+                    logger.debug(
+                        f"[VAL_BASELINE] {iid}: only {len(iters_found)}/{max_attempts} "
+                        f"iterations in baseline, will re-run"
+                    )
                 missing.append(inst)
 
-        return loaded, missing
+        return loaded, loaded_iter_details, missing
 
 
 def run_experiment(

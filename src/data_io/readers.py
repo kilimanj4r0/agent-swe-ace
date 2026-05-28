@@ -150,6 +150,23 @@ def load_trajectory(source: Union[Path, Dict]) -> Dict:
     return trajectory
 
 
+def load_teacher_trajectory(trajs_dir: Path, instance_id: str) -> Optional[dict]:
+    """Load a teacher trajectory for an instance.
+
+    Looks for: {trajs_dir}/{instance_id}/{instance_id}.traj.json
+    Returns dict with 'info' and 'messages' keys, or None if not found.
+    """
+    traj_path = trajs_dir / instance_id / f"{instance_id}.traj.json"
+    if not traj_path.exists():
+        return None
+    with open(traj_path) as f:
+        data = json.load(f)
+    return {
+        "info": data.get("info", {}),
+        "messages": data.get("messages", []),
+    }
+
+
 def load_results(run_dir: Path, benchmark: str) -> Dict[str, Dict]:
     """
     Load all results for a run.

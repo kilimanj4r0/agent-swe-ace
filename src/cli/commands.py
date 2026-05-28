@@ -107,8 +107,59 @@ def get_instances(config: dict) -> list:
     return instances
 
 
-def split_instances(instances: list, config: dict) -> tuple:
+def _load_split_manifest(config: dict) -> dict | None:
+    """Load a split manifest file if configured."""
+    manifest_path = config.get("experiment", {}).get("split", {}).get("manifest")
+    if not manifest_path:
+        return None
+    path = Path(manifest_path)
+    if not path.exists():
+        logger.warning(f"Split manifest not found: {path}, falling back to seed-based split")
+        return None
+    with open(path) as f:
+        return json.load(f)
+
+
+def _split_from_manifest(instances: list, manifest: dict, repo: str | None = None) -> tuple:
+    """Split instances using a pre-computed manifest.
+
+    Args:
+        instances: All available instances (filtered by repo if applicable).
+        manifest: Loaded manifest dict.
+        repo: If set, use per_repo split for this specific repo.
+              If None, use global train/val lists.
+
+    Returns:
+        (train_instances, val_instances).
+    """
+    if repo and repo in manifest.get("per_repo", {}):
+        repo_split = manifest["per_repo"][repo]
+        train_ids = set(repo_split["train"])
+        val_ids = set(repo_split["val"])
+    else:
+        train_ids = set(manifest["train_instances"])
+        val_ids = set(manifest["val_instances"])
+
+    instance_map = {i["instance_id"]: i for i in instances}
+    train_instances = [instance_map[iid] for iid in train_ids if iid in instance_map]
+    val_instances = [instance_map[iid] for iid in val_ids if iid in instance_map]
+
+    # Warn about instances not in manifest
+    known_ids = train_ids | val_ids
+    missing = [i["instance_id"] for i in instances if i["instance_id"] not in known_ids]
+    if missing:
+        logger.warning(f"{len(missing)} instances not in manifest (new dataset version?): {missing[:5]}...")
+
+    return train_instances, val_instances
+
+
+def split_instances(instances: list, config: dict, repo: str | None = None) -> tuple:
     """Split instances into train and val sets.
+
+    Args:
+        instances: List of instance dicts to split.
+        config: Full config dict.
+        repo: If set, split only instances for this repo (used by iterate_repos).
 
     Returns:
         (train_instances, val_instances). If no split config, returns (instances, []).
@@ -117,10 +168,22 @@ def split_instances(instances: list, config: dict) -> tuple:
     if not split_config:
         return instances, []
 
+    # Try manifest first
+    manifest = _load_split_manifest(config)
+    if manifest:
+        ratio = split_config.get("val_ratio", 0.2)
+        manifest_ratio = manifest.get("val_ratio", 0.2)
+        if abs(ratio - manifest_ratio) > 0.01:
+            logger.warning(
+                f"Requested val_ratio={ratio} doesn't match manifest val_ratio={manifest_ratio}, "
+                f"using manifest split"
+            )
+        return _split_from_manifest(instances, manifest, repo=repo)
+
+    # Fallback: seed-based split
     ratio = split_config.get("val_ratio", 0.2)
     seed = config.get("experiment", {}).get("random_seed", 42)
 
-    # Deterministic shuffle
     rng = random.Random(seed)
     shuffled = list(instances)
     rng.shuffle(shuffled)
@@ -342,6 +405,24 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
     if baseline_run_dir:
         print(f"  Baseline run dir: {baseline_run_dir}")
 
+    train_trajs_dir = exp.get("train_trajs_dir")
+    if train_trajs_dir:
+        print(f"  Train trajs dir: {train_trajs_dir} (teacher distillation)")
+        _trajs_dir = Path(train_trajs_dir)
+        if _trajs_dir.exists():
+            _teacher_ids = {
+                d.name for d in _trajs_dir.iterdir() if d.is_dir() and (d / f"{d.name}.traj.json").exists()
+            }
+            print(f"  Teacher trajs:    {len(_teacher_ids)} instances available")
+
+    skillbook_source_dir = exp.get("skillbook_source_dir")
+    if skillbook_source_dir:
+        print(f"  Skillbook source: {skillbook_source_dir} (validation-only)")
+
+    val_pass_k = exp.get("val_pass_k", 1)
+    if val_pass_k > 1:
+        print(f"  Val pass K:       {val_pass_k} attempts per val instance")
+
     # --- LLM config ---
     print("\nLLM:")
     for role in ("agent", "ace"):
@@ -379,21 +460,40 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
             if not repo_insts:
                 print(f"  {repo}: NOT FOUND in dataset")
                 continue
-            train, val = split_instances(repo_insts, config)
-            print(f"  {repo}: {len(repo_insts)} instances → {len(train)} train / {len(val)} val")
+            train, val = split_instances(repo_insts, config, repo=repo)
+
+            # Teacher trajectory coverage for this repo
+            teacher_info = ""
+            if train_trajs_dir:
+                _trajs_dir = Path(train_trajs_dir)
+                if _trajs_dir.exists():
+                    _covered = sum(1 for i in train if (_trajs_dir / i["instance_id"] / f"{i['instance_id']}.traj.json").exists())
+                    teacher_info = f", teacher: {_covered}/{len(train)}"
+
+            # Skillbook source info
+            sb_info = ""
+            if skillbook_source_dir:
+                sb_info = " (validation-only, skip training)"
+
+            print(f"  {repo}: {len(repo_insts)} instances → {len(train)} train / {len(val)} val{teacher_info}{sb_info}")
 
         concurrency = exp.get("concurrency", 1)
         if concurrency > 1:
             workers = min(concurrency, len(iterate_repos_list))
             print(f"\n  Parallelism: {workers} repos at a time")
 
-        baseline_run_dir = getattr(args, "baseline_run_dir", None)
-        if not baseline_run_dir:
-            config_baseline = exp.get("baseline_run_dir")
-            if config_baseline:
-                baseline_run_dir = Path(config_baseline)
+        # Train source info
+        if train_trajs_dir:
+            print(f"\n  Train source: teacher distillation from {train_trajs_dir}")
+        elif baseline_run_dir:
+            print(f"\n  Train source: baseline reuse from {baseline_run_dir}")
+
+        if skillbook_source_dir:
+            print(f"  Skillbook: pre-loaded from {skillbook_source_dir} (validation-only)")
         if baseline_run_dir:
-            print(f"  Baseline run dir: {baseline_run_dir}")
+            print(f"  Val reuse: baseline results from {baseline_run_dir}")
+        if val_pass_k > 1:
+            print(f"  Val attempts: {val_pass_k} per instance (val_baseline reuse from baseline_run_dir)")
 
         print("\n=== END DRY RUN ===")
         return
@@ -465,21 +565,49 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
     if baseline_run_dir and is_two_phase:
         print(f"\n  Baseline run dir: {baseline_run_dir} (reuse existing val baseline)")
 
+    # Teacher trajectory coverage
+    if train_trajs_dir and is_two_phase:
+        _trajs_dir = Path(train_trajs_dir)
+        if _trajs_dir.exists():
+            _covered = sum(
+                1 for i in train_instances
+                if (_trajs_dir / i["instance_id"] / f"{i['instance_id']}.traj.json").exists()
+            )
+            print(f"\nTeacher trajectory coverage:")
+            print(f"  {_covered}/{len(train_instances)} train instances have teacher trajs")
+            print(f"  {_covered} will learn-only, {len(train_instances) - _covered} will be skipped")
+
+    # Skillbook source (validation-only mode)
+    if skillbook_source_dir:
+        print(f"\nValidation-only mode:")
+        print(f"  Skillbook source: {skillbook_source_dir}")
+        print(f"  Training will be SKIPPED entirely")
+
     # --- Execution Plan ---
     print(f"\nExecution Plan:")
     if is_two_phase:
         print(f"  Mode: Two-phase (train → val baseline → val skillbook)")
         print(f"  Phase 1 - Train:")
-        print(f"    {len(train_instances)} instances × 1 attempt, force_learn=True")
-        print(f"    Skillbook: {sb.get('mode', 'per_instance')} mode, accumulates across train")
-        if dedup:
-            print(f"    Post-train dedup: enabled")
+        if skillbook_source_dir:
+            print(f"    SKIPPED (validation-only, skillbook loaded from {skillbook_source_dir})")
+        elif train_trajs_dir:
+            print(f"    Teacher distillation from {train_trajs_dir}")
+            print(f"    {len(train_instances)} instances × learn-only (no predict/eval)")
+        elif baseline_run_dir:
+            print(f"    Baseline reuse from {baseline_run_dir}")
+            print(f"    {len(train_instances)} instances × reuse predict+eval, run learn")
+        else:
+            print(f"    {len(train_instances)} instances × 1 attempt, force_learn=True")
+        if not skillbook_source_dir:
+            print(f"    Skillbook: {sb.get('mode', 'per_instance')} mode, accumulates across train")
+            if dedup:
+                print(f"    Post-train dedup: enabled")
         print(f"  Phase 2 - Val baseline:")
-        print(f"    {len(val_instances)} instances × 1 attempt, empty skillbook, frozen")
+        print(f"    {len(val_instances)} instances × {val_pass_k} attempt(s), empty skillbook, frozen")
         if baseline_run_dir:
-            print(f"    Reuse results from: {baseline_run_dir}")
+            print(f"    Reuse results from: {baseline_run_dir} (up to {val_pass_k} iterations)")
         print(f"  Phase 3 - Val skillbook:")
-        print(f"    {len(val_instances)} instances × 1 attempt, learned skillbook, frozen")
+        print(f"    {len(val_instances)} instances × {val_pass_k} attempt(s), learned skillbook, frozen")
     else:
         print(f"  Mode: Single-phase (predict → evaluate → learn loop)")
         print(f"  {len(train_instances)} instances × up to {max_attempts} attempts each")
@@ -541,6 +669,7 @@ def _run_single_repo_experiment(
     reflector,
     skill_manager,
     baseline_run_dir: Path | None,
+    train_trajs_dir: str | None = None,
 ) -> dict:
     """Run a complete two-phase experiment for a single repo.
 
@@ -549,7 +678,7 @@ def _run_single_repo_experiment(
     from ace import SkillManager, Reflector as DefaultReflector
 
     # Split repo instances into train/val
-    train_instances, val_instances = split_instances(repo_instances, config)
+    train_instances, val_instances = split_instances(repo_instances, config, repo=repo)
     logger.info(f"[{repo}] Split: {len(train_instances)} train, {len(val_instances)} val")
 
     benchmark = config["benchmark"]["dataset"].replace("/", "__")
@@ -641,6 +770,7 @@ def _run_single_repo_experiment(
             val_instances=val_instances if val_instances else None,
             baseline_run_dir=baseline_run_dir,
             val_pass_k=val_pass_k,
+            train_trajs_dir=train_trajs_dir,
         )
 
     # Persist per-repo skillbook to disk (only after training)
@@ -939,6 +1069,9 @@ def _run_iterate_repos(config: dict, args, output_dir: Path):
         if config_baseline:
             baseline_run_dir = Path(config_baseline)
 
+    # Resolve train_trajs_dir
+    train_trajs_dir = config.get("experiment", {}).get("train_trajs_dir")
+
     # Run per-repo experiments
     repo_stats = {}
 
@@ -960,6 +1093,7 @@ def _run_iterate_repos(config: dict, args, output_dir: Path):
                 reflector=reflector,
                 skill_manager=skill_manager,
                 baseline_run_dir=baseline_run_dir,
+                train_trajs_dir=train_trajs_dir,
             )
             return repo, stats
 
@@ -994,6 +1128,7 @@ def _run_iterate_repos(config: dict, args, output_dir: Path):
                     reflector=reflector,
                     skill_manager=skill_manager,
                     baseline_run_dir=baseline_run_dir,
+                    train_trajs_dir=train_trajs_dir,
                 )
                 repo_stats[repo] = stats
                 logger.info(f"[{repo}] completed — "
@@ -1203,9 +1338,12 @@ def run_full_experiment(config: dict, args):
         if config_baseline:
             baseline_run_dir = Path(config_baseline)
 
+    train_trajs_dir = config.get("experiment", {}).get("train_trajs_dir")
+
     loop.run(train_instances, config,
              val_instances=val_instances if val_instances else None,
-             baseline_run_dir=baseline_run_dir)
+             baseline_run_dir=baseline_run_dir,
+             train_trajs_dir=train_trajs_dir)
 
 
 def run_predict_cmd(config: dict, args):

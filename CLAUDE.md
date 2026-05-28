@@ -34,6 +34,10 @@ uv run python -m src.cli.commands --resume-dir data/run_20260415_020540 data/run
 # Requires skillbook_source_dir + val_pass_k in config
 uv run python -m src.cli.commands --config configs/val_only_k4.yaml
 
+# Teacher distillation: learn skillbooks from Opus 4.5 teacher trajectories
+uv run python -m src.cli.commands --config configs/agent-qwen3-ace-distill.yaml
+uv run python -m src.cli.commands --config configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-distill-iterate-repos.yaml
+
 # Raw multi-attempt benchmark (no skillbooks, 4 attempts per instance)
 uv run python -m src.cli.commands --config configs/no_skillbook.yaml
 
@@ -54,11 +58,19 @@ uv run python scripts/prepare_images.py --workers 8 --force
 # Utilities
 uv run python scripts/analyze_token_usage.py --data-dir data/ --output-csv tokens.csv
 
-# Testing
-uv run pytest src/tests/ -v
-uv run pytest src/tests/ -v -k "not docker"  # Skip Docker tests
-uv run pytest src/tests/ -v -m "not integration"  # Skip tests that make real API calls (hang if server unreachable)
-uv run pytest -m integration                 # Only real API call tests
+# Testing (unit + integration, no Docker/LLM needed)
+uv run pytest src/tests/ -v                              # All tests (integration tests may hang without LLM)
+uv run pytest src/tests/ -v -m "not integration"         # Unit tests only (~176 tests, runs in ~4s)
+uv run pytest src/tests/ -v -k "test_phases"             # Specific test file pattern
+uv run pytest -m integration                             # Only real API call tests
+
+# Test files cover: phases, main_loop, context_manager, miniswe_agent, io, resume_scanner,
+# custom_swe_learn, llm_config, llm_health, commands (pure functions)
+
+# End-to-end smoke tests for all experiment modes (requires Docker + LLM)
+uv run python scripts/test_modes.py                  # run all 10 modes
+uv run python scripts/test_modes.py --only 01 04      # specific modes
+uv run python scripts/test_modes.py --keep --verbose  # keep output, show logs
 
 # Transform baseline data to run format
 uv run python scripts/transform_baseline_to_run_format.py --in-place
@@ -92,6 +104,7 @@ scripts/
 ├── transform_baseline_to_run_format.py   # Convert baseline trajectories to run format
 ├── compare_runs.py                       # Compare completed experiment runs (summary table)
 ├── watch_experiments.py                  # Live CLI dashboard for running experiments
+├── test_modes.py                         # End-to-end smoke tests for all experiment modes
 ├── run_vllm_watchdog.sh                  # vLLM watchdog auto-restart (parameterized port/GPU/model)
 │                                          # Usage: CUDA_VISIBLE_DEVICES=0,1 PORT=8800 bash run_vllm_watchdog.sh
 
@@ -102,8 +115,20 @@ configs/                                   # Override configs (deep-merged on to
 ├── agent-qwen3-ace-qwen3-full-4a-default.yaml
 ├── agent-qwen3-ace-qwen3-full-4a-swe.yaml
 ├── agent-qwen3-ace-qwen3-full-global-split-default.yaml
+├── agent-qwen3-ace-distill.yaml
 ├── agent-qwen3-ace-glm.yaml
-└── test.yaml
+├── test.yaml
+└── test/                                   # End-to-end smoke test configs (run via scripts/test_modes.py)
+    ├── 01_basic.yaml                       # Multi-attempt with learning
+    ├── 02_skip_learn.yaml                  # Skip-learn raw benchmark
+    ├── 03_concurrent.yaml                  # Parallel execution
+    ├── 04_two_phase.yaml                   # Two-phase per_repo + custom SWE
+    ├── 05_two_phase_global.yaml            # Two-phase global skillbook
+    ├── 06_iterate_repos.yaml               # iterate_repos with concurrency
+    ├── 07_resume.yaml                      # Resume from previous run
+    ├── 08_baseline_reuse.yaml              # Baseline reuse in two-phase
+    ├── 09_distillation.yaml                # Teacher distillation
+    └── 10_validation_only.yaml             # Validation-only mode
 
 data/
 ├── <run_timestamp>/  # Output per run
@@ -163,6 +188,12 @@ data/
 - `experiment.val_pass_k`: number of attempts per val instance (default: 1). Works in both normal and validation-only mode.
 - `experiment.skillbook_source_dir`: load per-repo skillbooks from a completed run, skip training entirely (validation-only mode)
   - Loads from `skillbooks/per_repo/<repo>/final_skillbook.json`, falls back to global `final_skillbook.json`
+- `experiment.train_trajs_dir`: when set with `val_ratio`, train phase loads teacher trajectories instead of running predict→eval
+  - Only learn phase runs on train instances (distillation from expert trajectories)
+  - Missing teacher trajectories are skipped (not retried) and reported as `teacher_trajs_skipped` in statistics
+  - `train_phase` statistics include `teacher_trajs_found`, `teacher_trajs_skipped`, `teacher_trajs_resolved`, `train_trajs_dir`
+  - Works with `iterate_repos` for per-repo distillation
+  - `skillbook_source_dir` can reuse the skillbook output from a distillation run
 - `experiment.skip_learn`: when true, completely skip Learn phase. Use with `max_attempts > 1` for raw multi-attempt benchmark runs without skillbooks. Resolved instances are not retried.
 - `--list-repos` prints all repos with counts and optional split preview
 - `--baseline-run-dir` loads existing baseline results to avoid re-running val baseline
@@ -180,9 +211,22 @@ data/
 - Concurrency (`experiment.concurrency > 1`): each worker gets its own agent via `agent_factory()`; evaluation still serialized via global lock
 - Context window: `max_input_tokens = context_window - max_tokens - 2000` (hardcoded safety buffer)
 
-## Testing with Real Runs
+## Testing Strategy
 
-When `uv run pytest` (dry-run / mocked) isn't enough — e.g. testing config changes, new phases, resume logic, skillbook pipeline — use `configs/test.yaml` for a minimal real run:
+Three layers of testing, from fastest to most comprehensive:
+
+1. **Unit tests** (`uv run pytest src/tests/ -m "not integration"`) — ~176 tests, ~4s, no external deps
+   - Phases (predict/evaluate/learn), main_loop, context_manager, miniswe_agent
+   - Data I/O (readers, writers), resume scanner, LLM config validation
+   - Commands pure functions (deep_merge, split_instances, manifest loading)
+   - Custom SWE learn (output types, prefix mapping)
+
+2. **End-to-end smoke tests** (`uv run python scripts/test_modes.py`) — 10 modes, ~6min, requires Docker + LLM
+   - Configs in `configs/test/01_basic.yaml` through `10_validation_only.yaml`
+   - Exercises all experiment modes: basic, skip_learn, concurrent, two_phase, iterate_repos, resume, baseline_reuse, distillation, validation_only
+   - Runner handles data dependencies (parallel standalone, sequential dependent)
+
+3. **Single-instance real runs** — for debugging specific configs or phases:
 
 ```bash
 # Baseline quick test (1 instance, 1 attempt, 3 agent steps, cheap model)
