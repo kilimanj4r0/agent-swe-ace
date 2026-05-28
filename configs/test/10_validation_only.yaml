@@ -1,0 +1,45 @@
+# Smoke test: Validation-only mode
+# Exercises: preloaded_skillbook, skip training, val phases with loaded skillbook
+# Runner injects skillbook_source_dir via temp config override
+# Verify: no train/ subdir, val phases run with preloaded skillbook
+experiment:
+  name: "test: validation-only"
+  max_attempts: 1
+  force_learn: true
+  concurrency: 1
+  skillbook:
+    mode: "per_repo"
+    custom_swe_learn: false
+    deduplication:
+      enabled: false
+  split:
+    val_ratio: 0.25
+    manifest: "configs/splits/princeton-nlp__SWE-bench_Lite/val_ratio_0_25.json"
+  # skillbook_source_dir: injected by runner
+
+benchmark:
+  dataset: "princeton-nlp/SWE-bench_Lite"
+  split: "test"
+  max_instances: 8
+  iterate_repos:
+    - "django/django"
+
+agent:
+  step_limit: 1
+  cost_limit: 0.0
+
+llm:
+  agent:
+    provider: "hosted_vllm"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://localhost:8800/v1"
+  ace:
+    provider: "hosted_vllm"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://localhost:8800/v1"
+
+output:
+  dir: "_data"
+  log_level: "DEBUG"

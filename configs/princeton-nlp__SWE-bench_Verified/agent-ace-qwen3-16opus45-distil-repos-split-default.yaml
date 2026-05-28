@@ -1,8 +1,8 @@
 experiment:
-  name: "agent-qwen3-ace-qwen3-verified-iterate-repos-default"
-  description: "ACE skillbook learning — per-repo two-phase experiments (default ACE reflector)"
+  name: "agent-ace-qwen3-16opus45-distil-repos-split-default"
+  description: "ACE skillbook per repo learn skillbooks from Opus 4.5 trajectories, validate with Qwen3"
   max_attempts: 1
-  concurrency: 6                       # Set >1 to run repos in parallel
+  concurrency: 6
 
   skillbook:
     mode: "per_repo"
@@ -12,9 +12,10 @@ experiment:
       similarity_threshold: 0.85
 
   split:
-    val_ratio: 0.25
-  baseline_run_dir: "data/run_20260520_144216_completed_qwen3_4a_default_verified"
-  val_pass_k: 1                          # Attempts per val instance (default: 1)
+    val_ratio: 0.2
+  baseline_run_dir: "data/run_20260520_172940_completed_qwen3_repos_split_default_verified"
+  train_trajs_dir: "data/teacher_trajs/v1.16_opus45_verified"
+  val_pass_k: 1
 
 agent:
   step_limit: 250

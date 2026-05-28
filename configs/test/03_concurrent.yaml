@@ -1,0 +1,37 @@
+# Smoke test: Concurrent parallel execution
+# Exercises: ThreadPoolExecutor path, per-worker agents, parallel predict
+# Verify: 2 instances with output, statistics.json has total: 2
+experiment:
+  name: "test: concurrent"
+  max_attempts: 1
+  concurrency: 2
+  skillbook:
+    mode: "per_instance"
+    deduplication:
+      enabled: false
+
+benchmark:
+  dataset: "princeton-nlp/SWE-bench_Verified"
+  split: "test"
+  max_instances: 24
+  filter_repos: ["django/django"]
+
+agent:
+  step_limit: 1
+  cost_limit: 0.0
+
+llm:
+  agent:
+    provider: "hosted_vllm"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://localhost:8800/v1"
+  ace:
+    provider: "hosted_vllm"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://localhost:8800/v1"
+
+output:
+  dir: "_data"
+  log_level: "DEBUG"

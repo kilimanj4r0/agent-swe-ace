@@ -1,0 +1,42 @@
+# Smoke test: Two-phase per_repo + custom SWE learn
+# Exercises: train/val split, per_repo skillbook, SWEReflector, force_learn in train
+# Verify: train/val_baseline/val subdirs, skillbook has type prefixes, stats have 3 phases
+experiment:
+  name: "test: two-phase per_repo custom-swe"
+  max_attempts: 1
+  force_learn: true
+  concurrency: 1
+  skillbook:
+    mode: "per_repo"
+    custom_swe_learn: true
+    deduplication:
+      enabled: false
+  split:
+    val_ratio: 0.25
+    manifest: "configs/splits/princeton-nlp__SWE-bench_Verified/val_ratio_0_25.json"
+
+benchmark:
+  dataset: "princeton-nlp/SWE-bench_Verified"
+  split: "test"
+  max_instances: 26
+  filter_repos: ["django/django"]
+
+agent:
+  step_limit: 1
+  cost_limit: 0.0
+
+llm:
+  agent:
+    provider: "hosted_vllm"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://localhost:8800/v1"
+  ace:
+    provider: "hosted_vllm"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://localhost:8800/v1"
+
+output:
+  dir: "_data"
+  log_level: "DEBUG"
