@@ -18,6 +18,27 @@ from phases.predict import PredictResult
 
 from data_io.resume_scanner import ResumePoint, copy_instance_artifacts
 from data_io.writers import save_statistics, save_config
+
+
+def _build_ground_truth(instance: Dict[str, Any], max_chars: int = 4000) -> str:
+    """Build ground truth from SWE-bench test lists (not gold patch).
+
+    Args:
+        instance: SWE-bench instance dict with FAIL_TO_PASS / PASS_TO_PASS.
+        max_chars: Maximum characters for the ground truth string. Some instances
+            have 100K+ chars of test lists which blows up the prompt.
+    """
+    parts = []
+    fail_to_pass = instance.get("FAIL_TO_PASS", "")
+    pass_to_pass = instance.get("PASS_TO_PASS", "")
+    if fail_to_pass:
+        parts.append(f"Tests to fix (FAIL_TO_PASS): {fail_to_pass}")
+    if pass_to_pass:
+        parts.append(f"Tests to preserve (PASS_TO_PASS): {pass_to_pass}")
+    result = "\n".join(parts) if parts else "(none)"
+    if len(result) > max_chars:
+        result = result[:max_chars] + f"\n... (truncated, {len(result)} total chars)"
+    return result
 from utils.llm_observer import get_project_url, is_enabled as is_observability_enabled
 from utils.logging import instance_context
 
@@ -363,6 +384,9 @@ class ExperimentLoop:
                     patch=predict_result.patch,
                     iteration=iteration,
                     phase=phase,
+                    feedback=evaluate_result.feedback,
+                    ground_truth=_build_ground_truth(instance),
+                    resolved=evaluate_result.resolved,
                 )
                 iter_result.learn_result = learn_result
 
@@ -474,6 +498,9 @@ class ExperimentLoop:
                     trajectory=trajectory,
                     patch=predict_result.patch,
                     iteration=iteration,
+                    feedback=evaluate_result.feedback,
+                    ground_truth=_build_ground_truth(instance),
+                    resolved=evaluate_result.resolved,
                 )
                 iter_result.learn_result = learn_result
                 self.update_skillbook(repo, skillbook)
@@ -1028,6 +1055,11 @@ class ExperimentLoop:
             if observability_project_url:
                 statistics["observability_project_url"] = observability_project_url
 
+            # Add retrieval stats if available
+            retrieval_summary = self.predict.get_retrieval_summary()
+            if retrieval_summary:
+                statistics["retrieval"] = retrieval_summary
+
             # Save statistics
             save_statistics(statistics=statistics, run_dir=self.output_dir)
 
@@ -1273,6 +1305,9 @@ class ExperimentLoop:
                         patch=patch,
                         iteration=0,
                         phase=phase,
+                        feedback=result_data.get("feedback"),
+                        ground_truth=_build_ground_truth(instance),
+                        resolved=resolved,
                     )
                     self.update_skillbook(repo, skillbook)
 
@@ -1338,6 +1373,8 @@ class ExperimentLoop:
                 patch=patch,
                 iteration=0,
                 phase=phase,
+                ground_truth=_build_ground_truth(instance),
+                resolved=resolved,
             )
             self.update_skillbook(repo, skillbook)
         except Exception as e:

@@ -1,0 +1,98 @@
+# Validation-only on distillation skillbooks with retrieval
+# Skillbooks from: run_20260524_073812 (per-repo distillation from Opus 4.5)
+#
+# Usage:
+#   uv run python -m src.cli.commands --config configs/princeton-nlp__SWE-bench_Verified/val-retrieval-distil-repos-split.yaml
+
+experiment:
+  name: "val-retrieval-distil-repos-split"
+  description: "Validation-only on distillation skillbooks with top-k retrieval"
+  max_attempts: 1
+  force_learn: true
+  concurrency: 6
+  random_seed: 42
+
+  skillbook:
+    mode: "per_repo"
+    custom_swe_learn: true
+    retrieval:
+      enabled: true
+      top_k: 5
+      skip_threshold: 10
+      model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      api_base: "http://localhost:8800/v1"
+      api_key_env: "HOSTED_VLLM_API_KEY"
+      phases: ["val"]
+
+  # Load skillbooks from distillation run — skip training entirely
+  skillbook_source_dir: "data/run_20260524_073812_completed_repos_split_swe_distil_verified"
+  val_pass_k: 1
+
+  split:
+    val_ratio: 0.2
+
+  # Reuse baseline from original run to avoid re-running val_baseline
+  baseline_run_dir: "data/run_20260520_172953_completed_qwen3_repos_split_swe_verified"
+
+benchmark:
+  dataset: "princeton-nlp/SWE-bench_Verified"
+  split: "test"
+  iterate_repos:
+    - "django/django"
+    - "sympy/sympy"
+    - "sphinx-doc/sphinx"
+    - "matplotlib/matplotlib"
+    - "scikit-learn/scikit-learn"
+    - "astropy/astropy"
+    - "pydata/xarray"
+    - "pytest-dev/pytest"
+  exclude_instances:
+    - sympy__sympy-20590
+    - scikit-learn__scikit-learn-25747
+    - pylint-dev__pylint-7114
+    - pylint-dev__pylint-7228
+    - pylint-dev__pylint-7993
+    - scikit-learn__scikit-learn-25500
+    - scikit-learn__scikit-learn-25570
+    - scikit-learn__scikit-learn-25638
+    - astropy__astropy-8707
+    - astropy__astropy-8872
+    - pylint-dev__pylint-7277
+    - scikit-learn__scikit-learn-25102
+    - scikit-learn__scikit-learn-25232
+    - scikit-learn__scikit-learn-25931
+    - scikit-learn__scikit-learn-25973
+    - scikit-learn__scikit-learn-26194
+    - scikit-learn__scikit-learn-26323
+    - matplotlib__matplotlib-13989
+    - matplotlib__matplotlib-14623
+
+agent:
+  step_limit: 250
+  cost_limit: 0.0
+  context:
+    enabled: false
+    context_window: 65536
+    keep_recent_messages: 6
+    truncate_threshold: 0.85
+
+llm:
+  agent:
+    provider: "hosted_vllm"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+    api_base: "http://localhost:8800/v1"
+    temperature: 0.0
+    max_tokens: 4096
+  ace:
+    provider: "hosted_vllm"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+    api_base: "http://localhost:8800/v1"
+    temperature: 0.0
+    max_tokens: 4096
+
+evaluation:
+  use_docker: true
+  timeout: 1800
+  rm_image: false

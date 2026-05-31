@@ -30,9 +30,10 @@ class PredictPhase:
 
     This phase:
     1. Takes a SWE-bench instance and optional skillbook
-    2. Runs mini-swe-agent with skillbook injected into prompt
-    3. Saves trajectory to data/trajectories/
-    4. Returns patch and trajectory for next phases
+    2. Optionally retrieves top-k relevant skills via SkillRetriever
+    3. Runs mini-swe-agent with skillbook injected into prompt
+    4. Saves trajectory to data/trajectories/
+    5. Returns patch and trajectory for next phases
     """
 
     def __init__(
@@ -42,6 +43,8 @@ class PredictPhase:
         run_name: str = "default",
         benchmark: str = "swebench-lite",
         model_name: Optional[str] = None,
+        skill_retriever=None,  # Optional[SkillRetriever]
+        retrieval_phases: Optional[list] = None,  # Phases where retrieval applies
     ):
         """
         Initialize predict phase.
@@ -52,12 +55,25 @@ class PredictPhase:
             run_name: Name of the experiment run
             benchmark: Benchmark name for output path
             model_name: Agent LLM model name (saved in trajectory metadata)
+            skill_retriever: Optional SkillRetriever for top-k skill filtering
+            retrieval_phases: List of phases where retrieval applies (e.g. ["val"]).
+                None means apply everywhere. Default: ["val"] when retriever is set.
         """
         self.agent = agent
         self.output_dir = Path(output_dir)
         self.run_name = run_name
         self.benchmark = benchmark
         self.model_name = model_name
+        self.skill_retriever = skill_retriever
+        self.retrieval_phases = retrieval_phases
+
+        # Retrieval stats accumulator for the run
+        self._retrieval_run_stats = {
+            "instances_retrieved": 0,
+            "instances_skipped_threshold": 0,
+            "total_before": 0,
+            "total_after": 0,
+        }
 
     def run(
         self,
@@ -80,6 +96,23 @@ class PredictPhase:
         instance_id = instance.get("instance_id", "unknown")
         logger.info(f"[Predict] Running agent for {instance_id} (iter {iteration})")
 
+        # Apply skill retrieval if configured and phase matches
+        retrieval_stats = None
+        if self.skill_retriever and skillbook:
+            # retrieval_phases=None means apply everywhere (no phase check)
+            # retrieval_phases=["val"] means only apply on "val" phase
+            phase_matches = (
+                self.retrieval_phases is None
+                or phase in self.retrieval_phases
+                or (phase is None and None in self.retrieval_phases)
+            )
+            if phase_matches:
+                n_skills = len(skillbook.skills())
+                if n_skills <= self.skill_retriever.skip_threshold:
+                    self._retrieval_run_stats["instances_skipped_threshold"] += 1
+                else:
+                    skillbook, retrieval_stats = self._retrieve_skills(skillbook, instance)
+
         # Run agent
         result = self.agent.run(
             problem=instance.get("problem_statement", ""),
@@ -88,20 +121,20 @@ class PredictPhase:
         )
 
         # Build trajectory dict
-        trajectory = {
-            "info": {
-                "exit_status": result.exit_status,
-                "submission": result.patch,
-                "iteration": iteration,
-                "instance_id": instance_id,
-                "model": self.model_name,
-                "message_count": len(result.trajectory),
-                "assistant_message_count": sum(
-                    1 for m in result.trajectory if m.get("role") == "assistant"
-                ),
-            },
-            "messages": result.trajectory,
+        info = {
+            "exit_status": result.exit_status,
+            "submission": result.patch,
+            "iteration": iteration,
+            "instance_id": instance_id,
+            "model": self.model_name,
+            "message_count": len(result.trajectory),
+            "assistant_message_count": sum(
+                1 for m in result.trajectory if m.get("role") == "assistant"
+            ),
         }
+        if retrieval_stats:
+            info["retrieval_stats"] = retrieval_stats
+        trajectory = {"info": info, "messages": result.trajectory}
 
         # Save trajectory
         trajectory_path = save_trajectory(
@@ -128,6 +161,75 @@ class PredictPhase:
             error=result.error,
             trajectory_path=trajectory_path,
         )
+
+    def _retrieve_skills(
+        self, skillbook: Skillbook, instance: Dict[str, Any]
+    ) -> tuple:
+        """Filter skillbook to top-k relevant skills via SkillRetriever.
+
+        Returns:
+            (filtered_skillbook, retrieval_stats_dict) tuple.
+            If retrieval fails or returns all skills, returns original skillbook.
+        """
+        original_count = len(skillbook.skills())
+        selected = self.skill_retriever.retrieve(skillbook, instance)
+        selected_count = len(selected)
+
+        if selected_count == original_count:
+            # Nothing filtered out
+            return skillbook, None
+
+        # Track selected skill IDs
+        selected_ids = [s.id for s in selected]
+        all_ids = [s.id for s in skillbook.skills()]
+        dropped_ids = [sid for sid in all_ids if sid not in selected_ids]
+
+        # Build filtered skillbook with only selected skills
+        filtered_sb = Skillbook()
+        for skill in selected:
+            filtered_sb.add_skill(
+                section=skill.section,
+                content=skill.content,
+                justification=getattr(skill, "justification", None),
+                evidence=getattr(skill, "evidence", None),
+            )
+
+        logger.info(
+            f"[Predict] Skill retrieval: {original_count} → {len(filtered_sb.skills())} skills "
+            f"(selected: {selected_ids})"
+        )
+
+        # Accumulate run-level stats
+        self._retrieval_run_stats["instances_retrieved"] += 1
+        self._retrieval_run_stats["total_before"] += original_count
+        self._retrieval_run_stats["total_after"] += len(filtered_sb.skills())
+
+        stats = {
+            "total": original_count,
+            "selected": len(filtered_sb.skills()),
+            "selected_ids": selected_ids,
+            "dropped_ids": dropped_ids,
+        }
+        return filtered_sb, stats
+
+    def get_retrieval_summary(self) -> Optional[Dict[str, Any]]:
+        """Get retrieval stats accumulated over the run, or None if retrieval disabled."""
+        if not self.skill_retriever:
+            return None
+        rs = self._retrieval_run_stats
+        n = rs["instances_retrieved"]
+        summary = {
+            "enabled": True,
+            "model": self.skill_retriever.model,
+            "top_k": self.skill_retriever.top_k,
+            "skip_threshold": self.skill_retriever.skip_threshold,
+            "phases": self.retrieval_phases,
+            "instances_retrieved": n,
+            "instances_skipped_threshold": rs["instances_skipped_threshold"],
+            "avg_skills_before": round(rs["total_before"] / n, 1) if n > 0 else 0,
+            "avg_skills_after": round(rs["total_after"] / n, 1) if n > 0 else 0,
+        }
+        return summary
 
 
 def run_predict(

@@ -22,12 +22,13 @@ _src_dir = Path(__file__).parent.parent
 if str(_src_dir) not in sys.path:
     sys.path.insert(0, str(_src_dir))
 
-from config.llm import LLMConfig, create_model, create_ace_client
+from config.llm import LLMConfig, create_model, create_ace_client, create_model_settings
 from agents.miniswe_agent import MiniSWEAgent
 from phases.predict import PredictPhase
 from phases.evaluate import EvaluatePhase
 from phases.learn import LearnPhase
 from runners.main_loop import ExperimentLoop
+from retrieval import SkillRetriever
 from data_io.readers import load_skillbook, load_trajectory
 from data_io.writers import save_config, save_statistics, get_run_dir
 from utils.logging import setup_logging
@@ -65,6 +66,52 @@ def deep_merge(base: dict, override: dict) -> dict:
         else:
             result[key] = value
     return result
+
+
+def _build_skill_retriever(experiment_cfg: dict):
+    """Create SkillRetriever and retrieval config from config, or None if disabled.
+
+    Args:
+        experiment_cfg: The experiment section of the config dict.
+
+    Returns:
+        (SkillRetriever, retrieval_phases) tuple or None.
+        retrieval_phases is a list of phase names where retrieval applies,
+        or None for "apply everywhere".
+    """
+    retrieval_cfg = experiment_cfg.get("skillbook", {}).get("retrieval", {})
+    if not retrieval_cfg.get("enabled", False):
+        return None
+
+    model = retrieval_cfg.get("model")
+    if not model:
+        logger.warning("[Retriever] retrieval.enabled=true but no model specified, skipping")
+        return None
+
+    api_base = retrieval_cfg.get("api_base")
+    api_key = os.environ.get(retrieval_cfg.get("api_key_env", "ZAI_API_KEY"), "EMPTY")
+
+    if not api_base:
+        logger.warning("[Retriever] retrieval.enabled=true but no api_base specified, skipping")
+        return None
+
+    retriever = SkillRetriever(
+        model=model,
+        api_base=api_base,
+        api_key=api_key,
+        top_k=retrieval_cfg.get("top_k", 5),
+        skip_threshold=retrieval_cfg.get("skip_threshold", 10),
+        filter_prompt=retrieval_cfg.get("filter_prompt"),
+        rank_prompt=retrieval_cfg.get("rank_prompt"),
+        temperature=retrieval_cfg.get("temperature", 0.0),
+        max_tokens=retrieval_cfg.get("max_tokens", 2048),
+    )
+
+    # phases: list of phase names where retrieval applies.
+    # null/empty = apply everywhere. Default: ["val"].
+    phases = retrieval_cfg.get("phases", ["val"])
+
+    return retriever, phases
 
 
 def load_config(config_path: str) -> dict:
@@ -684,10 +731,13 @@ def _run_single_repo_experiment(
     benchmark = config["benchmark"]["dataset"].replace("/", "__")
 
     # Per-repo components (each repo needs its own agent + predict + learn)
+    _retrieval = _build_skill_retriever(config.get("experiment", {}))
+    _retriever, _retrieval_phases = _retrieval if _retrieval else (None, None)
     agent = agent_factory()
     predict_phase = PredictPhase(
         agent=agent, output_dir=run_dir, run_name=run_name,
         benchmark=benchmark, model_name=agent_config.model,
+        skill_retriever=_retriever, retrieval_phases=_retrieval_phases,
     )
     learn_phase = LearnPhase(
         reflector=reflector,
@@ -1044,13 +1094,15 @@ def _run_iterate_repos(config: dict, args, output_dir: Path):
 
     # ACE reflector + skill manager (shared, stateless per call)
     ace_model = create_ace_client(ace_config.to_dict())
+    ace_settings = create_model_settings(ace_config.to_dict())
     from ace import SkillManager, Reflector as DefaultReflector
+    from pydantic_ai.settings import ModelSettings
 
     custom_swe_learn = config.get("experiment", {}).get("skillbook", {}).get("custom_swe_learn", False)
     if custom_swe_learn:
         from prompts import SWEReflector, SWESkillManager
-        reflector = SWEReflector(ace_model, api_base=ace_config.api_base, api_key=ace_config.api_key)
-        skill_manager = SWESkillManager(ace_model, api_base=ace_config.api_base, api_key=ace_config.api_key)
+        reflector = SWEReflector(ace_model, api_base=ace_config.api_base, api_key=ace_config.api_key, model_settings=ace_settings)
+        skill_manager = SWESkillManager(ace_model, api_base=ace_config.api_base, api_key=ace_config.api_key, model_settings=ace_settings)
     else:
         if ace_config.api_base:
             os.environ["OPENAI_BASE_URL"] = ace_config.api_base
@@ -1059,8 +1111,9 @@ def _run_iterate_repos(config: dict, args, output_dir: Path):
             default_model = f"openai:{ace_config.model}"
         else:
             default_model = ace_model
-        reflector = DefaultReflector(default_model)
-        skill_manager = SkillManager(default_model)
+        ace_model_settings = ModelSettings(**ace_settings)
+        reflector = DefaultReflector(default_model, model_settings=ace_model_settings)
+        skill_manager = SkillManager(default_model, model_settings=ace_model_settings)
 
     # Resolve baseline_run_dir
     baseline_run_dir = getattr(args, 'baseline_run_dir', None)
@@ -1224,17 +1277,19 @@ def run_full_experiment(config: dict, args):
 
     # Create a single agent for sequential mode / shared predict phase
     ace_model = create_ace_client(ace_config.to_dict())
+    ace_settings = create_model_settings(ace_config.to_dict())
 
     agent = agent_factory()
 
     from ace import SkillManager, Reflector as DefaultReflector
+    from pydantic_ai.settings import ModelSettings
 
     # Check config for custom SWE learning (reflector + skill manager)
     custom_swe_learn = config.get("experiment", {}).get("skillbook", {}).get("custom_swe_learn", False)
     if custom_swe_learn:
         from prompts import SWEReflector, SWESkillManager
-        reflector = SWEReflector(ace_model, api_base=ace_config.api_base, api_key=ace_config.api_key)
-        skill_manager = SWESkillManager(ace_model, api_base=ace_config.api_base, api_key=ace_config.api_key)
+        reflector = SWEReflector(ace_model, api_base=ace_config.api_base, api_key=ace_config.api_key, model_settings=ace_settings)
+        skill_manager = SWESkillManager(ace_model, api_base=ace_config.api_base, api_key=ace_config.api_key, model_settings=ace_settings)
         logger.info("Using SWE-optimized Reflector and SkillManager")
     else:
         # Default ACE components use PydanticAI internally.
@@ -1249,14 +1304,17 @@ def run_full_experiment(config: dict, args):
             default_model = f"openai:{ace_config.model}"
         else:
             default_model = ace_model
-        reflector = DefaultReflector(default_model)
-        skill_manager = SkillManager(default_model)
+        ace_model_settings = ModelSettings(**ace_settings)
+        reflector = DefaultReflector(default_model, model_settings=ace_model_settings)
+        skill_manager = SkillManager(default_model, model_settings=ace_model_settings)
         logger.info("Using default ACE Reflector")
 
     concurrency = config["experiment"].get("concurrency", 1)
 
     benchmark = config["benchmark"]["dataset"].replace("/", "__")
-    predict_phase = PredictPhase(agent=agent, output_dir=output_dir, run_name=run_name, benchmark=benchmark, model_name=agent_config.model)
+    _retrieval = _build_skill_retriever(config.get("experiment", {}))
+    _retriever, _retrieval_phases = _retrieval if _retrieval else (None, None)
+    predict_phase = PredictPhase(agent=agent, output_dir=output_dir, run_name=run_name, benchmark=benchmark, model_name=agent_config.model, skill_retriever=_retriever, retrieval_phases=_retrieval_phases)
     evaluate_phase = EvaluatePhase(
         use_docker=config.get("evaluation", {}).get("use_docker", True),
         timeout=config.get("evaluation", {}).get("timeout", 1800),
@@ -1397,7 +1455,9 @@ def run_predict_cmd(config: dict, args):
 
     # Run predict
     benchmark = config["benchmark"]["dataset"].replace("/", "__")
-    phase = PredictPhase(agent=agent, output_dir=output_dir, run_name=run_name, benchmark=benchmark)
+    _retrieval = _build_skill_retriever(config.get("experiment", {}))
+    _retriever, _retrieval_phases = _retrieval if _retrieval else (None, None)
+    phase = PredictPhase(agent=agent, output_dir=output_dir, run_name=run_name, benchmark=benchmark, skill_retriever=_retriever, retrieval_phases=_retrieval_phases)
     result = phase.run(instance=instance, skillbook=skillbook, iteration=args.iteration)
 
     print(f"\nPredict result:")
@@ -1493,15 +1553,17 @@ def run_learn_cmd(config: dict, args):
     # Create ACE client
     ace_config = LLMConfig.from_dict(config["llm"]["ace"])
     ace_client = create_ace_client(ace_config.to_dict())
+    ace_settings = create_model_settings(ace_config.to_dict())
 
     from ace import SkillManager, Skillbook, Reflector as DefaultReflector
+    from pydantic_ai.settings import ModelSettings
 
     # Check config for custom SWE learning (reflector + skill manager)
     custom_swe_learn = config.get("experiment", {}).get("skillbook", {}).get("custom_swe_learn", False)
     if custom_swe_learn:
         from prompts import SWEReflector, SWESkillManager
-        reflector = SWEReflector(ace_client, api_base=ace_config.api_base, api_key=ace_config.api_key)
-        skill_manager = SWESkillManager(ace_client, api_base=ace_config.api_base, api_key=ace_config.api_key)
+        reflector = SWEReflector(ace_client, api_base=ace_config.api_base, api_key=ace_config.api_key, model_settings=ace_settings)
+        skill_manager = SWESkillManager(ace_client, api_base=ace_config.api_base, api_key=ace_config.api_key, model_settings=ace_settings)
         logger.info("Using SWE-optimized Reflector and SkillManager")
     else:
         # Same as run_full_experiment: use "openai:" prefix for any provider
@@ -1513,8 +1575,9 @@ def run_learn_cmd(config: dict, args):
             default_model = f"openai:{ace_config.model}"
         else:
             default_model = ace_client
-        reflector = DefaultReflector(default_model)
-        skill_manager = SkillManager(default_model)
+        ace_model_settings = ModelSettings(**ace_settings)
+        reflector = DefaultReflector(default_model, model_settings=ace_model_settings)
+        skill_manager = SkillManager(default_model, model_settings=ace_model_settings)
         logger.info("Using default ACE Reflector")
 
     # Run learn
