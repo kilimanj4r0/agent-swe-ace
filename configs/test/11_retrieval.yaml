@@ -15,7 +15,7 @@ experiment:
     retrieval:
       enabled: true
       top_k: 3
-      skip_threshold: 2          # Low threshold so retrieval triggers in test
+      skip_threshold: 1          # Very low so retrieval always triggers on iter_1
 
 benchmark:
   dataset: "princeton-nlp/SWE-bench_Verified"

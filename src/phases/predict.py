@@ -67,6 +67,7 @@ class PredictPhase:
         # Retrieval stats accumulator for the run
         self._retrieval_run_stats = {
             "instances_retrieved": 0,
+            "instances_no_change": 0,
             "instances_skipped_threshold": 0,
             "total_before": 0,
             "total_after": 0,
@@ -106,7 +107,11 @@ class PredictPhase:
                 if n_skills <= self.skill_retriever.skip_threshold:
                     self._retrieval_run_stats["instances_skipped_threshold"] += 1
                 else:
-                    skillbook, retrieval_stats = self._retrieve_skills(skillbook, instance)
+                    new_skillbook, retrieval_stats = self._retrieve_skills(skillbook, instance)
+                    if retrieval_stats is not None:
+                        skillbook = new_skillbook
+                    else:
+                        self._retrieval_run_stats["instances_no_change"] += 1
 
         # Run agent
         result = self.agent.run(
@@ -221,6 +226,7 @@ class PredictPhase:
             "filter_target": self.skill_retriever.filter_target,
             "chunk_size": self.skill_retriever.chunk_size,
             "instances_retrieved": n,
+            "instances_no_change": rs["instances_no_change"],
             "instances_skipped_threshold": rs["instances_skipped_threshold"],
             "avg_skills_before": round(rs["total_before"] / n, 1) if n > 0 else 0,
             "avg_skills_after": round(rs["total_after"] / n, 1) if n > 0 else 0,
