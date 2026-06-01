@@ -449,7 +449,12 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
         if config_baseline:
             baseline_run_dir = Path(config_baseline)
     if baseline_run_dir:
-        print(f"  Baseline run dir: {baseline_run_dir}")
+        baseline_run_dir = Path(baseline_run_dir)
+        if not baseline_run_dir.exists():
+            print(f"  Baseline run dir: {baseline_run_dir}  ⚠️  DOES NOT EXIST — reuse disabled")
+            baseline_run_dir = None
+        else:
+            print(f"  Baseline run dir: {baseline_run_dir}")
 
     train_trajs_dir = exp.get("train_trajs_dir")
     if train_trajs_dir:

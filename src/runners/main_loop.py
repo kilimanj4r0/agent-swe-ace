@@ -539,6 +539,16 @@ class ExperimentLoop:
         """
         two_phase = val_instances is not None and len(val_instances) > 0
 
+        # Validate baseline_run_dir exists
+        if baseline_run_dir:
+            baseline_run_dir = Path(baseline_run_dir)
+            if not baseline_run_dir.exists():
+                logger.warning(
+                    f"Baseline run dir does not exist: {baseline_run_dir} — "
+                    f"baseline reuse disabled, all instances will run from scratch"
+                )
+                baseline_run_dir = None
+
         # Store baseline_run_dir for single-phase reuse in run_instance()
         self._baseline_run_dir = baseline_run_dir
         self._train_trajs_dir = Path(train_trajs_dir) if train_trajs_dir else None
@@ -1210,10 +1220,22 @@ class ExperimentLoop:
         instance_id = instance.get("instance_id", "unknown")
         repo = instance.get("repo", "unknown")
 
-        traj_path = baseline_dir / self.benchmark / "trajectories" / instance_id / "iter_0.json"
-        result_path = baseline_dir / self.benchmark / "results" / instance_id / "iter_0.json"
+        # Search for baseline trajectory in both phase-based (train/) and flat layouts
+        traj_path = None
+        result_path = None
+        for prefix in ["train", None]:
+            if prefix:
+                tp = baseline_dir / self.benchmark / "trajectories" / prefix / instance_id / "iter_0.json"
+                rp = baseline_dir / self.benchmark / "results" / prefix / instance_id / "iter_0.json"
+            else:
+                tp = baseline_dir / self.benchmark / "trajectories" / instance_id / "iter_0.json"
+                rp = baseline_dir / self.benchmark / "results" / instance_id / "iter_0.json"
+            if tp.exists() and rp.exists():
+                traj_path = tp
+                result_path = rp
+                break
 
-        if traj_path.exists() and result_path.exists():
+        if traj_path and result_path:
             try:
                 with open(traj_path) as f:
                     traj_data = json.load(f)
