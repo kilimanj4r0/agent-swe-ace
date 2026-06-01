@@ -1,11 +1,11 @@
 # src/retrieval/skill_retriever.py
 """Two-stage LLM-based top-k skill retrieval.
 
-Stage 1 (filter): remove skills irrelevant to the issue or specific to other repos.
+Stage 1 (filter): remove skills irrelevant to the issue, processed in chunks.
 Stage 2 (rank): pick the top-k most useful skills from the filtered set.
 """
 
-import sys
+import math
 from pathlib import Path
 from typing import Optional
 
@@ -22,6 +22,8 @@ from .prompts import (
 )
 
 _MAX_RETRIES = 3
+_DEFAULT_CHUNK_SIZE = 200
+_DEFAULT_FILTER_TARGET = 100
 
 
 def _load_prompt(path: Optional[str], default: str) -> str:
@@ -74,9 +76,11 @@ class SkillRetriever:
         skip_threshold: Skip retrieval if skillbook has ≤ this many skills.
         filter_prompt: Path to custom filter prompt file (None = built-in default).
         rank_prompt: Path to custom rank prompt file (None = built-in default).
+        chunk_size: Number of skills per filter chunk (for large skillbooks).
+        filter_target: Max skills to keep after filtering stage.
         temperature: LLM temperature.
         max_tokens: LLM max tokens.
-        max_retries: Retries per stage on empty/invalid LLM response.
+        max_retries: Retries per chunk on empty/invalid LLM response.
     """
 
     def __init__(
@@ -88,6 +92,8 @@ class SkillRetriever:
         skip_threshold: int = 10,
         filter_prompt: Optional[str] = None,
         rank_prompt: Optional[str] = None,
+        chunk_size: int = _DEFAULT_CHUNK_SIZE,
+        filter_target: int = _DEFAULT_FILTER_TARGET,
         temperature: float = 0.0,
         max_tokens: int = 2048,
         max_retries: int = 3,
@@ -95,6 +101,8 @@ class SkillRetriever:
         self.model = model
         self.top_k = top_k
         self.skip_threshold = skip_threshold
+        self.chunk_size = chunk_size
+        self.filter_target = filter_target
         self.max_retries = max_retries
 
         self._client = OpenAI(base_url=api_base, api_key=api_key)
@@ -123,8 +131,11 @@ class SkillRetriever:
         skill_items = [(s.id, _skill_to_dict(s)) for s in skills]
         id_to_skill = {s.id: s for s in skills}
 
-        # Stage 1 — filter
-        filtered = self._filter_skills(skill_items, title, body, repo)
+        # Stage 1 — filter (chunked)
+        effective_target = min(self.filter_target, len(skill_items))
+        filtered = self._filter_skills(
+            skill_items, title, body, repo, effective_target
+        )
         logger.debug(f"[Retriever] Filter: {len(skill_items)} → {len(filtered)} skills")
 
         if not filtered:
@@ -151,8 +162,47 @@ class SkillRetriever:
         issue_title: str,
         issue_body: str,
         repo: str,
+        filter_target: int,
     ) -> list[tuple[str, dict]]:
-        """Stage 1: return only skills relevant to the issue."""
+        """Stage 1: return only skills relevant to the issue, processed in chunks."""
+        total = len(skill_items)
+
+        # If total fits in one chunk, process directly
+        if total <= self.chunk_size:
+            return self._filter_single_chunk(
+                skill_items, issue_title, issue_body, repo, total
+            )
+
+        # Chunked filtering
+        kept: list[tuple[str, dict]] = []
+        total_chunks = (total + self.chunk_size - 1) // self.chunk_size
+
+        for start in range(0, total, self.chunk_size):
+            chunk = skill_items[start : start + self.chunk_size]
+            chunk_num = start // self.chunk_size + 1
+            max_keep = math.ceil(filter_target * len(chunk) / total)
+
+            chunk_result = self._filter_single_chunk(
+                chunk, issue_title, issue_body, repo, max_keep
+            )
+
+            logger.debug(
+                f"[Retriever] Filter chunk {chunk_num}/{total_chunks}: "
+                f"{len(chunk)} → {len(chunk_result)} skills (max_keep={max_keep})"
+            )
+            kept.extend(chunk_result)
+
+        return kept
+
+    def _filter_single_chunk(
+        self,
+        skill_items: list[tuple[str, dict]],
+        issue_title: str,
+        issue_body: str,
+        repo: str,
+        max_keep: int,
+    ) -> list[tuple[str, dict]]:
+        """Filter a single chunk of skills via LLM."""
         skills_block = "\n".join(
             _format_skill(i, s) for i, (_, s) in enumerate(skill_items)
         )
@@ -161,22 +211,26 @@ class SkillRetriever:
             title=issue_title,
             description=issue_body,
             skills_block=skills_block,
+            max_keep=max_keep,
         )
 
         valid = set(range(len(skill_items)))
         for attempt in range(1, self.max_retries + 1):
             try:
                 parsed = self._call_structured(prompt, RelevanceResponse)
+                if not parsed.relevant_indices:
+                    # Model says nothing relevant — accept
+                    return []
                 indices = [i for i in parsed.relevant_indices if i in valid]
                 if indices:
                     return [skill_items[i] for i in indices]
                 logger.debug(
-                    f"[Retriever] Filter retry {attempt}/{self.max_retries}: got 0 valid indices"
+                    f"[Retriever] Filter retry {attempt}/{self.max_retries}: all indices out of range"
                 )
             except Exception as e:
                 logger.debug(f"[Retriever] Filter attempt {attempt} failed: {e}")
 
-        # Fallback: return all
+        # Fallback: return all skills in this chunk
         return list(skill_items)
 
     def _rank_skills(

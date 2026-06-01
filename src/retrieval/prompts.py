@@ -1,7 +1,7 @@
 # src/retrieval/prompts.py
 """Default prompt templates and structured-output schemas for skill retrieval.
 
-Copied from scripts/sample_top_skills.py (standalone CLI tool).
+Based on scripts/sample_top_skills.py (standalone CLI tool).
 The script is not modified — these are independent copies.
 """
 
@@ -11,9 +11,8 @@ from pydantic import BaseModel
 # Default prompt templates
 # ---------------------------------------------------------------------------
 
-DEFAULT_FILTER_PROMPT = r"""\
+DEFAULT_FILTER_PROMPT = """\
 You are filtering skills for a SWE-bench issue resolution agent.
-Be aggressive — only keep skills that are plausibly useful for THIS specific issue.
 
 ## ISSUE
 Repository: {repo}
@@ -25,24 +24,21 @@ Description:
 {skills_block}
 
 ## TASK
-Decide which skills are potentially useful for resolving this issue.
+Only keep skills plausibly useful for THIS specific issue. Skills from other repos are fine if the technique transfers.
 
-DISCARD a skill if ANY of these apply:
-- It is specific to a *different* repository or project (not "{repo}") — e.g. advice about files, modules, or APIs that belong to another project.
-- Its topic (the technology, library, module, or concept it discusses) is unrelated to the issue.
-- It is too vague or generic to provide actionable guidance (e.g. "write good code", "use version control").
+- KEEP if the skill could help resolve this issue
+- KEEP if the skill is about the same library/module/API area as the issue
+- KEEP if the testing/debugging technique is relevant to the problem type
+- KEEP if the AVOID pattern is directly applicable to the issue's domain
+- KEEP if the skill is from another repo but describes a technique that applies here
 
-KEEP a skill only if it is:
-- About the same library/module/API area as the issue, OR
-- A specific testing or debugging technique relevant to the problem type, OR
-- An AVOID pattern or cautionary note directly applicable to the issue's domain.
+- DISCARD if the skill topic is unrelated to the issue.
+- DISCARD if the skill is too vague to be actionable.
 
-Aim to keep no more than ~50% of the candidate skills.
-
-Return the indices of all KEEP skills."""
+Return the indices of all KEEP skills. Keep at most {max_keep} skills. If more than {max_keep} qualify, return only the {max_keep} most relevant."""
 
 
-DEFAULT_RANK_PROMPT = r"""\
+DEFAULT_RANK_PROMPT = """\
 You are ranking skills for a SWE-bench issue resolution agent.
 
 ## ISSUE

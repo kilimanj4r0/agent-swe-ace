@@ -103,6 +103,8 @@ def _build_skill_retriever(experiment_cfg: dict):
         skip_threshold=retrieval_cfg.get("skip_threshold", 10),
         filter_prompt=retrieval_cfg.get("filter_prompt"),
         rank_prompt=retrieval_cfg.get("rank_prompt"),
+        chunk_size=retrieval_cfg.get("chunk_size", 200),
+        filter_target=retrieval_cfg.get("filter_target", 100),
         temperature=retrieval_cfg.get("temperature", 0.0),
         max_tokens=retrieval_cfg.get("max_tokens", 2048),
     )
