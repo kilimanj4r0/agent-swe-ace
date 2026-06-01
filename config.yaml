@@ -54,8 +54,6 @@ experiment:
       max_tokens: 2048
       chunk_size: 200                  # Skills per filter chunk (for large skillbooks)
       filter_target: 100               # Max skills to keep after filtering stage
-      phases: ["val"]                  # Phases where retrieval applies: "train", "val_baseline", "val", null (single-phase)
-                                      # null = apply everywhere. Default: ["val"] (only val skillbook pass)
       # filter_prompt: null            # Path to custom filter prompt file (null = built-in default)
       # rank_prompt: null              # Path to custom rank prompt file (null = built-in default)
 

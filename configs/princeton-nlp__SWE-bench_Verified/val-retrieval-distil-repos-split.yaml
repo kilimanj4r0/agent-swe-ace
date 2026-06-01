@@ -22,7 +22,6 @@ experiment:
       model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
       api_base: "http://localhost:8800/v1"
       api_key_env: "HOSTED_VLLM_API_KEY"
-      phases: ["val"]
 
   # Load skillbooks from distillation run — skip training entirely
   skillbook_source_dir: "data/run_20260524_073812_completed_repos_split_swe_distil_verified"

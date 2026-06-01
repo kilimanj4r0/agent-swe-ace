@@ -44,7 +44,6 @@ class PredictPhase:
         benchmark: str = "swebench-lite",
         model_name: Optional[str] = None,
         skill_retriever=None,  # Optional[SkillRetriever]
-        retrieval_phases: Optional[list] = None,  # Phases where retrieval applies
     ):
         """
         Initialize predict phase.
@@ -55,9 +54,8 @@ class PredictPhase:
             run_name: Name of the experiment run
             benchmark: Benchmark name for output path
             model_name: Agent LLM model name (saved in trajectory metadata)
-            skill_retriever: Optional SkillRetriever for top-k skill filtering
-            retrieval_phases: List of phases where retrieval applies (e.g. ["val"]).
-                None means apply everywhere. Default: ["val"] when retriever is set.
+            skill_retriever: Optional SkillRetriever for top-k skill filtering.
+                Applies on single-phase (phase=None) and val skillbook pass (phase="val").
         """
         self.agent = agent
         self.output_dir = Path(output_dir)
@@ -65,7 +63,6 @@ class PredictPhase:
         self.benchmark = benchmark
         self.model_name = model_name
         self.skill_retriever = skill_retriever
-        self.retrieval_phases = retrieval_phases
 
         # Retrieval stats accumulator for the run
         self._retrieval_run_stats = {
@@ -99,13 +96,11 @@ class PredictPhase:
         # Apply skill retrieval if configured and phase matches
         retrieval_stats = None
         if self.skill_retriever and skillbook:
-            # retrieval_phases=None means apply everywhere (no phase check)
-            # retrieval_phases=["val"] means only apply on "val" phase
-            phase_matches = (
-                self.retrieval_phases is None
-                or phase in self.retrieval_phases
-                or (phase is None and None in self.retrieval_phases)
-            )
+            # Retrieval applies on:
+            #   - single-phase mode (phase=None): always
+            #   - two-phase mode: only on "val" (val skillbook pass)
+            # Skipped on "train" and "val_baseline" (empty skillbook there anyway)
+            phase_matches = phase is None or phase == "val"
             if phase_matches:
                 n_skills = len(skillbook.skills())
                 if n_skills <= self.skill_retriever.skip_threshold:
@@ -223,7 +218,8 @@ class PredictPhase:
             "model": self.skill_retriever.model,
             "top_k": self.skill_retriever.top_k,
             "skip_threshold": self.skill_retriever.skip_threshold,
-            "phases": self.retrieval_phases,
+            "filter_target": self.skill_retriever.filter_target,
+            "chunk_size": self.skill_retriever.chunk_size,
             "instances_retrieved": n,
             "instances_skipped_threshold": rs["instances_skipped_threshold"],
             "avg_skills_before": round(rs["total_before"] / n, 1) if n > 0 else 0,

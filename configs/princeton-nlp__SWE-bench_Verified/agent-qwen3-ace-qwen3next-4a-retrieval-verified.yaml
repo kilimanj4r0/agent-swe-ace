@@ -23,7 +23,6 @@ experiment:
       model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
       api_base: "http://localhost:8800/v1"
       api_key_env: "HOSTED_VLLM_API_KEY"
-      phases: null       # Apply everywhere (single-phase mode, phase=None)
 
 benchmark:
   dataset: "princeton-nlp/SWE-bench_Verified"

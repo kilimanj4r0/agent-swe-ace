@@ -69,15 +69,18 @@ def deep_merge(base: dict, override: dict) -> dict:
 
 
 def _build_skill_retriever(experiment_cfg: dict):
-    """Create SkillRetriever and retrieval config from config, or None if disabled.
+    """Create SkillRetriever from config, or None if disabled.
+
+    Retrieval applies automatically on:
+      - single-phase mode (phase=None): per_instance experiments
+      - val skillbook pass (phase="val"): two-phase experiments
+    Skipped on "train" and "val_baseline" phases.
 
     Args:
         experiment_cfg: The experiment section of the config dict.
 
     Returns:
-        (SkillRetriever, retrieval_phases) tuple or None.
-        retrieval_phases is a list of phase names where retrieval applies,
-        or None for "apply everywhere".
+        SkillRetriever instance or None.
     """
     retrieval_cfg = experiment_cfg.get("skillbook", {}).get("retrieval", {})
     if not retrieval_cfg.get("enabled", False):
@@ -95,7 +98,7 @@ def _build_skill_retriever(experiment_cfg: dict):
         logger.warning("[Retriever] retrieval.enabled=true but no api_base specified, skipping")
         return None
 
-    retriever = SkillRetriever(
+    return SkillRetriever(
         model=model,
         api_base=api_base,
         api_key=api_key,
@@ -108,12 +111,6 @@ def _build_skill_retriever(experiment_cfg: dict):
         temperature=retrieval_cfg.get("temperature", 0.0),
         max_tokens=retrieval_cfg.get("max_tokens", 2048),
     )
-
-    # phases: list of phase names where retrieval applies.
-    # null/empty = apply everywhere. Default: ["val"].
-    phases = retrieval_cfg.get("phases", ["val"])
-
-    return retriever, phases
 
 
 def load_config(config_path: str) -> dict:
@@ -733,13 +730,12 @@ def _run_single_repo_experiment(
     benchmark = config["benchmark"]["dataset"].replace("/", "__")
 
     # Per-repo components (each repo needs its own agent + predict + learn)
-    _retrieval = _build_skill_retriever(config.get("experiment", {}))
-    _retriever, _retrieval_phases = _retrieval if _retrieval else (None, None)
+    _retriever = _build_skill_retriever(config.get("experiment", {}))
     agent = agent_factory()
     predict_phase = PredictPhase(
         agent=agent, output_dir=run_dir, run_name=run_name,
         benchmark=benchmark, model_name=agent_config.model,
-        skill_retriever=_retriever, retrieval_phases=_retrieval_phases,
+        skill_retriever=_retriever,
     )
     learn_phase = LearnPhase(
         reflector=reflector,
@@ -1314,9 +1310,8 @@ def run_full_experiment(config: dict, args):
     concurrency = config["experiment"].get("concurrency", 1)
 
     benchmark = config["benchmark"]["dataset"].replace("/", "__")
-    _retrieval = _build_skill_retriever(config.get("experiment", {}))
-    _retriever, _retrieval_phases = _retrieval if _retrieval else (None, None)
-    predict_phase = PredictPhase(agent=agent, output_dir=output_dir, run_name=run_name, benchmark=benchmark, model_name=agent_config.model, skill_retriever=_retriever, retrieval_phases=_retrieval_phases)
+    _retriever = _build_skill_retriever(config.get("experiment", {}))
+    predict_phase = PredictPhase(agent=agent, output_dir=output_dir, run_name=run_name, benchmark=benchmark, model_name=agent_config.model, skill_retriever=_retriever)
     evaluate_phase = EvaluatePhase(
         use_docker=config.get("evaluation", {}).get("use_docker", True),
         timeout=config.get("evaluation", {}).get("timeout", 1800),
@@ -1457,9 +1452,8 @@ def run_predict_cmd(config: dict, args):
 
     # Run predict
     benchmark = config["benchmark"]["dataset"].replace("/", "__")
-    _retrieval = _build_skill_retriever(config.get("experiment", {}))
-    _retriever, _retrieval_phases = _retrieval if _retrieval else (None, None)
-    phase = PredictPhase(agent=agent, output_dir=output_dir, run_name=run_name, benchmark=benchmark, skill_retriever=_retriever, retrieval_phases=_retrieval_phases)
+    _retriever = _build_skill_retriever(config.get("experiment", {}))
+    phase = PredictPhase(agent=agent, output_dir=output_dir, run_name=run_name, benchmark=benchmark, skill_retriever=_retriever)
     result = phase.run(instance=instance, skillbook=skillbook, iteration=args.iteration)
 
     print(f"\nPredict result:")

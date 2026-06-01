@@ -85,7 +85,6 @@ class TestSkillRetrieverFilterFallback:
     @patch("retrieval.skill_retriever.OpenAI")
     def test_filter_returns_zero_falls_back_to_all(self, mock_openai_cls):
         from retrieval.skill_retriever import SkillRetriever
-        from retrieval.prompts import RelevanceResponse
 
         # Mock LLM to return empty indices every time
         mock_client = MagicMock()
@@ -224,88 +223,37 @@ class TestCustomPromptsFromFile:
 class TestPredictPhaseWithRetriever:
     """Test PredictPhase integration with skill retriever."""
 
-    def test_predict_phase_with_retriever_filters_skills(self, tmp_path):
+    def test_retrieval_on_val_phase(self, tmp_path):
+        """Retrieval triggers on phase='val' (val skillbook pass)."""
         from phases.predict import PredictPhase
         from agents.miniswe_agent import AgentResult
 
-        # Create a mock skillbook with 15 skills
         mock_skillbook = Mock()
         skills = [_make_skill(f"s{i}", f"Sec{i}", f"Content {i}") for i in range(15)]
         mock_skillbook.skills.return_value = skills
 
-        # Create a filtered skillbook (what retriever returns)
-        filtered_skillbook = Mock()
-        filtered_skills = skills[:3]
-        filtered_skillbook.skills.return_value = filtered_skills
-
-        # Mock retriever that returns 3 of 15 skills
         mock_retriever = Mock()
-        mock_retriever.retrieve.return_value = filtered_skills
+        mock_retriever.retrieve.return_value = skills[:3]
         mock_retriever.skip_threshold = 10
         mock_retriever.model = "test-model"
 
-        # Mock agent
         mock_agent = Mock()
         mock_agent.run.return_value = AgentResult(
-            exit_status="Submitted",
-            patch="diff --git",
-            trajectory=[{"role": "user", "content": "test"}],
-            error=None,
-        )
-
-        phase = PredictPhase(
-            agent=mock_agent,
-            output_dir=tmp_path,
-            skill_retriever=mock_retriever,
-            retrieval_phases=["val"],  # Only apply on "val" phase
-        )
-
-        instance = _make_instance()
-        # Pass phase="val" → retrieval should trigger
-        result = phase.run(instance=instance, skillbook=mock_skillbook, iteration=0, phase="val")
-
-        # Retriever was called
-        mock_retriever.retrieve.assert_called_once_with(mock_skillbook, instance)
-
-        # Agent received a Skillbook (filtered), not the original mock
-        agent_call_args = mock_agent.run.call_args
-        passed_sb = agent_call_args.kwargs.get("skillbook") or agent_call_args[1].get("skillbook")
-        assert passed_sb is not None
-        assert passed_sb is not mock_skillbook  # Should be a new filtered one
-
-    def test_predict_phase_skips_retrieval_on_non_matching_phase(self, tmp_path):
-        from phases.predict import PredictPhase
-        from agents.miniswe_agent import AgentResult
-
-        mock_skillbook = Mock()
-        skills = [_make_skill(f"s{i}") for i in range(15)]
-        mock_skillbook.skills.return_value = skills
-
-        mock_retriever = Mock()
-
-        mock_agent = Mock()
-        mock_agent.run.return_value = AgentResult(
-            exit_status="Submitted", patch="diff --git", trajectory=[], error=None,
+            exit_status="Submitted", patch="diff --git",
+            trajectory=[{"role": "user", "content": "test"}], error=None,
         )
 
         phase = PredictPhase(
             agent=mock_agent, output_dir=tmp_path,
             skill_retriever=mock_retriever,
-            retrieval_phases=["val"],  # Only "val"
         )
 
-        # Run with phase="train" → retrieval should NOT trigger
-        phase.run(instance=_make_instance(), skillbook=mock_skillbook, iteration=0, phase="train")
+        phase.run(instance=_make_instance(), skillbook=mock_skillbook, iteration=0, phase="val")
 
-        # Retriever was NOT called
-        mock_retriever.retrieve.assert_not_called()
+        mock_retriever.retrieve.assert_called_once()
 
-        # Agent received the original skillbook unchanged
-        agent_call_args = mock_agent.run.call_args
-        passed_sb = agent_call_args.kwargs.get("skillbook") or agent_call_args[1].get("skillbook")
-        assert passed_sb is mock_skillbook
-
-    def test_predict_phase_null_phases_applies_everywhere(self, tmp_path):
+    def test_retrieval_on_single_phase(self, tmp_path):
+        """Retrieval triggers when phase=None (single-phase / per_instance)."""
         from phases.predict import PredictPhase
         from agents.miniswe_agent import AgentResult
 
@@ -326,14 +274,61 @@ class TestPredictPhaseWithRetriever:
         phase = PredictPhase(
             agent=mock_agent, output_dir=tmp_path,
             skill_retriever=mock_retriever,
-            retrieval_phases=None,  # None = apply everywhere
         )
 
-        # Should apply on "train"
-        phase.run(instance=_make_instance(), skillbook=mock_skillbook, iteration=0, phase="train")
+        # phase=None (default) → single-phase mode
+        phase.run(instance=_make_instance(), skillbook=mock_skillbook, iteration=0)
         assert mock_retriever.retrieve.call_count == 1
 
-    def test_predict_phase_without_retriever_passes_through(self, tmp_path):
+    def test_retrieval_skipped_on_train_phase(self, tmp_path):
+        """Retrieval skipped on phase='train'."""
+        from phases.predict import PredictPhase
+        from agents.miniswe_agent import AgentResult
+
+        mock_skillbook = Mock()
+        skills = [_make_skill(f"s{i}") for i in range(15)]
+        mock_skillbook.skills.return_value = skills
+
+        mock_retriever = Mock()
+
+        mock_agent = Mock()
+        mock_agent.run.return_value = AgentResult(
+            exit_status="Submitted", patch="diff --git", trajectory=[], error=None,
+        )
+
+        phase = PredictPhase(
+            agent=mock_agent, output_dir=tmp_path,
+            skill_retriever=mock_retriever,
+        )
+
+        phase.run(instance=_make_instance(), skillbook=mock_skillbook, iteration=0, phase="train")
+        mock_retriever.retrieve.assert_not_called()
+
+    def test_retrieval_skipped_on_val_baseline_phase(self, tmp_path):
+        """Retrieval skipped on phase='val_baseline'."""
+        from phases.predict import PredictPhase
+        from agents.miniswe_agent import AgentResult
+
+        mock_skillbook = Mock()
+        skills = [_make_skill(f"s{i}") for i in range(15)]
+        mock_skillbook.skills.return_value = skills
+
+        mock_retriever = Mock()
+
+        mock_agent = Mock()
+        mock_agent.run.return_value = AgentResult(
+            exit_status="Submitted", patch="diff --git", trajectory=[], error=None,
+        )
+
+        phase = PredictPhase(
+            agent=mock_agent, output_dir=tmp_path,
+            skill_retriever=mock_retriever,
+        )
+
+        phase.run(instance=_make_instance(), skillbook=mock_skillbook, iteration=0, phase="val_baseline")
+        mock_retriever.retrieve.assert_not_called()
+
+    def test_no_retriever_passes_through(self, tmp_path):
         from phases.predict import PredictPhase
         from agents.miniswe_agent import AgentResult
 
@@ -343,17 +338,12 @@ class TestPredictPhaseWithRetriever:
 
         mock_agent = Mock()
         mock_agent.run.return_value = AgentResult(
-            exit_status="Submitted",
-            patch="diff --git",
-            trajectory=[],
-            error=None,
+            exit_status="Submitted", patch="diff --git", trajectory=[], error=None,
         )
 
         phase = PredictPhase(agent=mock_agent, output_dir=tmp_path)
-        instance = _make_instance()
-        phase.run(instance=instance, skillbook=mock_skillbook, iteration=0)
+        phase.run(instance=_make_instance(), skillbook=mock_skillbook, iteration=0)
 
-        # Agent received the original skillbook unchanged
         agent_call_args = mock_agent.run.call_args
         passed_sb = agent_call_args.kwargs.get("skillbook") or agent_call_args[1].get("skillbook")
         assert passed_sb is mock_skillbook
@@ -375,7 +365,7 @@ class TestBuildSkillRetriever:
         assert result is None
 
     @patch.dict("os.environ", {"ZAI_API_KEY": "test-key-123"})
-    def test_enabled_returns_retriever_tuple(self):
+    def test_enabled_returns_retriever(self):
         from cli.commands import _build_skill_retriever
 
         result = _build_skill_retriever({
@@ -391,46 +381,8 @@ class TestBuildSkillRetriever:
         })
 
         assert result is not None
-        retriever, phases = result
-        assert retriever.top_k == 3
-        assert retriever.skip_threshold == 7
-        assert phases == ["val"]  # Default phases
-
-    @patch.dict("os.environ", {"ZAI_API_KEY": "test-key-123"})
-    def test_custom_phases(self):
-        from cli.commands import _build_skill_retriever
-
-        result = _build_skill_retriever({
-            "skillbook": {
-                "retrieval": {
-                    "enabled": True,
-                    "model": "glm-4.5-flash",
-                    "api_base": "https://api.example.com/v1",
-                    "phases": ["val", "train"],
-                }
-            }
-        })
-
-        retriever, phases = result
-        assert phases == ["val", "train"]
-
-    @patch.dict("os.environ", {"ZAI_API_KEY": "test-key-123"})
-    def test_null_phases(self):
-        from cli.commands import _build_skill_retriever
-
-        result = _build_skill_retriever({
-            "skillbook": {
-                "retrieval": {
-                    "enabled": True,
-                    "model": "glm-4.5-flash",
-                    "api_base": "https://api.example.com/v1",
-                    "phases": None,
-                }
-            }
-        })
-
-        retriever, phases = result
-        assert phases is None  # Apply everywhere
+        assert result.top_k == 3
+        assert result.skip_threshold == 7
 
     def test_enabled_no_model_returns_none(self):
         from cli.commands import _build_skill_retriever
