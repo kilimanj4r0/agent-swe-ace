@@ -450,6 +450,22 @@ class SmokeTest:
         self.run_dirs[10] = rd
         return passed
 
+    # ── Standalone tests (continued) ──
+
+    def test_11_retrieval(self) -> bool:
+        passed, rd = self._run(
+            11, "11_retrieval.yaml",
+            extra_args=["--instance", INSTANCE_UNRESOLVED],
+            checks={
+                "files_exist": ["statistics.json", "config.json"],
+                "stats_keys": ["total_instances", "resolved_count", "unresolved_count"],
+                "stats_keys": ["total_instances", "retrieval"],
+                "stats_nested": {"retrieval.enabled": True, "retrieval.top_k": 3},
+            },
+        )
+        self.run_dirs[11] = rd
+        return passed
+
 
 # ── Main ────────────────────────────────────────────────────────────────
 
@@ -464,9 +480,10 @@ ALL_TESTS = {
     8: "test_08_baseline_reuse",
     9: "test_09_distillation",
     10: "test_10_validation_only",
+    11: "test_11_retrieval",
 }
 
-STANDALONE = {1, 2, 3, 4, 5, 6, 9}
+STANDALONE = {1, 2, 3, 4, 5, 6, 9, 11}
 DEPENDENT = {7, 8, 10}
 
 

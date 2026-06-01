@@ -1,0 +1,42 @@
+# Smoke test: Multi-attempt with learning + top-k skill retrieval (per_instance)
+# Exercises: predict -> evaluate -> learn loop with retrieval enabled
+# Retrieval kicks in on iter_1 when skillbook has skills > skip_threshold
+# Verify: trajectory has retrieval_stats, statistics.json has retrieval summary
+experiment:
+  name: "test: retrieval"
+  max_attempts: 2
+  force_learn: true
+  concurrency: 1
+  skillbook:
+    mode: "per_instance"
+    custom_swe_learn: false
+    deduplication:
+      enabled: false
+    retrieval:
+      enabled: true
+      top_k: 3
+      skip_threshold: 2          # Low threshold so retrieval triggers in test
+
+benchmark:
+  dataset: "princeton-nlp/SWE-bench_Verified"
+  split: "test"
+
+agent:
+  step_limit: 1
+  cost_limit: 0.0
+
+llm:
+  agent:
+    provider: "hosted_vllm"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://localhost:8800/v1"
+  ace:
+    provider: "hosted_vllm"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://localhost:8800/v1"
+
+output:
+  dir: "_data"
+  log_level: "DEBUG"
