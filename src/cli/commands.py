@@ -1253,6 +1253,14 @@ def run_full_experiment(config: dict, args):
     logger.info(f"Run: {run_name}")
     logger.info(f"Output: {output_dir}")
 
+    # Persist CLI-only params into config so config.json is fully reproducible
+    cli_resume_dirs = getattr(args, "resume_dir", None)
+    if cli_resume_dirs:
+        config.setdefault("experiment", {})["resume_dirs"] = [str(p) for p in cli_resume_dirs]
+    cli_baseline_dir = getattr(args, "baseline_run_dir", None)
+    if cli_baseline_dir:
+        config.setdefault("experiment", {})["baseline_run_dir"] = str(cli_baseline_dir)
+
     # Save config
     save_config(config=config, run_dir=output_dir)
 

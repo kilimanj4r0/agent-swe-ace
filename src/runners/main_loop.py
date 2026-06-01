@@ -20,7 +20,7 @@ from data_io.resume_scanner import ResumePoint, copy_instance_artifacts
 from data_io.writers import save_statistics, save_config
 
 
-def _build_ground_truth(instance: Dict[str, Any], max_chars: int = 4000) -> str:
+def _build_ground_truth(instance: Dict[str, Any], max_chars: int = 512) -> str:
     """Build ground truth from SWE-bench test lists (not gold patch).
 
     Args:
