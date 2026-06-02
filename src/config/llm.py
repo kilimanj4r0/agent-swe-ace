@@ -186,3 +186,18 @@ def create_ace_client(config_dict: dict):
     """
     config = LLMConfig.from_dict(config_dict)
     return config.get_model_string()
+
+
+def create_model_settings(config_dict: dict) -> dict:
+    """Extract temperature and max_tokens for PydanticAI ModelSettings.
+
+    Used by both default and custom ACE components.
+
+    Args:
+        config_dict: Dictionary from config.yaml llm.ace section
+
+    Returns:
+        Dict with temperature and max_tokens (for ModelSettings construction).
+    """
+    config = LLMConfig.from_dict(config_dict)
+    return {"temperature": config.temperature, "max_tokens": config.max_tokens}
