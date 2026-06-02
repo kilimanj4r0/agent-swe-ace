@@ -3,22 +3,24 @@
 
 from __future__ import annotations
 
+import json
+from typing import Any, Union
+
 from ace import SkillManager
-from ace.core.outputs import SkillManagerOutput
-from pydantic_ai import Agent as PydanticAgent
+from ace.core.context import SkillbookView
+from ace.core.outputs import ReflectorOutput, SkillManagerOutput
+from ace.core.skillbook import Skillbook
+from loguru import logger
 
-from ace.providers.pydantic_ai import resolve_model
-
-from prompts.skill_manager_prompt import CUSTOM_SKILL_MANAGER_PROMPT
+from .model_utils import make_pydantic_agent
+from .skill_manager_prompt import CUSTOM_SKILL_MANAGER_PROMPT
 
 
 class SWESkillManager(SkillManager):
-    """SWE-optimized SkillManager that preserves learning type prefixes.
+    """SWE-optimized SkillManager with extended reflection serialization.
 
-    Key differences from default ace.SkillManager:
-    1. Uses CUSTOM_SKILL_MANAGER_PROMPT with learning type preservation instructions
-    2. Instructs LLM to convert [ANTI-PATTERN], [DISCOVERY], [HYPOTHESIS] prefixes
-       to AVOID:, VERIFIED:, CONSIDER: prefixes in skill content
+    Overrides update_skills() to forward SWE-specific fields
+    (error_location, confidence_in_analysis, skill_tags) to the LLM.
 
     Args:
         model: Model identifier string (e.g. "zai/glm-4.5-flash").
@@ -26,16 +28,7 @@ class SWESkillManager(SkillManager):
         max_retries: Maximum retries for structured output validation.
         api_base: Base URL for the LLM endpoint (required for hosted_vllm).
         api_key: API key for the LLM endpoint.
-
-    Example::
-
-        sm = SWESkillManager("zai/glm-4.5-flash")
-        output = sm.update_skills(
-            reflections=(reflection_output,),
-            skillbook=skillbook,
-            question_context="Fix bug in Django ORM",
-            progress="0/1 resolved",
-        )
+        model_settings: Optional dict for ModelSettings (temperature, max_tokens).
     """
 
     def __init__(
@@ -46,31 +39,70 @@ class SWESkillManager(SkillManager):
         max_retries: int = 3,
         api_base: str | None = None,
         api_key: str | None = None,
+        model_settings: dict | None = None,
     ) -> None:
-        # Bypass SkillManager.__init__ — set up PydanticAgent directly
-        # with our custom prompt
         self._prompt_template = prompt_template
-
-        if api_base:
-            from openai import AsyncOpenAI
-            from pydantic_ai.models.openai import OpenAIChatModel
-            from pydantic_ai.providers.litellm import LiteLLMProvider
-            openai_client = AsyncOpenAI(
-                base_url=api_base,
-                api_key=api_key or "not-needed",
-                max_retries=int(__import__("os").getenv("ACE_LEARN_MAX_RETRIES", "50")),
-            )
-            provider = LiteLLMProvider(openai_client=openai_client)
-            # Strip LiteLLM provider prefix (e.g. "hosted_vllm/") since
-            # OpenAIChatModel sends the model name directly to the endpoint
-            model_name = model.split("/", 1)[1] if "/" in model else model
-            resolved_model = OpenAIChatModel(model_name=model_name, provider=provider)
-        else:
-            resolved_model = resolve_model(model)
-
-        self._agent = PydanticAgent(
-            resolved_model,
-            output_type=SkillManagerOutput,
-            retries=max_retries,
-            defer_model_check=True,
+        self._agent = make_pydantic_agent(
+            model,
+            SkillManagerOutput,
+            api_base=api_base,
+            api_key=api_key,
+            max_retries=max_retries,
+            model_settings=model_settings,
         )
+
+    def update_skills(
+        self,
+        *,
+        reflections: tuple[ReflectorOutput, ...],
+        skillbook: Union[SkillbookView, Skillbook],
+        question_context: str,
+        progress: str,
+        **kwargs: Any,
+    ) -> SkillManagerOutput:
+        """Extended update_skills that forwards SWE-specific reflection fields."""
+        reflections_data = []
+        for r in reflections:
+            entry = {
+                "reasoning": r.reasoning,
+                "error_identification": r.error_identification,
+                "root_cause_analysis": r.root_cause_analysis,
+                "correct_approach": r.correct_approach,
+                "key_insight": r.key_insight,
+                "extracted_learnings": [
+                    l.model_dump() for l in r.extracted_learnings
+                ],
+            }
+            # SWE-specific fields (only present on SWEReflectorOutput)
+            if hasattr(r, "error_location"):
+                entry["error_location"] = r.error_location
+            if hasattr(r, "confidence_in_analysis"):
+                entry["confidence_in_analysis"] = r.confidence_in_analysis
+            if hasattr(r, "skill_tags") and r.skill_tags:
+                entry["skill_tags"] = [
+                    {"id": t.id, "tag": t.tag}
+                    for t in r.skill_tags
+                ]
+            reflections_data.append(entry)
+
+        prompt = self._prompt_template.format(
+            progress=progress,
+            stats=json.dumps(skillbook.stats()),
+            reflections=json.dumps(reflections_data, ensure_ascii=False, indent=2),
+            skillbook=skillbook.as_prompt() or "(empty skillbook)",
+            question_context=question_context,
+        )
+
+        logger.debug(f"[SkillManager] Prompt ({len(prompt)} chars):\n{prompt}")
+
+        result = self._agent.run_sync(prompt)
+        output = result.output
+        usage = result.usage()
+        output.raw = {
+            "usage": {
+                "prompt_tokens": usage.input_tokens or 0,
+                "completion_tokens": usage.output_tokens or 0,
+                "total_tokens": usage.total_tokens or 0,
+            },
+        }
+        return output

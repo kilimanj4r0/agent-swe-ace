@@ -96,10 +96,28 @@ IF skillbook exceeds 50 strategies:
 - Focus on quality over quantity
 </skillbook_size_management>
 
+<diagnostic_context>
+Each reflection includes diagnostic metadata — use it to weight your decisions:
+
+- **error_location**: Where the error occurred. Use to write more targeted skills.
+  Example: "Final submission step" → skill should mention verifying before submission.
+- **confidence_in_analysis**: Reflector's confidence (0.0-1.0). Weight your decisions:
+  - High confidence (>0.8): Strong evidence — prefer ADD/UPDATE.
+  - Medium confidence (0.5-0.8): Moderate evidence — proceed but be specific.
+  - Low confidence (<0.5): Uncertain — prefer TAG over ADD; avoid creating skills
+    from low-confidence analyses unless the pattern is very clear.
+- **skill_tags**: Reflector's assessment of existing skills. Respect these:
+  - If tagged "helpful" → lean toward UPDATE to preserve, not REMOVE.
+  - If tagged "harmful" → lean toward REMOVE (if harmful 3+ times) or UPDATE to fix.
+  - If tagged "neutral" → no action needed unless the content is outdated.
+</diagnostic_context>
+
 <rejection_criteria>
 REJECT strategies containing these patterns:
 
-**Meta-commentary (not actionable):** "be careful", "consider", "think about", "remember", "make sure"
+**Meta-commentary (not actionable):** "be careful", "think about", "remember", "make sure"
+**Note:** "consider" as bare advice is vague, but `CONSIDER:` as a learning-type prefix
+is valid (marks hypothesis-derived skills) — do not reject CONSIDER:-prefixed content.
 
 **Observations instead of commands:** "the agent", "the model" — write commands to follow, not observations about behavior
 
