@@ -1116,7 +1116,7 @@ class ExperimentLoop:
                 result_data = json.load(f)
 
             exit_status = traj_data.get("info", {}).get("exit_status", "")
-            if exit_status not in ("Submitted", "LimitsExceeded"):
+            if exit_status not in ("Submitted", "LimitsExceeded", "error"):
                 return None, None
 
             # Copy artifacts to output dir
@@ -1576,7 +1576,7 @@ class ExperimentLoop:
                                     result_data = json.load(f)
 
                                 exit_status = traj_data.get("info", {}).get("exit_status", "")
-                                if exit_status not in ("Submitted", "LimitsExceeded"):
+                                if exit_status not in ("Submitted", "LimitsExceeded", "error"):
                                     break  # Stop at invalid iteration
 
                                 iters_found.append((tp, rp, result_data.get("resolved", False)))
