@@ -1,10 +1,9 @@
-# prompts/outputs.py
 """Custom output models for SWE-bench optimized skillbook learning."""
 
-from typing import Any, Dict, List, Optional
+from typing import List
 
-from pydantic import BaseModel, ConfigDict, Field
-from ace.core.outputs import ExtractedLearning
+from pydantic import BaseModel, Field, model_validator
+from ace.core.outputs import ExtractedLearning, ReflectorOutput
 
 
 class AntiPattern(BaseModel):
@@ -13,7 +12,7 @@ class AntiPattern(BaseModel):
     pattern: str = Field(..., description="The anti-pattern behavior")
     why_harmful: str = Field(..., description="Why this pattern causes problems")
     atomicity_score: float = Field(
-        default=0.0, ge=0.0, le=1.0, description="How atomic/focused this learning is"
+        default=0.8, ge=0.0, le=1.0, description="How atomic/focused this learning is"
     )
     evidence: str = Field(
         default="", description="Evidence from execution showing this pattern"
@@ -25,7 +24,7 @@ class Discovery(BaseModel):
 
     finding: str = Field(..., description="The verified factual discovery")
     atomicity_score: float = Field(
-        default=0.0, ge=0.0, le=1.0, description="How atomic/focused this learning is"
+        default=0.8, ge=0.0, le=1.0, description="How atomic/focused this learning is"
     )
     evidence: str = Field(
         default="", description="How this was verified"
@@ -40,7 +39,7 @@ class UnvalidatedHypothesis(BaseModel):
         ..., description="What test/verification was missing"
     )
     atomicity_score: float = Field(
-        default=0.0, ge=0.0, le=1.0, description="How atomic/focused this learning is"
+        default=0.8, ge=0.0, le=1.0, description="How atomic/focused this learning is"
     )
     evidence: str = Field(
         default="", description="Agent's reasoning without proof"
@@ -62,71 +61,40 @@ class SkillTag(BaseModel):
     )
 
 
-class SWEReflectorOutput(BaseModel):
-    """Output from the SWE-optimized Reflector role.
+class SWEReflectorOutput(ReflectorOutput):
+    """SWE-optimized ReflectorOutput with typed learning categories.
 
-    Key difference from default ReflectorOutput:
-    - Separates anti_patterns, discoveries, and unvalidated_hypotheses
-    - Anti-patterns are warnings about what NOT to do
-    - Discoveries are verified facts (file locations, error messages)
-    - Unvalidated hypotheses are claims that need verification
+    Extends ReflectorOutput to maintain isinstance() compatibility
+    while adding SWE-specific fields.
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    reasoning: str = Field(..., description="Overall reasoning about the outcome")
-    error_identification: str = Field(
-        default="", description="Description of what went wrong (if applicable)"
-    )
+    # SWE-specific additional fields
     error_location: str = Field(
         default="N/A", description="Exact step where error occurred or 'N/A'"
     )
-    root_cause_analysis: str = Field(
-        default="", description="Analysis of why errors occurred"
-    )
-    correct_approach: str = Field(
-        ..., description="What the correct approach should be"
+    confidence_in_analysis: float = Field(
+        default=0.5, ge=0.0, le=1.0, description="Confidence in the analysis"
     )
 
-    # NEW: Separate learning types instead of generic extracted_learnings
+    # Typed learning categories
     anti_patterns: List[AntiPattern] = Field(
         default_factory=list,
         description="Behaviors that led to failure - WARNINGS for future agents"
     )
     discoveries: List[Discovery] = Field(
         default_factory=list,
-        description="Verified factual findings (file locations, error messages, etc)"
+        description="Verified factual findings"
     )
     unvalidated_hypotheses: List[UnvalidatedHypothesis] = Field(
         default_factory=list,
         description="Agent claims that were NOT tested/verified"
     )
 
-    key_insight: str = Field(
-        ..., description="The main lesson learned from this iteration"
-    )
-    confidence_in_analysis: float = Field(
-        default=0.5, ge=0.0, le=1.0, description="Confidence in the analysis"
-    )
-    skill_tags: List[SkillTag] = Field(
-        default_factory=list, description="Classifications of strategy effectiveness"
-    )
-    raw: Dict[str, Any] = Field(
-        default_factory=dict, description="Raw LLM response data"
-    )
-
-    # Compatibility: Provide extracted_learnings for SkillManager
-    @property
-    def extracted_learnings(self) -> List["ExtractedLearning"]:
-        """Convert to ExtractedLearning format for compatibility with SkillManager.
-
-        SkillManager expects ReflectorOutput with extracted_learnings,
-        so we convert anti_patterns, discoveries, and unvalidated_hypotheses
-        to that format.
-        """
+    @model_validator(mode="after")
+    def _compute_extracted_learnings(self) -> "SWEReflectorOutput":
+        """Compute extracted_learnings from typed categories after validation."""
+        # Use object.__setattr__ to bypass Pydantic's frozen model protection
         learnings = []
-
-        # Convert anti-patterns
         for ap in self.anti_patterns:
             learnings.append(ExtractedLearning(
                 learning=f"[ANTI-PATTERN] {ap.pattern}",
@@ -134,16 +102,12 @@ class SWEReflectorOutput(BaseModel):
                 evidence=ap.evidence,
                 justification=ap.why_harmful,
             ))
-
-        # Convert discoveries
         for d in self.discoveries:
             learnings.append(ExtractedLearning(
                 learning=f"[DISCOVERY] {d.finding}",
                 atomicity_score=d.atomicity_score,
                 evidence=d.evidence,
             ))
-
-        # Convert unvalidated hypotheses
         for uh in self.unvalidated_hypotheses:
             learnings.append(ExtractedLearning(
                 learning=f"[HYPOTHESIS] {uh.hypothesis}",
@@ -151,14 +115,12 @@ class SWEReflectorOutput(BaseModel):
                 evidence=uh.evidence,
                 justification=uh.why_unvalidated,
             ))
+        object.__setattr__(self, "extracted_learnings", learnings)
+        return self
 
-        return learnings
-
-    # Compatibility: Convert to list of dicts for code expecting extracted_learnings
-    def get_all_learnings_as_dicts(self) -> List[Dict[str, Any]]:
+    def get_all_learnings_as_dicts(self) -> list:
         """Get all learnings as a flat list for compatibility."""
         learnings = []
-
         for ap in self.anti_patterns:
             learnings.append({
                 "type": "anti_pattern",
@@ -167,7 +129,6 @@ class SWEReflectorOutput(BaseModel):
                 "atomicity_score": ap.atomicity_score,
                 "evidence": ap.evidence,
             })
-
         for d in self.discoveries:
             learnings.append({
                 "type": "discovery",
@@ -175,7 +136,6 @@ class SWEReflectorOutput(BaseModel):
                 "atomicity_score": d.atomicity_score,
                 "evidence": d.evidence,
             })
-
         for uh in self.unvalidated_hypotheses:
             learnings.append({
                 "type": "unvalidated_hypothesis",
@@ -184,5 +144,4 @@ class SWEReflectorOutput(BaseModel):
                 "atomicity_score": uh.atomicity_score,
                 "evidence": uh.evidence,
             })
-
         return learnings
