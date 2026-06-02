@@ -124,6 +124,7 @@ def save_skillbook(
             "justification": getattr(skill, "justification", None),
             "evidence": getattr(skill, "evidence", None),
             "content": getattr(skill, "content", ""),
+            "sources": getattr(skill, "sources", []),
         }
 
     with open(output_path, "w") as f:

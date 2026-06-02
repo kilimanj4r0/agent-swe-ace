@@ -3,23 +3,19 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
-
 from ace import Reflector
-from ace.core.outputs import AgentOutput
-from pydantic_ai import Agent as PydanticAgent
+from loguru import logger
 
-from ace.providers.pydantic_ai import resolve_model
-
+from .model_utils import make_pydantic_agent
 from .reflector_prompt import CUSTOM_REFLECTOR_PROMPT
 from .outputs import SWEReflectorOutput
 
 
 class SWEReflector(Reflector):
-    """SWE-optimized Reflector that extracts anti-patterns from failures.
+    """SWE-optimized Reflector with resolved-dependent prompt framing.
 
-    Subclasses ace.Reflector to use CUSTOM_REFLECTOR_PROMPT and
-    SWEReflectorOutput with anti_patterns, discoveries, unvalidated_hypotheses.
+    Overrides reflect() to inject {outcome}/{outcome_instructions} based
+    on whether the trajectory succeeded or failed.
 
     Args:
         model: Model identifier string (e.g. "zai/glm-4.5-flash").
@@ -27,16 +23,7 @@ class SWEReflector(Reflector):
         max_retries: Maximum retries for structured output validation.
         api_base: Base URL for the LLM endpoint (required for hosted_vllm).
         api_key: API key for the LLM endpoint.
-
-    Example::
-
-        reflector = SWEReflector("zai/glm-4.5-flash")
-        reflection = reflector.reflect(
-            question="Fix the bug...",
-            agent_output=agent_output,
-            skillbook=skillbook,
-            feedback="Tests failed: ...",
-        )
+        model_settings: Optional dict for ModelSettings (temperature, max_tokens).
     """
 
     def __init__(
@@ -47,31 +34,81 @@ class SWEReflector(Reflector):
         max_retries: int = 3,
         api_base: str | None = None,
         api_key: str | None = None,
+        model_settings: dict | None = None,
     ) -> None:
-        # Bypass Reflector.__init__ — set up PydanticAgent directly
-        # with our custom output type and prompt
         self._prompt_template = prompt_template
-
-        if api_base:
-            from openai import AsyncOpenAI
-            from pydantic_ai.models.openai import OpenAIChatModel
-            from pydantic_ai.providers.litellm import LiteLLMProvider
-            openai_client = AsyncOpenAI(
-                base_url=api_base,
-                api_key=api_key or "not-needed",
-                max_retries=int(__import__("os").getenv("ACE_LEARN_MAX_RETRIES", "50")),
-            )
-            provider = LiteLLMProvider(openai_client=openai_client)
-            # Strip LiteLLM provider prefix (e.g. "hosted_vllm/") since
-            # OpenAIChatModel sends the model name directly to the endpoint
-            model_name = model.split("/", 1)[1] if "/" in model else model
-            resolved_model = OpenAIChatModel(model_name=model_name, provider=provider)
-        else:
-            resolved_model = resolve_model(model)
-
-        self._agent = PydanticAgent(
-            resolved_model,
-            output_type=SWEReflectorOutput,
-            retries=max_retries,
-            defer_model_check=True,
+        self._agent = make_pydantic_agent(
+            model,
+            SWEReflectorOutput,
+            api_base=api_base,
+            api_key=api_key,
+            max_retries=max_retries,
+            model_settings=model_settings,
         )
+
+    def reflect(
+        self,
+        *,
+        question,
+        agent_output,
+        skillbook,
+        ground_truth=None,
+        feedback=None,
+        resolved=False,
+        **kwargs,
+    ):
+        """Reflect with resolved-dependent prompt framing."""
+        # Build outcome variables for the prompt
+        if resolved:
+            outcome = "SUCCESS — all tests passed, patch resolved the issue"
+            outcome_instructions = (
+                "The agent SUCCEEDED. Focus your analysis on:\n"
+                "- What strategies and approaches worked well\n"
+                "- Reusable patterns that led to the correct solution\n"
+                "- Discoveries about the codebase that were verified\n"
+                "- Tag cited skills as 'helpful' where applicable\n"
+                "Still extract any anti-patterns you notice, but prioritize positive learnings."
+            )
+        else:
+            outcome = "FAILURE — tests did not pass, patch did not resolve the issue"
+            outcome_instructions = (
+                "The agent FAILED. Focus your analysis on:\n"
+                "- Anti-patterns and behaviors that led to failure\n"
+                "- False assumptions and false confidence markers\n"
+                "- What the agent did WRONG, not what it claims to know\n"
+                "- NEVER extract 'the solution is...' or 'the fix requires...' from failures\n"
+                "- Tag cited skills as 'harmful' where they led the agent astray"
+            )
+
+        # Format the prompt template
+        from ace.implementations.helpers import format_optional, make_skillbook_excerpt
+        skillbook_excerpt = make_skillbook_excerpt(skillbook, agent_output.skill_ids)
+        if skillbook_excerpt:
+            skillbook_context = f"Strategies Applied:\n{skillbook_excerpt}"
+        else:
+            skillbook_context = "(No strategies cited - outcome-based learning)"
+
+        prompt = self._prompt_template.format(
+            question=question,
+            reasoning=agent_output.reasoning,
+            prediction=agent_output.final_answer,
+            ground_truth=format_optional(ground_truth),
+            feedback=format_optional(feedback),
+            skillbook_excerpt=skillbook_context,
+            outcome=outcome,
+            outcome_instructions=outcome_instructions,
+        )
+
+        logger.debug(f"[Reflector] Prompt ({len(prompt)} chars):\n{prompt}")
+
+        result = self._agent.run_sync(prompt)
+        output = result.output
+        usage = result.usage()
+        output.raw = {
+            "usage": {
+                "prompt_tokens": usage.input_tokens or 0,
+                "completion_tokens": usage.output_tokens or 0,
+                "total_tokens": usage.total_tokens or 0,
+            },
+        }
+        return output

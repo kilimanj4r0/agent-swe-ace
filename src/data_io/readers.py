@@ -88,6 +88,7 @@ def load_skillbook(source: Optional[Union[Path, str, Dict]]) -> "Skillbook":
             content=skill_data.get("content", ""),
             justification=skill_data.get("justification"),
             evidence=skill_data.get("evidence"),
+            sources=skill_data.get("sources", []),
         )
         skillbook._skills[skill_id] = skill
 

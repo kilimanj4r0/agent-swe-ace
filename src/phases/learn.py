@@ -160,7 +160,9 @@ class LearnPhase:
         patch: str,
         iteration: int = 0,
         feedback: Optional[str] = None,
+        ground_truth: Optional[str] = None,
         phase: Optional[str] = None,
+        resolved: bool = False,
     ) -> LearnResult:
         """
         Learn from trajectory and update skillbook.
@@ -172,6 +174,9 @@ class LearnPhase:
             patch: Generated patch (for context)
             iteration: Current iteration number
             feedback: Optional evaluation feedback
+            ground_truth: Optional ground truth (test lists)
+            phase: Phase identifier (train/val_baseline/val)
+            resolved: Whether the patch resolved the issue
 
         Returns:
             LearnResult with updated skillbook info
@@ -196,11 +201,26 @@ class LearnPhase:
 
         # Reflect on trajectory
         try:
+            if feedback is None:
+                feedback = (
+                    "All tests passed. Patch resolved the issue successfully."
+                    if resolved
+                    else "Patch did not resolve the issue. Tests failed."
+                )
+
+            logger.debug(
+                f"[Learn] Reflector inputs for {instance_id} (iter {iteration}): "
+                f"resolved={resolved}, feedback={'present' if feedback else 'None'}, "
+                f"ground_truth={ground_truth[:200] if ground_truth else 'None'}..."
+            )
+
             reflection = self.reflector.reflect(
                 question=question,
                 agent_output=agent_output,
                 skillbook=skillbook,
                 feedback=feedback,
+                ground_truth=ground_truth,
+                resolved=resolved,
             )
             logger.debug(f"[Learn] Reflection: {reflection}")
         except Exception as e:
@@ -216,7 +236,10 @@ class LearnPhase:
         try:
             # Build question context and progress for SkillManager
             question_context = f"Instance: {instance_id}\nRepo: {instance.get('repo', 'unknown')}\nProblem: {question[:500]}..."
-            progress = f"Iteration {iteration}: Patch submitted but tests failed."
+            if resolved:
+                progress = f"Iteration {iteration}: Patch resolved the issue successfully."
+            else:
+                progress = f"Iteration {iteration}: Patch submitted but tests failed."
 
             update_result = self.skill_manager.update_skills(
                 reflections=(reflection,),
@@ -227,6 +250,16 @@ class LearnPhase:
 
             # Apply the update batch to the skillbook (THIS WAS MISSING!)
             if hasattr(update_result, 'update') and update_result.update:
+                # Stamp provenance metadata onto each operation so skills
+                # track which instance/repo they originated from.
+                provenance = {
+                    "instance_id": instance_id,
+                    "repo": instance.get("repo", "unknown"),
+                }
+                for op in update_result.update.operations:
+                    if op.type.upper() in ("ADD", "UPDATE"):
+                        op.insight_source = provenance
+
                 skillbook.apply_update(update_result.update)
 
                 # Count operations from the UpdateBatch
