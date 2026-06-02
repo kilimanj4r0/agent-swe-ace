@@ -1407,11 +1407,30 @@ def run_full_experiment(config: dict, args):
             baseline_run_dir = Path(config_baseline)
 
     train_trajs_dir = config.get("experiment", {}).get("train_trajs_dir")
+    val_pass_k = config.get("experiment", {}).get("val_pass_k", 1)
 
-    loop.run(train_instances, config,
-             val_instances=val_instances if val_instances else None,
-             baseline_run_dir=baseline_run_dir,
-             train_trajs_dir=train_trajs_dir)
+    # Validation-only mode: skip training, load skillbook from source run
+    skillbook_source_dir = config.get("experiment", {}).get("skillbook_source_dir")
+
+    if skillbook_source_dir:
+        from data_io.readers import load_skillbook
+        sb_path = Path(skillbook_source_dir) / benchmark / "skillbooks" / "final_skillbook.json"
+        preloaded_skillbook = load_skillbook(sb_path)
+        logger.info(
+            f"Validation-only mode: loaded {len(preloaded_skillbook.skills())} skills "
+            f"from {sb_path}, val_pass_k={val_pass_k}"
+        )
+        loop.run([], config,
+                 val_instances=val_instances if val_instances else None,
+                 baseline_run_dir=baseline_run_dir,
+                 preloaded_skillbook=preloaded_skillbook,
+                 val_pass_k=val_pass_k)
+    else:
+        loop.run(train_instances, config,
+                 val_instances=val_instances if val_instances else None,
+                 baseline_run_dir=baseline_run_dir,
+                 train_trajs_dir=train_trajs_dir,
+                 val_pass_k=val_pass_k)
 
 
 def run_predict_cmd(config: dict, args):
