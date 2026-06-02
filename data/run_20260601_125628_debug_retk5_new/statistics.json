@@ -1,0 +1,104 @@
+{
+  "status": "completed",
+  "mode": "iterate_repos",
+  "run_name": "val-retrieval-distil-repos-split",
+  "repos": [
+    "astropy/astropy",
+    "scikit-learn/scikit-learn",
+    "matplotlib/matplotlib",
+    "sphinx-doc/sphinx",
+    "pydata/xarray",
+    "pytest-dev/pytest",
+    "django/django",
+    "sympy/sympy"
+  ],
+  "start_time": "2026-06-01T12:56:40.323949",
+  "end_time": "2026-06-01T15:50:24.228786",
+  "total_instances": 0,
+  "processed_instances": 0,
+  "resolved_count": 0,
+  "resolution_rate": 0.0,
+  "train_phase": {
+    "total_instances": 0,
+    "resolved_count": 0,
+    "resolution_rate": 0.0,
+    "total_skills_learned": 1042
+  },
+  "val_baseline_phase": {
+    "total_instances": 90,
+    "resolved_count": 18,
+    "resolution_rate": 0.2
+  },
+  "val_skillbook_phase": {
+    "total_instances": 90,
+    "resolved_count": 13,
+    "resolution_rate": 0.14444444444444443
+  },
+  "summary": {
+    "total_repos": 8,
+    "completed_repos": 8,
+    "train_resolution_rate": 0.0,
+    "val_baseline_resolution_rate": 0.2,
+    "val_skillbook_resolution_rate": 0.14444444444444443,
+    "skillbook_improvement": "-0.056",
+    "skillbook_improvement_pct": "-27.8%",
+    "per_repo": {
+      "astropy/astropy": {
+        "train_resolved": 0,
+        "train_total": 0,
+        "val_baseline_rate": 0.25,
+        "val_skillbook_rate": 0.25,
+        "improvement": "+0.000"
+      },
+      "scikit-learn/scikit-learn": {
+        "train_resolved": 0,
+        "train_total": 0,
+        "val_baseline_rate": 0.4,
+        "val_skillbook_rate": 0.4,
+        "improvement": "+0.000"
+      },
+      "matplotlib/matplotlib": {
+        "train_resolved": 0,
+        "train_total": 0,
+        "val_baseline_rate": 0.3333333333333333,
+        "val_skillbook_rate": 0.0,
+        "improvement": "-0.333"
+      },
+      "sphinx-doc/sphinx": {
+        "train_resolved": 0,
+        "train_total": 0,
+        "val_baseline_rate": 0.0,
+        "val_skillbook_rate": 0.0,
+        "improvement": "+0.000"
+      },
+      "pydata/xarray": {
+        "train_resolved": 0,
+        "train_total": 0,
+        "val_baseline_rate": 0.0,
+        "val_skillbook_rate": 0.0,
+        "improvement": "+0.000"
+      },
+      "pytest-dev/pytest": {
+        "train_resolved": 0,
+        "train_total": 0,
+        "val_baseline_rate": 0.3333333333333333,
+        "val_skillbook_rate": 0.3333333333333333,
+        "improvement": "+0.000"
+      },
+      "django/django": {
+        "train_resolved": 0,
+        "train_total": 0,
+        "val_baseline_rate": 0.1956521739130435,
+        "val_skillbook_rate": 0.17391304347826086,
+        "improvement": "-0.022"
+      },
+      "sympy/sympy": {
+        "train_resolved": 0,
+        "train_total": 0,
+        "val_baseline_rate": 0.21428571428571427,
+        "val_skillbook_rate": 0.07142857142857142,
+        "improvement": "-0.143"
+      }
+    }
+  }
+}
