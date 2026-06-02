@@ -59,7 +59,7 @@ def setup_logging(run_dir: Path | None = None, log_level: str = "INFO") -> None:
         log_file = run_dir / "experiment.log"
         logger.add(
             log_file,
-            level="DEBUG",
+            level=log_level,
             format="{time:YYYY-MM-DD HH:mm:ss} | {level:8} | {extra[instance_tag]}{name}:{line} | {message}",
             rotation="10 MB",
             filter=_inject_instance_tag,
