@@ -65,7 +65,7 @@ def _extract_exit_status(path: Path) -> str | None:
     return "Unknown"
 
 
-def _count_exit_statuses(run_dir: Path) -> dict[str, dict[int, int]]:
+def _count_exit_statuses(run_dir: Path, instance_filter: set[str] | None = None) -> dict[str, dict[int, int]]:
     """Count exit statuses per iteration from trajectory files.
 
     Returns {exit_status: {iteration: count, ...}, ...}.
@@ -91,6 +91,8 @@ def _count_exit_statuses(run_dir: Path) -> dict[str, dict[int, int]]:
         scan_dirs = [d for d in trajs_dir.iterdir() if d.is_dir()]
 
     for inst_dir in scan_dirs:
+        if instance_filter is not None and inst_dir.name not in instance_filter:
+            continue
         for fname in inst_dir.iterdir():
             if not fname.name.endswith(".json") or not fname.name.startswith("iter_"):
                 continue
@@ -229,6 +231,12 @@ def load_run(run_dir: Path, iteration: int | None = None, phase: str | None = No
     # Exit status counts per iteration
     exit_statuses = _count_exit_statuses(run_dir)
 
+    # Retrieval info
+    retrieval = stats.get("retrieval", {})
+    if not retrieval:
+        retrieval_cfg = exp.get("skillbook", {}).get("retrieval", {})
+        retrieval = {"enabled": retrieval_cfg.get("enabled", False), "top_k": retrieval_cfg.get("top_k")}
+
     # Step limit from agent config
     step_limit = config.get("agent", {}).get("step_limit", "N/A")
 
@@ -270,6 +278,8 @@ def load_run(run_dir: Path, iteration: int | None = None, phase: str | None = No
         "train_trajs_dir": train_trajs_dir,
         "step_limit": step_limit,
         "exit_statuses": exit_statuses,
+        "retrieval_enabled": retrieval.get("enabled", False),
+        "retrieval_top_k": retrieval.get("top_k"),
     }
 
     # --phase override: replace top-level data with specific phase
@@ -365,8 +375,12 @@ def _load_iteration_data(run_dir: Path, iteration: int) -> dict | None:
 
 def load_runs_from_args(run_paths: list[str], iteration: int | None = None, phase: str | None = None) -> list[dict]:
     runs = []
+    seen = set()
     for p in run_paths:
-        path = Path(p)
+        path = Path(p).resolve()
+        if str(path) in seen:
+            continue
+        seen.add(str(path))
         if not path.exists():
             print(f"Path not found: {path}", file=sys.stderr)
             sys.exit(1)
@@ -433,7 +447,7 @@ def _fmt_phase(pd: dict, distil: bool = False) -> str:
                 short_label = k_label.replace("pass@", "p@")
                 parts.append(f"{short_label}:{info['count']}")
         if parts:
-            return f"{base} [{', '.join(parts)}]"
+            return f"{base}\n[{', '.join(parts)}]"
     return base
 
 
@@ -442,6 +456,14 @@ def _fmt_delta_pp(delta) -> str:
     if delta is None or delta == "N/A":
         return "-"
     return f"{float(delta) * 100:+.1f}pp"
+
+
+def _fmt_learn(r: dict) -> str:
+    """Format Learn column: phase name + retrieval info on next line."""
+    learn = r["learn_phase"]
+    if r.get("retrieval_enabled") and r.get("retrieval_top_k") is not None:
+        learn += f"\nret k={r['retrieval_top_k']}"
+    return learn
 
 
 def _print_table_rows(headers: list[str], rows: list[dict]):
@@ -556,108 +578,158 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                 "LLM": llm_col(r),
                 "Att": str(r["max_attempts"]),
                 "Steps": str(r["step_limit"]),
-                "Learn": r["learn_phase"],
+                "Learn": _fmt_learn(r),
                 "SB Assist": _format_sb_assist(r),
                 "Traj Exit Status": _fmt_exit_statuses(r["exit_statuses"]),
             })
         _print_table_rows(flat_headers, flat_rows)
         print()
 
-    # --- Split runs table ---
+    # --- Split runs: separate per_repo and global tables ---
     if split_runs:
-        if flat_runs:
-            print("Split-mode runs (per_repo/global):")
-        split_headers = ["ID", "Dataset", "Repo", "Train", "ValBL", "ValSB", "SB Δ", "New/Lost", "LLM", "Learn"]
-        split_rows = []
-        # Track per-repo rows for details printing
-        per_repo_details: list[tuple[str, dict]] = []  # (display_tag, per_repo_split_data)
+        # per_repo = iterate_repos OR single-repo split (filter_repos set)
+        # global = no filter_repos, all repos together
+        per_repo_runs = [r for r in split_runs if r["is_iterate_repos"] or r.get("filter_repos")]
+        global_runs = [r for r in split_runs if not r["is_iterate_repos"] and not r.get("filter_repos")]
+        per_repo_headers = ["ID", "Dataset", "Repo", "Train", "ValBL", "ValSB", "SB Δ", "New/Lost", "LLM", "Learn", "Traj Exit Status"]
+        global_headers = ["ID", "Dataset", "Train", "ValBL", "ValSB", "SB Δ", "New/Lost", "LLM", "Learn", "Traj Exit Status"]
+        all_details: list[tuple[str, dict]] = []
 
-        for r in split_runs:
-            parent_tag = run_id_map[r["run_dir"]]
-
-            if r["is_iterate_repos"] and r.get("repos"):
-                # Expand iterate_repos into per-repo rows
+        # --- Per-repo table ---
+        if per_repo_runs:
+            print("Split-mode runs (per_repo):")
+            per_repo_rows = []
+            for r in per_repo_runs:
+                parent_tag = run_id_map[r["run_dir"]]
                 full_path = run_dir_paths.get(r["run_dir"])
-                for repo in r["repos"]:
-                    per_repo_data = None
-                    if full_path:
-                        per_repo_data = _load_per_repo_stats(full_path, repo)
+                agg = r["split"]
+                is_distil = bool(r.get("train_trajs_dir"))
 
-                    if per_repo_data:
-                        train_phase_raw = per_repo_data.get("train_phase", {})
-                        is_distil = bool(train_phase_raw.get("teacher_trajs_dir")) or bool(r.get("train_trajs_dir"))
-                        s = {
-                            "train": _extract_phase_data(per_repo_data, "train_phase"),
-                            "val_baseline": _extract_phase_data(per_repo_data, "val_baseline_phase"),
-                            "val_skillbook": _extract_phase_data(per_repo_data, "val_skillbook_phase"),
-                            "skillbook_improvement": per_repo_data.get("summary", {}).get("skillbook_improvement", "N/A"),
-                            "skillbook_improvement_pct": per_repo_data.get("summary", {}).get("skillbook_improvement_pct", "N/A"),
-                            "newly_resolved": per_repo_data.get("summary", {}).get("newly_resolved_by_skillbook", []),
-                            "lost": per_repo_data.get("summary", {}).get("lost_by_skillbook", []),
-                        }
-                    else:
-                        # Fallback: show placeholder
-                        is_distil = bool(r.get("train_trajs_dir"))
-                        s = {
-                            "train": {"resolved": 0, "total": 0, "rate": 0.0, "resolved_ids": [], "unresolved_ids": []},
-                            "val_baseline": {"resolved": 0, "total": 0, "rate": 0.0, "resolved_ids": [], "unresolved_ids": []},
-                            "val_skillbook": {"resolved": 0, "total": 0, "rate": 0.0, "resolved_ids": [], "unresolved_ids": []},
-                            "skillbook_improvement": "N/A",
-                            "newly_resolved": [],
-                            "lost": [],
-                        }
+                if r["is_iterate_repos"] and r.get("repos"):
+                    # Aggregate row (from top-level statistics)
+                    n_repos = len(r["repos"])
+                    per_repo_rows.append({
+                        "ID": parent_tag,
+                        "Dataset": _shorten_dataset(r["benchmark"]),
+                        "Repo": f"{n_repos} repos",
+                        "Train": _fmt_phase(agg["train"], distil=is_distil),
+                        "ValBL": _fmt_phase(agg["val_baseline"]),
+                        "ValSB": _fmt_phase(agg["val_skillbook"]),
+                        "SB Δ": _fmt_delta_pp(agg["skillbook_improvement"]),
+                        "New/Lost": f"{len(agg['newly_resolved'])}/{len(agg['lost'])}",
+                        "LLM": llm_col(r),
+                        "Learn": _fmt_learn(r),
+                        "Traj Exit Status": _fmt_exit_statuses(r["exit_statuses"]),
+                    })
+                    all_details.append((parent_tag, agg))
 
-                    split_rows.append({
+                    # Per-repo detail rows (no ID)
+                    for repo in r["repos"]:
+                        per_repo_data = None
+                        if full_path:
+                            per_repo_data = _load_per_repo_stats(full_path, repo)
+
+                        if per_repo_data:
+                            train_phase_raw = per_repo_data.get("train_phase", {})
+                            repo_distil = bool(train_phase_raw.get("teacher_trajs_dir")) or is_distil
+                            s = {
+                                "train": _extract_phase_data(per_repo_data, "train_phase"),
+                                "val_baseline": _extract_phase_data(per_repo_data, "val_baseline_phase"),
+                                "val_skillbook": _extract_phase_data(per_repo_data, "val_skillbook_phase"),
+                                "skillbook_improvement": per_repo_data.get("summary", {}).get("skillbook_improvement", "N/A"),
+                                "skillbook_improvement_pct": per_repo_data.get("summary", {}).get("skillbook_improvement_pct", "N/A"),
+                                "newly_resolved": per_repo_data.get("summary", {}).get("newly_resolved_by_skillbook", []),
+                                "lost": per_repo_data.get("summary", {}).get("lost_by_skillbook", []),
+                            }
+
+                            # Compute per-repo exit status from trajectory files
+                            repo_ids: set[str] = set()
+                            for pk in ["train_phase", "val_baseline_phase", "val_skillbook_phase"]:
+                                pd = per_repo_data.get(pk, {})
+                                repo_ids.update(pd.get("resolved_ids", []))
+                                repo_ids.update(pd.get("unresolved_ids", []))
+                            repo_exit_statuses = _count_exit_statuses(full_path, instance_filter=repo_ids) if full_path and repo_ids else {}
+                        else:
+                            repo_distil = is_distil
+                            s = {
+                                "train": {"resolved": 0, "total": 0, "rate": 0.0, "resolved_ids": [], "unresolved_ids": []},
+                                "val_baseline": {"resolved": 0, "total": 0, "rate": 0.0, "resolved_ids": [], "unresolved_ids": []},
+                                "val_skillbook": {"resolved": 0, "total": 0, "rate": 0.0, "resolved_ids": [], "unresolved_ids": []},
+                                "skillbook_improvement": "N/A",
+                                "newly_resolved": [],
+                                "lost": [],
+                            }
+                            repo_exit_statuses = {}
+
+                        per_repo_rows.append({
+                            "ID": "",
+                            "Dataset": "",
+                            "Repo": repo,
+                            "Train": _fmt_phase(s["train"], distil=repo_distil),
+                            "ValBL": _fmt_phase(s["val_baseline"]),
+                            "ValSB": _fmt_phase(s["val_skillbook"]),
+                            "SB Δ": _fmt_delta_pp(s["skillbook_improvement"]),
+                            "New/Lost": f"{len(s['newly_resolved'])}/{len(s['lost'])}",
+                            "LLM": "",
+                            "Learn": "",
+                            "Traj Exit Status": _fmt_exit_statuses(repo_exit_statuses),
+                        })
+                        all_details.append(("", s))
+                else:
+                    # Single-repo split run (filter_repos set but not iterate_repos)
+                    repo = r["filter_repos"][0] if r.get("filter_repos") else "all"
+                    per_repo_rows.append({
                         "ID": parent_tag,
                         "Dataset": _shorten_dataset(r["benchmark"]),
                         "Repo": repo,
-                        "Train": _fmt_phase(s["train"], distil=is_distil),
-                        "ValBL": _fmt_phase(s["val_baseline"]),
-                        "ValSB": _fmt_phase(s["val_skillbook"]),
-                        "SB Δ": _fmt_delta_pp(s["skillbook_improvement"]),
-                        "New/Lost": f"{len(s['newly_resolved'])}/{len(s['lost'])}",
+                        "Train": _fmt_phase(agg["train"], distil=is_distil),
+                        "ValBL": _fmt_phase(agg["val_baseline"]),
+                        "ValSB": _fmt_phase(agg["val_skillbook"]),
+                        "SB Δ": _fmt_delta_pp(agg["skillbook_improvement"]),
+                        "New/Lost": f"{len(agg['newly_resolved'])}/{len(agg['lost'])}",
                         "LLM": llm_col(r),
-                        "Learn": r["learn_phase"],
+                        "Learn": _fmt_learn(r),
+                        "Traj Exit Status": _fmt_exit_statuses(r["exit_statuses"]),
                     })
-                    per_repo_details.append((parent_tag, s))
-            else:
-                # Regular split run (single row)
+                    all_details.append((parent_tag, agg))
+
+            _print_table_rows(per_repo_headers, per_repo_rows)
+            print()
+
+        # --- Global table ---
+        if global_runs:
+            print("Split-mode runs (global):")
+            global_rows = []
+            for r in global_runs:
+                parent_tag = run_id_map[r["run_dir"]]
                 s = r["split"]
-                repos = r["filter_repos"]
-                if repos:
-                    repo_str = ",".join(repos)
-                elif (r["skillbook_mode"] == "global"
-                      and not r["is_iterate_repos"]):
-                    repo_str = "global"
-                else:
-                    repo_str = "all"
                 is_distil = bool(r.get("train_trajs_dir"))
-                split_rows.append({
+                global_rows.append({
                     "ID": parent_tag,
                     "Dataset": _shorten_dataset(r["benchmark"]),
-                    "Repo": repo_str,
                     "Train": _fmt_phase(s["train"], distil=is_distil),
                     "ValBL": _fmt_phase(s["val_baseline"]),
                     "ValSB": _fmt_phase(s["val_skillbook"]),
                     "SB Δ": _fmt_delta_pp(s["skillbook_improvement"]),
                     "New/Lost": f"{len(s['newly_resolved'])}/{len(s['lost'])}",
                     "LLM": llm_col(r),
-                    "Learn": r["learn_phase"],
+                    "Learn": _fmt_learn(r),
+                    "Traj Exit Status": _fmt_exit_statuses(r["exit_statuses"]),
                 })
-                per_repo_details.append((parent_tag, s))
+                all_details.append((parent_tag, s))
 
-        _print_table_rows(split_headers, split_rows)
+            _print_table_rows(global_headers, global_rows)
+            print()
 
         # Print details for newly resolved / lost
-        has_details = any(s["newly_resolved"] or s["lost"] for _, s in per_repo_details)
+        has_details = any(s.get("newly_resolved") or s.get("lost") for _, s in all_details)
         if has_details:
-            print()
-            for tag, s in per_repo_details:
-                if s["newly_resolved"]:
+            for tag, s in all_details:
+                if s.get("newly_resolved"):
                     print(f"  {tag} newly resolved by skillbook: {s['newly_resolved']}")
-                if s["lost"]:
+                if s.get("lost"):
                     print(f"  {tag} lost by skillbook: {s['lost']}")
-        print()
+            print()
 
     # Print ID -> run dir legend with experiment name
     if iteration is not None:

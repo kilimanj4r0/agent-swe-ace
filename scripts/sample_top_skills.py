@@ -30,12 +30,11 @@ from openai import OpenAI
 from pydantic import BaseModel
 
 # ---------------------------------------------------------------------------
-# Prompts
+# Prompts — inlined
 # ---------------------------------------------------------------------------
 
-_FILTER_PROMPT = r"""\
+_FILTER_PROMPT = """\
 You are filtering skills for a SWE-bench issue resolution agent.
-Be aggressive — only keep skills that are plausibly useful for THIS specific issue.
 
 ## ISSUE
 Repository: {repo}
@@ -47,24 +46,20 @@ Description:
 {skills_block}
 
 ## TASK
-Decide which skills are potentially useful for resolving this issue.
+Only keep skills plausibly useful for THIS specific issue. Skills from other repos are fine if the technique transfers.
 
-DISCARD a skill if ANY of these apply:
-- It is specific to a *different* repository or project (not "{repo}") — e.g. advice about files, modules, or APIs that belong to another project.
-- Its topic (the technology, library, module, or concept it discusses) is unrelated to the issue.
-- It is too vague or generic to provide actionable guidance (e.g. "write good code", "use version control").
+- KEEP if the skill could help resolve this issue
+- KEEP if the skill is about the same library/module/API area as the issue
+- KEEP if the testing/debugging technique is relevant to the problem type
+- KEEP if the AVOID pattern is directly applicable to the issue's domain
+- KEEP if the skill is from another repo but describes a technique that applies here
 
-KEEP a skill only if it is:
-- About the same library/module/API area as the issue, OR
-- A specific testing or debugging technique relevant to the problem type, OR
-- An AVOID pattern or cautionary note directly applicable to the issue's domain.
+- DISCARD if the skill topic is unrelated to the issue.
+- DISCARD if the skill is too vague to be actionable.
 
-Aim to keep no more than ~50% of the candidate skills.
+Return the indices of all KEEP skills. Keep at most {max_keep} skills. If more than {max_keep} qualify, return only the {max_keep} most relevant."""
 
-Return the indices of all KEEP skills."""
-
-
-_RANK_PROMPT = r"""\
+_RANK_PROMPT = """\
 You are ranking skills for a SWE-bench issue resolution agent.
 
 ## ISSUE
@@ -148,6 +143,8 @@ def _call_structured(
 # ---------------------------------------------------------------------------
 
 _MAX_RETRIES = 3
+_CHUNK_SIZE = 200
+_FILTER_TARGET = 100
 
 
 def _filter_skills(
@@ -157,31 +154,66 @@ def _filter_skills(
     issue_title: str,
     issue_body: str,
     repo: str,
+    filter_prompt: str,
+    filter_target: int,
 ) -> list[tuple[str, dict]]:
-    """Stage 1: return only skills relevant to the issue."""
-    skills_block = "\n".join(
-        _format_skill(i, s) for i, (_, s) in enumerate(skill_items)
-    )
-    prompt = _FILTER_PROMPT.format(
-        repo=repo,
-        title=issue_title,
-        description=issue_body,
-        skills_block=skills_block,
-    )
+    """Stage 1: return only skills relevant to the issue, processed in chunks."""
+    import math
 
-    valid = set(range(len(skill_items)))
-    for attempt in range(1, _MAX_RETRIES + 1):
-        parsed = _call_structured(client, model, prompt, _RelevanceResponse)
-        indices = [i for i in parsed.relevant_indices if i in valid]  # type: ignore[attr-defined]
-        if indices:
-            return [skill_items[i] for i in indices]
+    kept: list[tuple[str, dict]] = []
+    total = len(skill_items)
+
+    for start in range(0, total, _CHUNK_SIZE):
+        chunk = skill_items[start : start + _CHUNK_SIZE]
+        chunk_num = start // _CHUNK_SIZE + 1
+        total_chunks = (total + _CHUNK_SIZE - 1) // _CHUNK_SIZE
+        max_keep = math.ceil(filter_target * len(chunk) / total)
+
+        skills_block = "\n".join(
+            _format_skill(i, s) for i, (_, s) in enumerate(chunk)
+        )
+        prompt = filter_prompt.format(
+            repo=repo,
+            title=issue_title,
+            description=issue_body,
+            skills_block=skills_block,
+            max_keep=max_keep,
+        )
+
         print(
-            f"Filter retry {attempt}/{_MAX_RETRIES}: got 0 valid indices",
+            f"Filter chunk {chunk_num}/{total_chunks}: {len(chunk)} candidates...",
             file=sys.stderr,
         )
 
-    # Fallback: return all
-    return list(skill_items)
+        valid = set(range(len(chunk)))
+        for attempt in range(1, _MAX_RETRIES + 1):
+            parsed = _call_structured(client, model, prompt, _RelevanceResponse)
+            if not parsed.relevant_indices:
+                # Model says nothing in this chunk is relevant — accept
+                print(f"  kept 0/{len(chunk)}", file=sys.stderr)
+                break
+            indices = [i for i in parsed.relevant_indices if i in valid]  # type: ignore[attr-defined]
+            if indices:
+                kept.extend(chunk[i] for i in indices)
+                print(
+                    f"  kept {len(indices)}/{len(chunk)}",
+                    file=sys.stderr,
+                )
+                break
+            # All returned indices were out of range — retry
+            print(
+                f"Filter retry {attempt}/{_MAX_RETRIES} (chunk {chunk_num}/{total_chunks}): all indices out of range",
+                file=sys.stderr,
+            )
+        else:
+            # Fallback: keep all skills in this chunk
+            kept.extend(chunk)
+            print(
+                f"  kept {len(chunk)}/{len(chunk)} (fallback)",
+                file=sys.stderr,
+            )
+
+    return kept
 
 
 def _rank_skills(
@@ -192,13 +224,14 @@ def _rank_skills(
     issue_body: str,
     repo: str,
     k: int,
+    rank_prompt: str,
 ) -> list[tuple[str, str]]:
     """Stage 2: pick top-k from filtered skills. Returns (skill_id, reason) pairs."""
     idx_to_id = {i: sid for i, (sid, _) in enumerate(skill_items)}
     skills_block = "\n".join(
         _format_skill(i, s) for i, (_, s) in enumerate(skill_items)
     )
-    prompt = _RANK_PROMPT.format(
+    prompt = rank_prompt.format(
         k=k,
         repo=repo,
         title=issue_title,
@@ -241,13 +274,19 @@ def retrieve_top_k(
     model: str = "Qwen/Qwen3-Coder-30B-A3B-Instruct",
     base_url: str = "http://localhost:8800/v1",
     api_key: str = "EMPTY",
+    filter_prompt: str = _FILTER_PROMPT,
+    rank_prompt: str = _RANK_PROMPT,
+    filter_target: int = _FILTER_TARGET,
 ) -> list[tuple[str, str]]:
     """Two-stage retrieval: filter irrelevant skills, then rank top-k."""
     client = OpenAI(base_url=base_url, api_key=api_key)
     skill_items = list(skills.items())
 
     # Stage 1 — filter
-    filtered = _filter_skills(client, model, skill_items, issue_title, issue_body, repo)
+    filtered = _filter_skills(
+        client, model, skill_items, issue_title, issue_body, repo,
+        filter_prompt, filter_target=min(filter_target, len(skill_items)),
+    )
     print(
         f"Filter: {len(skill_items)} -> {len(filtered)} skills",
         file=sys.stderr,
@@ -258,7 +297,7 @@ def retrieve_top_k(
         return [(sid, "") for sid, _ in filtered]
 
     # Stage 2 — rank
-    return _rank_skills(client, model, filtered, issue_title, issue_body, repo, k)
+    return _rank_skills(client, model, filtered, issue_title, issue_body, repo, k, rank_prompt)
 
 
 # ---------------------------------------------------------------------------
@@ -293,6 +332,8 @@ def main():
     ap.add_argument("--issue-title", help="Issue title (manual mode)")
     ap.add_argument("--issue-body", help="Issue description (manual mode)")
     ap.add_argument("-k", type=int, default=5, help="Number of skills to retrieve")
+    ap.add_argument("--filter-target", type=int, default=_FILTER_TARGET,
+                    help=f"Max skills to keep after filtering (default: {_FILTER_TARGET})")
     ap.add_argument("--model", default="Qwen/Qwen3-Coder-30B-A3B-Instruct")
     ap.add_argument("--base-url", default="http://localhost:8800/v1")
     ap.add_argument("--api-key", default="EMPTY")
@@ -321,6 +362,7 @@ def main():
         model=args.model,
         base_url=args.base_url,
         api_key=args.api_key,
+        filter_target=args.filter_target,
     )
 
     print(f"\n{'=' * 80}")

@@ -8,6 +8,7 @@ Usage:
     python scripts/watch_experiments.py -i 5      # refresh every 5s
     python scripts/watch_experiments.py --all     # show completed runs too
     python scripts/watch_experiments.py --running  # show only active runs
+    python scripts/watch_experiments.py --tests   # show only e2e smoke test runs
 """
 
 import argparse
@@ -28,15 +29,27 @@ DATA_DIRS = [DATA_DIR, Path(__file__).resolve().parent.parent / "_data"]
 # ── helpers ──────────────────────────────────────────────────────────────
 
 def _all_run_dirs(reverse: bool = False):
-    """Yield (dir_path, dir_name) from all data directories, sorted."""
-    entries = []
+    """Yield (dir_path, dir_name, test_slug) from all data directories, sorted.
+
+    For data/: flat layout — run_* dirs directly inside.
+    For _data/: two-level layout — <test_slug>/run_* dirs nested one level deeper.
+    """
+    entries = []  # list of (path, name, test_slug)
     for ddir in DATA_DIRS:
         if not ddir.exists():
             continue
+        is_test_root = ddir.name == "_data"
         for d in ddir.iterdir():
-            if d.is_dir():
-                entries.append(d)
-    entries.sort(key=lambda d: d.name, reverse=reverse)
+            if not d.is_dir():
+                continue
+            if is_test_root and not d.name.startswith("run_"):
+                # Two-level: _data/<test_slug>/run_*
+                for sub in d.iterdir():
+                    if sub.is_dir():
+                        entries.append((sub, sub.name, d.name))
+            else:
+                entries.append((d, d.name, None))
+    entries.sort(key=lambda e: e[1], reverse=reverse)
     return entries
 
 
@@ -217,7 +230,7 @@ def get_active_run_dirs() -> set[str]:
             for fd in Path(f"/proc/{pid}/fd").iterdir():
                 try:
                     target = os.readlink(fd)
-                    if "experiment.log" in target and ("/data/run_" in target or "/_data/run_" in target):
+                    if "experiment.log" in target and ("/data/run_" in target or "/_data/" in target):
                         for p in target.split("/"):
                             if p.startswith("run_"):
                                 active.add(p)
@@ -275,7 +288,7 @@ def find_dataset_total(dataset: str, filter_repos: list | None = None) -> int | 
     """
     if not dataset:
         return None
-    for d in _all_run_dirs(reverse=True):
+    for d, _name, _slug in _all_run_dirs(reverse=True):
         cfg = load_json(d / "config.json")
         if cfg.get("benchmark", {}).get("dataset") != dataset:
             continue
@@ -305,7 +318,7 @@ def find_repo_phase_counts(dataset: str, filter_repos: list) -> dict | None:
     has val_baseline dirs, so we can estimate the full workload even when
     the current run hasn't reached the val phase yet.
     """
-    for d in _all_run_dirs(reverse=True):
+    for d, _name, _slug in _all_run_dirs(reverse=True):
         cfg = load_json(d / "config.json")
         if cfg.get("benchmark", {}).get("dataset") != dataset:
             continue
@@ -729,14 +742,14 @@ def collect_iterate_repos_progress(
 
 # ── collect ──────────────────────────────────────────────────────────────
 
-def collect_runs(show_all: bool, only_running: bool):
+def collect_runs(show_all: bool, only_running: bool, only_tests: bool = False):
     if not any(d.exists() for d in DATA_DIRS):
         return []
 
     active_dirs = get_active_run_dirs()
     entries = []
 
-    for d in _all_run_dirs():
+    for d, _name, test_slug in _all_run_dirs():
         if not d.is_dir():
             continue
 
@@ -744,6 +757,16 @@ def collect_runs(show_all: bool, only_running: bool):
         has_stats = (d / "statistics.json").exists()
         if not has_config and not has_stats:
             continue
+
+        # Filter by test/non-test
+        is_test = test_slug is not None
+        if only_tests and not is_test:
+            continue
+        if not only_tests and is_test and not show_all and not only_running:
+            # Hide test runs by default unless --all or --running
+            is_active_flag = d.name in active_dirs
+            if not is_active_flag:
+                continue
 
         cfg = load_json(d / "config.json") if has_config else {}
         stat = load_json(d / "statistics.json") if has_stats else {}
@@ -852,6 +875,7 @@ def collect_runs(show_all: bool, only_running: bool):
 
         entries.append({
             "dir": d.name,
+            "test_slug": test_slug or "",
             "name": stat.get("run_name") or exp.get("name") or d.name,
             "status": status_str,
             "model_display": fmt_model_display(
@@ -972,6 +996,7 @@ def render(entries, term_width: int):
     print(f"  {DIM}Legend: █ resolved  ░ failed  · remaining | "
           f"SWE=custom-swe-learn | "
           f"Phases: train  vb=val_baseline  val | "
+          f"TEST: e2e smoke test run | "
           f"Endpoints: UP/DOWN/cloud{RESET}")
     print()
 
@@ -994,9 +1019,16 @@ def render(entries, term_width: int):
 
     for e in entries:
         sc = STATUS_COLORS.get(e["status"], C_ERR)
+        is_test = bool(e.get("test_slug"))
         name = e["name"]
         if len(name) > col_name:
             name = name[: col_name - 2] + ".."
+
+        # Folder display: test slug for test runs, abbreviated run dir for production
+        if is_test:
+            folder = e["test_slug"][:11] if len(e["test_slug"]) > 11 else e["test_slug"]
+        else:
+            folder = short_dir(e["dir"])
 
         b = bar(e["resolved"], e["unresolved"], e["total"], bar_w)
         p = pct_str(e["processed"], e["total"])
@@ -1010,9 +1042,12 @@ def render(entries, term_width: int):
             eta_secs = remaining * secs_per
             eta_str = fmt_duration(eta_secs)
 
+        # TEST badge in status column for test runs
+        status_display = f"TEST:{e['status']}" if is_test else e["status"]
+
         line = (
-            f"  {sc}{e['status']:<10}{RESET} "
-            f"{short_dir(e['dir']):<11} "
+            f"  {sc}{status_display:<10}{RESET} "
+            f"{DIM if is_test else ''}{folder:<11}{RESET if is_test else ''} "
             f"{name:<{col_name}} "
             f"{e['model_display']:<{col_model}} "
             f"{e['attempts']:>3} "
@@ -1151,6 +1186,7 @@ def main():
     parser.add_argument("-i", "--interval", type=int, default=10, help="Refresh seconds (default: 10)")
     parser.add_argument("--all", action="store_true", help="Show all runs incl. old completed")
     parser.add_argument("--running", action="store_true", help="Show only active runs")
+    parser.add_argument("--tests", action="store_true", help="Show only e2e smoke test runs")
     args = parser.parse_args()
 
     try:
@@ -1159,7 +1195,7 @@ def main():
         term_width = 180
 
     if args.no_refresh:
-        runs = collect_runs(args.all, args.running)
+        runs = collect_runs(args.all, args.running, only_tests=args.tests)
         render(runs, term_width)
         render_endpoints(collect_endpoints(runs), term_width)
         return
@@ -1173,7 +1209,7 @@ def main():
     signal.signal(signal.SIGINT, _stop)
 
     while alive:
-        runs = collect_runs(args.all, args.running)
+        runs = collect_runs(args.all, args.running, only_tests=args.tests)
         render(runs, term_width)
         render_endpoints(collect_endpoints(runs), term_width)
         print(f"\n  {DIM}Refresh {args.interval}s | Ctrl+C to quit{RESET}", flush=True)
