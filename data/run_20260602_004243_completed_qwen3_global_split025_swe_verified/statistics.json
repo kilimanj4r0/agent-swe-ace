@@ -778,31 +778,29 @@
   },
   "val_baseline_phase": {
     "total_instances": 119,
-    "resolved_count": 21,
-    "unresolved_count": 98,
-    "resolution_rate": 0.17647058823529413,
+    "resolved_count": 19,
+    "unresolved_count": 100,
+    "resolution_rate": 0.16,
     "resolved_ids": [
-      "sympy__sympy-23262",
-      "sphinx-doc__sphinx-9698",
-      "django__django-14999",
-      "pydata__xarray-6461",
-      "pytest-dev__pytest-6202",
-      "django__django-9296",
-      "django__django-13658",
       "astropy__astropy-14309",
-      "pydata__xarray-6721",
-      "pydata__xarray-3677",
-      "scikit-learn__scikit-learn-13439",
-      "pallets__flask-5014",
-      "django__django-16569",
-      "django__django-13109",
-      "sympy__sympy-16886",
-      "sympy__sympy-24213",
-      "django__django-14238",
-      "django__django-13410",
-      "matplotlib__matplotlib-25122",
       "django__django-12419",
-      "sympy__sympy-22714"
+      "django__django-13109",
+      "django__django-13410",
+      "django__django-13658",
+      "django__django-14238",
+      "django__django-14999",
+      "django__django-16569",
+      "django__django-9296",
+      "matplotlib__matplotlib-25122",
+      "pallets__flask-5014",
+      "pydata__xarray-3677",
+      "pydata__xarray-6461",
+      "pydata__xarray-6721",
+      "pytest-dev__pytest-6202",
+      "scikit-learn__scikit-learn-13439",
+      "sympy__sympy-16886",
+      "sympy__sympy-22714",
+      "sympy__sympy-24213"
     ],
     "unresolved_ids": [
       "sympy__sympy-24562",
@@ -1037,11 +1035,9 @@
     "skillbook_skills": 748
   },
   "summary": {
-    "train_resolution_rate": 0.22826086956521738,
-    "val_baseline_resolution_rate": 0.17647058823529413,
-    "val_skillbook_resolution_rate": 0.18487394957983194,
-    "skillbook_improvement": "+0.008",
-    "skillbook_improvement_pct": "+4.8%",
+    "val_baseline_resolved": 19,
+    "val_skillbook_resolved": 22,
+    "skillbook_improvement": 0.025,
     "newly_resolved_by_skillbook": [
       "django__django-11095",
       "django__django-11133",
@@ -1053,6 +1049,7 @@
       "matplotlib__matplotlib-25311",
       "pytest-dev__pytest-5631",
       "pytest-dev__pytest-6197",
+      "sphinx-doc__sphinx-9698",
       "sympy__sympy-16766",
       "sympy__sympy-20801",
       "sympy__sympy-24661"
@@ -1068,8 +1065,9 @@
       "pydata__xarray-6721",
       "scikit-learn__scikit-learn-13439",
       "sympy__sympy-22714",
-      "sympy__sympy-23262",
       "sympy__sympy-24213"
-    ]
+    ],
+    "newly_resolved_count": 14,
+    "lost_resolved_count": 11
   }
 }

@@ -1,5 +1,5 @@
 experiment:
-  name: "agent-qwen3-ace-qwen3-full-global-split-default-025-retk5"
+  name: "agent-qwen3-ace-qwen3-full-global-split-default-025-retk10"
   description: "ACE skillbook global per repo learning experiment on SWE-bench Verified"
   max_attempts: 1                    # Max retry attempts per instance
   concurrency: 1
@@ -12,6 +12,7 @@ experiment:
       similarity_threshold: 0.85      # Cosine similarity threshold
     retrieval:
       enabled: true
+      top_k: 10
   split:
     manifest: "configs/splits/princeton-nlp__SWE-bench_Verified/val_ratio_0_25.json"
   baseline_run_dir: "data/run_20260529_164021_completed_qwen3_global_split025_default_verified"  # Reuse baseline results (skip re-running val baseline + train predict/eval)
