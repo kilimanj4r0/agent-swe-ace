@@ -200,14 +200,16 @@ def load_run(run_dir: Path, iteration: int | None = None, phase: str | None = No
     is_split = "val_skillbook_phase" in stats
     split_data = {}
     if is_split:
+        _nr = stats.get("summary", {}).get("newly_resolved_by_skillbook")
+        _lt = stats.get("summary", {}).get("lost_by_skillbook")
         split_data = {
             "train": _extract_phase_data(stats, "train_phase"),
             "val_baseline": _extract_phase_data(stats, "val_baseline_phase"),
             "val_skillbook": _extract_phase_data(stats, "val_skillbook_phase"),
             "skillbook_improvement": stats.get("summary", {}).get("skillbook_improvement", "N/A"),
             "skillbook_improvement_pct": stats.get("summary", {}).get("skillbook_improvement_pct", "N/A"),
-            "newly_resolved": stats.get("summary", {}).get("newly_resolved_by_skillbook", []),
-            "lost": stats.get("summary", {}).get("lost_by_skillbook", []),
+            "newly_resolved": _nr if _nr is not None else [],
+            "lost": _lt if _lt is not None else [],
         }
 
     # Compute duration
@@ -608,6 +610,18 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                 if r["is_iterate_repos"] and r.get("repos"):
                     # Aggregate row (from top-level statistics)
                     n_repos = len(r["repos"])
+
+                    # When top-level stats lack newly_resolved/lost (e.g. validation-only
+                    # or retrieval runs), aggregate from per-repo statistics files.
+                    agg_nr = agg["newly_resolved"]
+                    agg_lost = agg["lost"]
+                    if not agg_nr and not agg_lost and full_path:
+                        for repo in r["repos"]:
+                            prd = _load_per_repo_stats(full_path, repo)
+                            if prd:
+                                agg_nr = agg_nr + prd.get("summary", {}).get("newly_resolved_by_skillbook", [])
+                                agg_lost = agg_lost + prd.get("summary", {}).get("lost_by_skillbook", [])
+
                     per_repo_rows.append({
                         "ID": parent_tag,
                         "Dataset": _shorten_dataset(r["benchmark"]),
@@ -616,7 +630,7 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                         "ValBL": _fmt_phase(agg["val_baseline"]),
                         "ValSB": _fmt_phase(agg["val_skillbook"]),
                         "SB Δ": _fmt_delta_pp(agg["skillbook_improvement"]),
-                        "New/Lost": f"{len(agg['newly_resolved'])}/{len(agg['lost'])}",
+                        "New/Lost": f"{len(agg_nr)}/{len(agg_lost)}",
                         "LLM": llm_col(r),
                         "Learn": _fmt_learn(r),
                         "Traj Exit Status": _fmt_exit_statuses(r["exit_statuses"]),
