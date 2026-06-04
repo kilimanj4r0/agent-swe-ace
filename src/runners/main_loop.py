@@ -94,6 +94,7 @@ class ExperimentLoop:
         agent_factory: Optional[Callable] = None,
         force_learn: bool = True,
         skip_learn: bool = False,
+        val_resume_state: Optional[Dict[str, ResumePoint]] = None,
     ):
         """
         Initialize experiment loop.
@@ -110,6 +111,7 @@ class ExperimentLoop:
             benchmark: Benchmark name for finding files
             concurrency: Number of parallel instances (1 = sequential)
             agent_factory: Callable that returns a new MiniSWEAgent (for concurrent mode)
+            val_resume_state: Dict mapping instance_id -> ResumePoint for val phase resume
         """
         self.predict = predict_phase
         self.evaluate = evaluate_phase
@@ -124,6 +126,7 @@ class ExperimentLoop:
         self.agent_factory = agent_factory
         self.force_learn = force_learn
         self.skip_learn = skip_learn
+        self.val_resume_state = val_resume_state or {}
         self._baseline_run_dir = None
 
         # Global skillbook for 'global' mode
@@ -164,7 +167,7 @@ class ExperimentLoop:
             return -1
         return rp.start_iteration
 
-    def _copy_resume_artifacts(self, instance_id: str) -> None:
+    def _copy_resume_artifacts(self, instance_id: str, phase: Optional[str] = None) -> None:
         """Copy artifacts from resume dir to output dir for a partial instance."""
         rp = self.resume_state.get(instance_id)
         if rp is None or rp.last_complete_iter < 0:
@@ -175,6 +178,8 @@ class ExperimentLoop:
             benchmark=self.benchmark,
             instance_id=instance_id,
             up_to_iter=rp.last_complete_iter,
+            source_phase=rp.phase,
+            dest_phase=phase,
         )
         logger.info(
             f"[{instance_id}] Resumed from iter_0..iter_{rp.last_complete_iter} "
@@ -315,7 +320,7 @@ class ExperimentLoop:
 
         if start_iteration > 0:
             # Partial resume — copy existing artifacts
-            self._copy_resume_artifacts(instance_id)
+            self._copy_resume_artifacts(instance_id, phase=phase)
 
         for iteration in range(start_iteration, effective_max):
             logger.info(f"\n--- Iteration {iteration + 1}/{effective_max} ---")
@@ -440,7 +445,7 @@ class ExperimentLoop:
             return result
 
         if start_iteration > 0:
-            self._copy_resume_artifacts(instance_id)
+            self._copy_resume_artifacts(instance_id, phase=phase)
 
         for iteration in range(start_iteration, self.max_attempts):
             logger.info(f"[{instance_id}] Iteration {iteration + 1}/{self.max_attempts}")
@@ -588,11 +593,15 @@ class ExperimentLoop:
             complete = sum(1 for rp in self.resume_state.values() if rp.is_fully_complete)
             partial = sum(1 for rp in self.resume_state.values() if not rp.is_fully_complete and rp.last_complete_iter >= 0)
             logger.info(f"Resume: {complete} complete, {partial} partial")
+        if self.val_resume_state:
+            val_complete = sum(1 for rp in self.val_resume_state.values() if rp.is_fully_complete)
+            logger.info(f"Val resume: {val_complete} complete")
 
         # Create output directory
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Copy artifacts for fully complete instances
+        # Copy artifacts for fully complete train instances
+        dest_train_phase = "train" if two_phase else None
         for instance_id, rp in self.resume_state.items():
             if rp.is_fully_complete:
                 copy_instance_artifacts(
@@ -601,6 +610,21 @@ class ExperimentLoop:
                     benchmark=self.benchmark,
                     instance_id=instance_id,
                     up_to_iter=rp.last_complete_iter,
+                    source_phase=rp.phase,
+                    dest_phase=dest_train_phase,
+                )
+
+        # Copy artifacts for fully complete val instances
+        for instance_id, rp in self.val_resume_state.items():
+            if rp.is_fully_complete:
+                copy_instance_artifacts(
+                    source_dir=rp.resume_dir,
+                    dest_dir=self.output_dir,
+                    benchmark=self.benchmark,
+                    instance_id=instance_id,
+                    up_to_iter=rp.last_complete_iter,
+                    source_phase=rp.phase,
+                    dest_phase=rp.phase,
                 )
 
         # Save config
@@ -1116,7 +1140,7 @@ class ExperimentLoop:
                 result_data = json.load(f)
 
             exit_status = traj_data.get("info", {}).get("exit_status", "")
-            if exit_status not in ("Submitted", "LimitsExceeded", "error"):
+            if exit_status not in ("Submitted", "LimitsExceeded"):
                 return None, None
 
             # Copy artifacts to output dir
@@ -1460,6 +1484,39 @@ class ExperimentLoop:
                 f"{len(instances_to_run)} need re-execution"
             )
 
+        # Skip val instances that are already complete from val_resume_state
+        resume_complete_ids = set()
+        for iid, rp in self.val_resume_state.items():
+            if rp.phase == phase and rp.is_fully_complete:
+                resume_complete_ids.add(iid)
+        if resume_complete_ids:
+            # Load resolved status from resume source
+            for iid in resume_complete_ids:
+                rp = self.val_resume_state[iid]
+                resolved = False
+                # Read resolved from result file in source
+                if rp.phase:
+                    rpath = rp.resume_dir / self.benchmark / "results" / rp.phase / iid / f"iter_{rp.last_complete_iter}.json"
+                else:
+                    rpath = rp.resume_dir / self.benchmark / "results" / iid / f"iter_{rp.last_complete_iter}.json"
+                if rpath.exists():
+                    try:
+                        with open(rpath) as f:
+                            resolved = json.load(f).get("resolved", False)
+                    except Exception:
+                        pass
+                loaded_ids[iid] = resolved
+            # Remove complete instances from run list
+            before = len(instances_to_run)
+            instances_to_run = [
+                inst for inst in instances_to_run
+                if inst["instance_id"] not in resume_complete_ids
+            ]
+            logger.info(
+                f"[{phase}] Resumed {len(resume_complete_ids)} complete instances, "
+                f"{len(instances_to_run)} to run"
+            )
+
         # Run instances
         for i, instance in enumerate(instances_to_run):
             instance_id = instance.get("instance_id", f"unknown-{i}")
@@ -1589,7 +1646,7 @@ class ExperimentLoop:
                                     result_data = json.load(f)
 
                                 exit_status = traj_data.get("info", {}).get("exit_status", "")
-                                if exit_status not in ("Submitted", "LimitsExceeded", "error"):
+                                if exit_status not in ("Submitted", "LimitsExceeded"):
                                     break  # Stop at invalid iteration
 
                                 iters_found.append((tp, rp, result_data.get("resolved", False)))

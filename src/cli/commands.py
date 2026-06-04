@@ -756,6 +756,7 @@ def _run_single_repo_experiment(
     max_attempts = config["experiment"].get("max_attempts", 2)
     force_learn = config["experiment"].get("force_learn", True)
     resume_state = {}
+    val_resume_state = {}
     cli_resume_dirs = None
     config_resume_dirs = config.get("experiment", {}).get("resume_dirs")
     # Resume not typically used with iterate_repos but support it
@@ -763,12 +764,25 @@ def _run_single_repo_experiment(
     skip_learn = config.get("experiment", {}).get("skip_learn", False)
     if resume_dirs:
         from data_io.resume_scanner import scan_resume_dirs
+        # Scan train instances
         instance_ids = [i["instance_id"] for i in train_instances]
         resume_state = scan_resume_dirs(resume_dirs, benchmark, instance_ids, max_attempts, skip_learn=skip_learn)
         complete_ids = {iid for iid, rp in resume_state.items() if rp.is_fully_complete}
         before = len(train_instances)
         train_instances = [i for i in train_instances if i["instance_id"] not in complete_ids]
         logger.info(f"[{repo}] Resume: {len(complete_ids)} complete, {len(train_instances)} to process")
+
+        # Scan val instances for val phase resume
+        val_instances_list = val_instances if val_instances else []
+        if val_instances_list:
+            val_ids = [i["instance_id"] for i in val_instances_list]
+            val_resume_state = scan_resume_dirs(resume_dirs, benchmark, val_ids, max_attempts, skip_learn=True)
+            val_complete = sum(1 for rp in val_resume_state.values() if rp.is_fully_complete)
+            logger.info(f"[{repo}] Val resume: {val_complete} complete")
+
+        # Auto-derive baseline_run_dir from resume_dirs if not already set
+        if not baseline_run_dir:
+            baseline_run_dir = resume_dirs[0]
 
     # Within-repo concurrency for train phase (only effective with baseline reuse)
     repo_concurrency = config.get("experiment", {}).get("train_concurrency", 1)
@@ -790,6 +804,7 @@ def _run_single_repo_experiment(
         benchmark=benchmark,
         concurrency=repo_concurrency,
         agent_factory=agent_factory,
+        val_resume_state=val_resume_state,
     )
 
     # Check for val_pass_k setting
@@ -1381,6 +1396,7 @@ def run_full_experiment(config: dict, args):
     config_resume_dirs = config.get("experiment", {}).get("resume_dirs")
     resume_dirs = cli_resume_dirs or ([Path(p) for p in config_resume_dirs] if config_resume_dirs else None)
     resume_state = {}
+    val_resume_state = {}
     max_attempts = config["experiment"].get("max_attempts", 2)
     force_learn = config["experiment"].get("force_learn", True)
     skip_learn = config.get("experiment", {}).get("skip_learn", False)
@@ -1400,6 +1416,13 @@ def run_full_experiment(config: dict, args):
             f"{len(train_instances)} to process"
         )
 
+        # Scan val instances for val phase resume
+        if val_instances:
+            val_ids = [i["instance_id"] for i in val_instances]
+            val_resume_state = scan_resume_dirs(resume_dirs, benchmark, val_ids, max_attempts, skip_learn=True)
+            val_complete = sum(1 for rp in val_resume_state.values() if rp.is_fully_complete)
+            logger.info(f"Val resume: {val_complete} complete")
+
     # Run experiment
     loop = ExperimentLoop(
         predict_phase=predict_phase,
@@ -1415,14 +1438,17 @@ def run_full_experiment(config: dict, args):
         benchmark=benchmark,
         concurrency=concurrency,
         agent_factory=agent_factory,
+        val_resume_state=val_resume_state,
     )
 
-    # baseline_run_dir: CLI takes priority, then config
+    # baseline_run_dir: CLI takes priority, then config, then auto-derived from resume_dirs
     baseline_run_dir = getattr(args, 'baseline_run_dir', None)
     if not baseline_run_dir:
         config_baseline = config.get("experiment", {}).get("baseline_run_dir")
         if config_baseline:
             baseline_run_dir = Path(config_baseline)
+        elif resume_dirs:
+            baseline_run_dir = resume_dirs[0]
 
     train_trajs_dir = config.get("experiment", {}).get("train_trajs_dir")
     val_pass_k = config.get("experiment", {}).get("val_pass_k", 1)

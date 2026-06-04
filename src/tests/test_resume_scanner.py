@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from data_io.resume_scanner import (
     ResumePoint,
+    _detect_resume_phase,
     scan_resume_state,
     scan_resume_dirs,
     copy_instance_artifacts,
@@ -295,3 +296,156 @@ class TestCopyInstanceArtifacts:
         assert rp is not None
         assert rp.last_complete_iter == 1
         assert rp.is_fully_complete is False
+
+
+class TestDetectResumePhase:
+    """Tests for _detect_resume_phase helper."""
+
+    def test_train_phase_detected(self, tmp_path):
+        _write_iter(tmp_path, "trajectories/train", INSTANCE, 0, _make_trajectory("Submitted"))
+        assert _detect_resume_phase(tmp_path, BENCHMARK, INSTANCE) == "train"
+
+    def test_val_baseline_phase_detected(self, tmp_path):
+        _write_iter(tmp_path, "trajectories/val_baseline", INSTANCE, 0, _make_trajectory("Submitted"))
+        assert _detect_resume_phase(tmp_path, BENCHMARK, INSTANCE) == "val_baseline"
+
+    def test_val_phase_detected(self, tmp_path):
+        _write_iter(tmp_path, "trajectories/val", INSTANCE, 0, _make_trajectory("Submitted"))
+        assert _detect_resume_phase(tmp_path, BENCHMARK, INSTANCE) == "val"
+
+    def test_flat_layout_returns_none(self, tmp_path):
+        _write_iter(tmp_path, "trajectories", INSTANCE, 0, _make_trajectory("Submitted"))
+        assert _detect_resume_phase(tmp_path, BENCHMARK, INSTANCE) is None
+
+    def test_not_found_returns_none(self, tmp_path):
+        assert _detect_resume_phase(tmp_path, BENCHMARK, INSTANCE) is None
+
+    def test_train_priority_over_val(self, tmp_path):
+        """train takes priority over val_baseline and val."""
+        for phase in ("train", "val_baseline", "val"):
+            _write_iter(tmp_path, f"trajectories/{phase}", INSTANCE, 0, _make_trajectory("Submitted"))
+        assert _detect_resume_phase(tmp_path, BENCHMARK, INSTANCE) == "train"
+
+    def test_val_baseline_priority_over_val(self, tmp_path):
+        """val_baseline takes priority over val."""
+        for phase in ("val_baseline", "val"):
+            _write_iter(tmp_path, f"trajectories/{phase}", INSTANCE, 0, _make_trajectory("Submitted"))
+        assert _detect_resume_phase(tmp_path, BENCHMARK, INSTANCE) == "val_baseline"
+
+
+class TestPhaseAwareScanResumeState:
+    """Tests for scan_resume_state with phase parameter."""
+
+    def test_phase_param_finds_train_subdir(self, tmp_path):
+        """With phase='train', looks in trajectories/train/<instance>/."""
+        _write_iter(tmp_path, "trajectories/train", INSTANCE, 0, _make_trajectory("Submitted"))
+        _write_iter(tmp_path, "results/train", INSTANCE, 0, _make_result(resolved=True))
+
+        rp = scan_resume_state(tmp_path, BENCHMARK, INSTANCE, max_attempts=4, phase="train")
+        assert rp is not None
+        assert rp.is_fully_complete is True
+        assert rp.last_complete_iter == 0
+
+    def test_phase_param_finds_val_subdir(self, tmp_path):
+        """With phase='val', looks in trajectories/val/<instance>/."""
+        _write_iter(tmp_path, "trajectories/val", INSTANCE, 0, _make_trajectory("Submitted"))
+        _write_iter(tmp_path, "results/val", INSTANCE, 0, _make_result(resolved=False))
+
+        rp = scan_resume_state(tmp_path, BENCHMARK, INSTANCE, max_attempts=4, phase="val")
+        assert rp is not None
+        assert rp.is_fully_complete is False
+
+    def test_phase_param_not_found_without_matching_data(self, tmp_path):
+        """With phase='train' but data only in flat layout → None."""
+        _write_iter(tmp_path, "trajectories", INSTANCE, 0, _make_trajectory("Submitted"))
+        _write_iter(tmp_path, "results", INSTANCE, 0, _make_result(resolved=True))
+
+        rp = scan_resume_state(tmp_path, BENCHMARK, INSTANCE, max_attempts=4, phase="train")
+        assert rp is None
+
+    def test_phase_param_val_baseline(self, tmp_path):
+        """With phase='val_baseline', finds data in val_baseline subdir."""
+        _write_iter(tmp_path, "trajectories/val_baseline", INSTANCE, 0, _make_trajectory("LimitsExceeded"))
+        _write_iter(tmp_path, "results/val_baseline", INSTANCE, 0, _make_result(resolved=False))
+
+        rp = scan_resume_state(tmp_path, BENCHMARK, INSTANCE, max_attempts=1, phase="val_baseline")
+        assert rp is not None
+        assert rp.is_fully_complete is True  # max_attempts=1, exhausted
+
+
+class TestPhaseAwareScanResumeDirs:
+    """Tests for scan_resume_dirs auto-detecting phase from two-phase layout."""
+
+    def test_auto_detects_train_phase(self, tmp_path):
+        _write_iter(tmp_path, "trajectories/train", INSTANCE, 0, _make_trajectory("Submitted"))
+        _write_iter(tmp_path, "results/train", INSTANCE, 0, _make_result(resolved=True))
+
+        result = scan_resume_dirs([tmp_path], BENCHMARK, [INSTANCE], max_attempts=4)
+        assert INSTANCE in result
+        assert result[INSTANCE].phase == "train"
+        assert result[INSTANCE].is_fully_complete is True
+
+    def test_auto_detects_val_phase(self, tmp_path):
+        _write_iter(tmp_path, "trajectories/val", INSTANCE, 0, _make_trajectory("Submitted"))
+        _write_iter(tmp_path, "results/val", INSTANCE, 0, _make_result(resolved=True))
+
+        result = scan_resume_dirs([tmp_path], BENCHMARK, [INSTANCE], max_attempts=4)
+        assert result[INSTANCE].phase == "val"
+
+    def test_flat_layout_phase_is_none(self, tmp_path):
+        _write_iter(tmp_path, "trajectories", INSTANCE, 0, _make_trajectory("Submitted"))
+        _write_iter(tmp_path, "results", INSTANCE, 0, _make_result(resolved=True))
+
+        result = scan_resume_dirs([tmp_path], BENCHMARK, [INSTANCE], max_attempts=4)
+        assert result[INSTANCE].phase is None
+
+
+class TestPhaseAwareCopyArtifacts:
+    """Tests for copy_instance_artifacts with source_phase/dest_phase."""
+
+    def test_copy_from_train_to_train(self, tmp_path):
+        source = tmp_path / "source"
+        dest = tmp_path / "dest"
+        _write_iter(source, "trajectories/train", INSTANCE, 0, {"data": 0})
+        _write_iter(source, "results/train", INSTANCE, 0, {"data": 0})
+
+        copy_instance_artifacts(
+            source, dest, BENCHMARK, INSTANCE,
+            up_to_iter=0, source_phase="train", dest_phase="train",
+        )
+
+        assert (dest / BENCHMARK / "trajectories" / "train" / INSTANCE / "iter_0.json").exists()
+        assert (dest / BENCHMARK / "results" / "train" / INSTANCE / "iter_0.json").exists()
+
+    def test_copy_from_val_to_val(self, tmp_path):
+        source = tmp_path / "source"
+        dest = tmp_path / "dest"
+        _write_iter(source, "trajectories/val", INSTANCE, 0, {"data": 0})
+        _write_iter(source, "results/val", INSTANCE, 0, {"data": 0})
+
+        copy_instance_artifacts(
+            source, dest, BENCHMARK, INSTANCE,
+            up_to_iter=0, source_phase="val", dest_phase="val",
+        )
+
+        assert (dest / BENCHMARK / "trajectories" / "val" / INSTANCE / "iter_0.json").exists()
+
+    def test_no_phase_uses_flat_paths(self, tmp_path):
+        source = tmp_path / "source"
+        dest = tmp_path / "dest"
+        _write_iter(source, "trajectories", INSTANCE, 0, {"data": 0})
+
+        copy_instance_artifacts(source, dest, BENCHMARK, INSTANCE, up_to_iter=0)
+
+        assert (dest / BENCHMARK / "trajectories" / INSTANCE / "iter_0.json").exists()
+
+    def test_source_phase_not_found_skips_gracefully(self, tmp_path):
+        source = tmp_path / "source"
+        dest = tmp_path / "dest"
+        # No data in source
+        copy_instance_artifacts(
+            source, dest, BENCHMARK, INSTANCE,
+            up_to_iter=0, source_phase="train", dest_phase="train",
+        )
+        # Should not create anything
+        assert not (dest / BENCHMARK).exists()

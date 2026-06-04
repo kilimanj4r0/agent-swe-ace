@@ -37,6 +37,9 @@ class ResumePoint:
     break_iteration: Optional[int] = None
     """Which iteration the chain broke at (only set for partial instances)."""
 
+    phase: Optional[str] = None
+    """Detected phase in source run: "train", "val_baseline", "val", or None (flat layout)."""
+
     @property
     def start_iteration(self) -> int:
         """Iteration to start from (0 if nothing complete)."""
@@ -46,12 +49,31 @@ class ResumePoint:
 # exit_status values that indicate the agent ran successfully
 _GOOD_EXIT_STATUSES = {"Submitted", "LimitsExceeded"}
 
+# Known phase subdirectories in two-phase runs
+_PHASE_PREFIXES = ("train", "val_baseline", "val")
+
+
+def _detect_resume_phase(resume_dir: Path, benchmark: str, instance_id: str) -> Optional[str]:
+    """Detect which phase an instance belongs to in a two-phase run.
+
+    Returns "train", "val_baseline", "val", or None (flat layout).
+    """
+    for phase in _PHASE_PREFIXES:
+        candidate = resume_dir / benchmark / "trajectories" / phase / instance_id
+        if candidate.is_dir():
+            return phase
+    return None
+
 
 def _diagnose_break(
-    resume_dir: Path, benchmark: str, instance_id: str, break_at: int
+    resume_dir: Path, benchmark: str, instance_id: str, break_at: int,
+    phase: Optional[str] = None,
 ) -> Optional[str]:
     """Determine why the iteration chain broke at the given iteration."""
-    traj_file = resume_dir / benchmark / "trajectories" / instance_id / f"iter_{break_at}.json"
+    if phase:
+        traj_file = resume_dir / benchmark / "trajectories" / phase / instance_id / f"iter_{break_at}.json"
+    else:
+        traj_file = resume_dir / benchmark / "trajectories" / instance_id / f"iter_{break_at}.json"
     if not traj_file.exists():
         return "missing_trajectory"
 
@@ -79,6 +101,7 @@ def scan_resume_state(
     instance_id: str,
     max_attempts: int,
     skip_learn: bool = False,
+    phase: Optional[str] = None,
 ) -> Optional[ResumePoint]:
     """Check resume state for a single instance in a resume directory.
 
@@ -86,9 +109,15 @@ def scan_resume_state(
     chain of successful iterations from the start. The chain breaks at the
     first incomplete iteration.
 
+    Args:
+        phase: If set, look in trajectories/<phase>/<instance>/ instead of flat.
+
     Returns None if the instance has no data in this resume directory.
     """
-    traj_dir = resume_dir / benchmark / "trajectories" / instance_id
+    if phase:
+        traj_dir = resume_dir / benchmark / "trajectories" / phase / instance_id
+    else:
+        traj_dir = resume_dir / benchmark / "trajectories" / instance_id
     if not traj_dir.is_dir():
         return None
 
@@ -116,7 +145,10 @@ def scan_resume_state(
             break
 
         # Check result file
-        result_file = resume_dir / benchmark / "results" / instance_id / f"iter_{k}.json"
+        if phase:
+            result_file = resume_dir / benchmark / "results" / phase / instance_id / f"iter_{k}.json"
+        else:
+            result_file = resume_dir / benchmark / "results" / instance_id / f"iter_{k}.json"
         if not result_file.exists():
             break
 
@@ -138,9 +170,14 @@ def scan_resume_state(
 
         # Not resolved — need skillbook for next iteration (unless skip_learn)
         if k < max_attempts - 1 and not skip_learn:
-            skillbook_file = (
-                resume_dir / benchmark / "skillbooks" / instance_id / f"iter_{k + 1}.json"
-            )
+            if phase:
+                skillbook_file = (
+                    resume_dir / benchmark / "skillbooks" / phase / instance_id / f"iter_{k + 1}.json"
+                )
+            else:
+                skillbook_file = (
+                    resume_dir / benchmark / "skillbooks" / instance_id / f"iter_{k + 1}.json"
+                )
             if not skillbook_file.exists():
                 break
 
@@ -149,7 +186,10 @@ def scan_resume_state(
     # Chain walk ended. Before marking as partial/broken, check if any
     # result beyond the chain break shows resolved=True. The experiment
     # may have continued past a broken iteration and succeeded later.
-    result_dir = resume_dir / benchmark / "results" / instance_id
+    if phase:
+        result_dir = resume_dir / benchmark / "results" / phase / instance_id
+    else:
+        result_dir = resume_dir / benchmark / "results" / instance_id
     if result_dir.is_dir():
         for k in range(max_attempts):
             result_file = result_dir / f"iter_{k}.json"
@@ -169,7 +209,7 @@ def scan_resume_state(
     break_iteration = last_complete + 1 if last_complete < max_attempts - 1 else None
     break_reason = None
     if break_iteration is not None:
-        break_reason = _diagnose_break(resume_dir, benchmark, instance_id, break_iteration)
+        break_reason = _diagnose_break(resume_dir, benchmark, instance_id, break_iteration, phase=phase)
 
     # If we completed all max_attempts iterations without resolving
     is_complete = (last_complete == max_attempts - 1)
@@ -203,7 +243,14 @@ def scan_resume_dirs(
             continue
 
         for instance_id in instance_ids:
-            rp = scan_resume_state(resume_dir, benchmark, instance_id, max_attempts, skip_learn=skip_learn)
+            phase = _detect_resume_phase(resume_dir, benchmark, instance_id)
+            rp = scan_resume_state(resume_dir, benchmark, instance_id, max_attempts, skip_learn=skip_learn, phase=phase)
+            if rp is None:
+                continue
+
+            # Store detected phase
+            if rp.phase is None:
+                rp.phase = phase
             if rp is None:
                 continue
 
@@ -248,18 +295,30 @@ def copy_instance_artifacts(
     benchmark: str,
     instance_id: str,
     up_to_iter: int,
+    source_phase: Optional[str] = None,
+    dest_phase: Optional[str] = None,
 ) -> None:
     """Copy trajectory, result, and skillbook files for iter_0..iter_{up_to_iter}.
 
     Also copies skillbook iter_{up_to_iter+1} if it exists (produced by learn
     phase after the last complete iteration).
+
+    Args:
+        source_phase: If set, read from <subdir>/<phase>/<instance>/.
+        dest_phase: If set, write to <subdir>/<phase>/<instance>/.
     """
     for subdir in ("trajectories", "results", "skillbooks"):
-        src_instance_dir = source_dir / benchmark / subdir / instance_id
+        if source_phase:
+            src_instance_dir = source_dir / benchmark / subdir / source_phase / instance_id
+        else:
+            src_instance_dir = source_dir / benchmark / subdir / instance_id
         if not src_instance_dir.is_dir():
             continue
 
-        dst_instance_dir = dest_dir / benchmark / subdir / instance_id
+        if dest_phase:
+            dst_instance_dir = dest_dir / benchmark / subdir / dest_phase / instance_id
+        else:
+            dst_instance_dir = dest_dir / benchmark / subdir / instance_id
         dst_instance_dir.mkdir(parents=True, exist_ok=True)
 
         for f in src_instance_dir.iterdir():
