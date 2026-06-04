@@ -1488,6 +1488,19 @@ class ExperimentLoop:
                 unresolved_ids.append(iid)
 
         total = len(val_instances)
+
+        # Ensure all val instances are accounted for (crashed/errored instances
+        # that never reached resolved/unresolved classification go to unresolved)
+        classified = set(resolved_ids) | set(unresolved_ids)
+        val_id_set = {inst["instance_id"] for inst in val_instances}
+        missing = sorted(val_id_set - classified)
+        if missing:
+            logger.warning(
+                f"[{phase}] {len(missing)} val instances not classified, "
+                f"treating as unresolved: {missing}"
+            )
+            unresolved_ids.extend(missing)
+
         resolved_count = len(resolved_ids)
 
         stats = {
