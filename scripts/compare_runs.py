@@ -106,26 +106,40 @@ def _count_exit_statuses(run_dir: Path, instance_filter: set[str] | None = None)
     return result
 
 
-def _fmt_exit_statuses(es_data: dict[str, dict[int, int]]) -> str:
-    """Format exit status data as multi-line string with i0 count and raw per-iter counts."""
-    if not es_data:
-        return "-"
+def _total_exit_status_counts(es_data: dict[str, dict[int, int]]) -> dict[str, int]:
+    """Sum exit status counts across all iterations: {status: total_count}."""
+    return {status: sum(it_counts.values()) for status, it_counts in es_data.items()}
 
-    max_iter = max(it for counts in es_data.values() for it in counts)
-    lines = []
-    for status in sorted(es_data):
-        counts = es_data[status]
-        i0 = counts.get(0, 0)
-        total_i0 = sum(c.get(0, 0) for c in es_data.values())
-        pct = f" {i0/total_i0*100:.0f}%" if total_i0 > 0 else ""
-        parts = []
-        for it in range(1, max_iter + 1):
-            n = counts.get(it, 0)
-            if n > 0:
-                parts.append(f"i{it}:{n}")
-        iter_str = "\n  [" + " ".join(parts) + "]" if parts else ""
-        lines.append(f"{status}: i0:{i0}{pct}{iter_str}")
-    return "\n".join(lines)
+
+def _collect_all_statuses(rows_data: list[dict]) -> list[str]:
+    """Collect sorted unique exit status names from all rows' exit_statuses."""
+    statuses = set()
+    for r in rows_data:
+        statuses.update(r.get("exit_statuses", {}).keys())
+    # Canonical order: Submitted first, then alphabetical
+    priority = {"Submitted": 0}
+    return sorted(statuses, key=lambda s: (priority.get(s, 1), s))
+
+
+def _collect_all_statuses_from_es(es_list: list[dict]) -> list[str]:
+    """Collect sorted unique exit status names from raw es_data dicts."""
+    statuses = set()
+    for es in es_list:
+        statuses.update(es.keys())
+    priority = {"Submitted": 0}
+    return sorted(statuses, key=lambda s: (priority.get(s, 1), s))
+
+
+def _fmt_exit_status_header(statuses: list[str]) -> str:
+    """Format header: 'Submitted/LimitsExceeded/error'."""
+    return "/".join(statuses) if statuses else "Exit Status"
+
+
+def _fmt_exit_status_row(es_data: dict[str, dict[int, int]], statuses: list[str]) -> str:
+    """Format row: '217/15/6' matching the header order."""
+    totals = _total_exit_status_counts(es_data)
+    parts = [str(totals.get(s, 0)) for s in statuses]
+    return "/".join(parts) if parts else "-"
 
 
 def _count_iter0_resolved(run_dir: Path) -> tuple[int, int]:
@@ -429,7 +443,7 @@ def _format_sb_assist(r: dict) -> str:
 
 
 def _fmt_phase(pd: dict, distil: bool = False) -> str:
-    """Format a phase dict as 'resolved/total rate% [p@1:N p@2:M ...]'.
+    """Format a phase dict as 'resolved/total rate% [p@1:N p@2:M ...] avg:N.N%'.
     If distil=True, prefix with 'distil'."""
     r, t = pd["resolved"], pd["total"]
     pct = f"{pd['rate'] * 100:.1f}%"
@@ -438,6 +452,9 @@ def _fmt_phase(pd: dict, distil: bool = False) -> str:
         base = f"distil {base}"
 
     pak = pd.get("pass_at_k", {})
+    par = pd.get("per_attempt_rate", {})
+    extra_lines = []
+
     if len(pak) > 1:
         # Show per-pass@k resolved counts (skip last since it equals overall resolved)
         parts = []
@@ -449,7 +466,15 @@ def _fmt_phase(pd: dict, distil: bool = False) -> str:
                 short_label = k_label.replace("pass@", "p@")
                 parts.append(f"{short_label}:{info['count']}")
         if parts:
-            return f"{base}\n[{', '.join(parts)}]"
+            extra_lines.append("[{0}]".format(", ".join(parts)))
+
+    # Show average per-attempt resolution rate when multiple attempts exist
+    if len(par) > 1:
+        avg_rate = sum(v["rate"] for v in par.values()) / len(par)
+        extra_lines.append(f"avg:{avg_rate * 100:.1f}%")
+
+    if extra_lines:
+        return base + "\n" + "\n".join(extra_lines)
     return base
 
 
@@ -566,6 +591,9 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
             print("per_instance runs:")
         flat_headers = ["ID", "Dataset", "Proc", "Unres", "Res", "Rate", "i0 Rate", "LLM", "Att", "Steps", "Learn", "SB Assist", "Traj Exit Status"]
         flat_rows = []
+        flat_statuses = _collect_all_statuses(flat_runs)
+        flat_headers = ["ID", "Dataset", "Proc", "Unres", "Res", "Rate", "i0 Rate", "LLM", "Att", "Steps", "Learn", "SB Assist", _fmt_exit_status_header(flat_statuses)]
+        flat_rows = []
         for r in flat_runs:
             i0_r, i0_t = r["iter0_resolved"], r["iter0_total"]
             i0_str = f"{i0_r} {i0_r/i0_t*100:.1f}%" if i0_t > 0 else "-"
@@ -582,7 +610,7 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                 "Steps": str(r["step_limit"]),
                 "Learn": _fmt_learn(r),
                 "SB Assist": _format_sb_assist(r),
-                "Traj Exit Status": _fmt_exit_statuses(r["exit_statuses"]),
+                _fmt_exit_status_header(flat_statuses): _fmt_exit_status_row(r["exit_statuses"], flat_statuses),
             })
         _print_table_rows(flat_headers, flat_rows)
         print()
@@ -593,7 +621,6 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
         # global = no filter_repos, all repos together
         per_repo_runs = [r for r in split_runs if r["is_iterate_repos"] or r.get("filter_repos")]
         global_runs = [r for r in split_runs if not r["is_iterate_repos"] and not r.get("filter_repos")]
-        per_repo_headers = ["ID", "Dataset", "Repo", "Train", "ValBL", "ValSB", "SB Δ", "New/Lost", "LLM", "Learn", "Traj Exit Status"]
         global_headers = ["ID", "Dataset", "Train", "ValBL", "ValSB", "SB Δ", "New/Lost", "LLM", "Learn", "Traj Exit Status"]
         all_details: list[tuple[str, dict]] = []
 
@@ -601,6 +628,8 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
         if per_repo_runs:
             print("Split-mode runs (per_repo):")
             per_repo_rows = []
+            # First pass: collect all exit status data and build rows
+            row_es_data: list[dict] = []  # parallel to per_repo_rows
             for r in per_repo_runs:
                 parent_tag = run_id_map[r["run_dir"]]
                 full_path = run_dir_paths.get(r["run_dir"])
@@ -633,8 +662,8 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                         "New/Lost": f"{len(agg_nr)}/{len(agg_lost)}",
                         "LLM": llm_col(r),
                         "Learn": _fmt_learn(r),
-                        "Traj Exit Status": _fmt_exit_statuses(r["exit_statuses"]),
                     })
+                    row_es_data.append(r["exit_statuses"])
                     all_details.append((parent_tag, agg))
 
                     # Per-repo detail rows (no ID)
@@ -686,8 +715,8 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                             "New/Lost": f"{len(s['newly_resolved'])}/{len(s['lost'])}",
                             "LLM": "",
                             "Learn": "",
-                            "Traj Exit Status": _fmt_exit_statuses(repo_exit_statuses),
                         })
+                        row_es_data.append(repo_exit_statuses)
                         all_details.append(("", s))
                 else:
                     # Single-repo split run (filter_repos set but not iterate_repos)
@@ -703,9 +732,16 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                         "New/Lost": f"{len(agg['newly_resolved'])}/{len(agg['lost'])}",
                         "LLM": llm_col(r),
                         "Learn": _fmt_learn(r),
-                        "Traj Exit Status": _fmt_exit_statuses(r["exit_statuses"]),
                     })
+                    row_es_data.append(r["exit_statuses"])
                     all_details.append((parent_tag, agg))
+
+            # Second pass: collect all statuses and fill exit status column
+            pr_statuses = _collect_all_statuses_from_es(row_es_data)
+            es_header = _fmt_exit_status_header(pr_statuses)
+            for row, es in zip(per_repo_rows, row_es_data):
+                row[es_header] = _fmt_exit_status_row(es, pr_statuses)
+            per_repo_headers = ["ID", "Dataset", "Repo", "Train", "ValBL", "ValSB", "SB Δ", "New/Lost", "LLM", "Learn", es_header]
 
             _print_table_rows(per_repo_headers, per_repo_rows)
             print()
@@ -713,6 +749,9 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
         # --- Global table ---
         if global_runs:
             print("Split-mode runs (global):")
+            global_statuses = _collect_all_statuses(global_runs)
+            es_header = _fmt_exit_status_header(global_statuses)
+            global_headers = ["ID", "Dataset", "Train", "ValBL", "ValSB", "SB Δ", "New/Lost", "LLM", "Learn", es_header]
             global_rows = []
             for r in global_runs:
                 parent_tag = run_id_map[r["run_dir"]]
@@ -728,7 +767,7 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                     "New/Lost": f"{len(s['newly_resolved'])}/{len(s['lost'])}",
                     "LLM": llm_col(r),
                     "Learn": _fmt_learn(r),
-                    "Traj Exit Status": _fmt_exit_statuses(r["exit_statuses"]),
+                    es_header: _fmt_exit_status_row(r["exit_statuses"], global_statuses),
                 })
                 all_details.append((parent_tag, s))
 
