@@ -1,0 +1,48 @@
+experiment:
+  name: "agent-qwen3-ace-qwen3-full-global-split-default-025-retry-errors"
+  description: "Resume from default split025 run — retry 6 error instances (2 train, 4 val)"
+  max_attempts: 1
+  concurrency: 1
+
+  skillbook:
+    mode: "global"
+    custom_swe_learn: false
+    deduplication:
+      enabled: true
+      similarity_threshold: 0.85
+
+  split:
+    manifest: "configs/splits/princeton-nlp__SWE-bench_Verified/val_ratio_0_25.json"
+
+  # Resume from original run — copies completed instances, retries error instances
+  resume_dirs:
+    - "data/run_20260529_164021_completed_qwen3_global_split025_default_verified"
+
+agent:
+  step_limit: 250
+
+llm:
+  agent:
+    provider: "hosted_vllm"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://localhost:8800/v1"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+  ace:
+    provider: "hosted_vllm"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://localhost:8800/v1"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+
+benchmark:
+  dataset: "princeton-nlp/SWE-bench_Verified"
+  split: "test"
+  max_instances: null
+  filter_repos:
+    - "django/django"
+    - "sympy/sympy"
+    - "sphinx-doc/sphinx"
+    - "matplotlib/matplotlib"
+    - "scikit-learn/scikit-learn"
+    - "astropy/astropy"
+    - "pydata/xarray"
+    - "pytest-dev/pytest"
