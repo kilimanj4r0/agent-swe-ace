@@ -41,4 +41,12 @@ benchmark:
   dataset: "princeton-nlp/SWE-bench_Verified"
   split: "test"
   max_instances: null                 # null = all instances, or set number
-  filter_repos: null                 # null = all repos, or list: ["django/django"]
+  filter_repos:
+    - "django/django"
+    - "sympy/sympy"
+    - "sphinx-doc/sphinx"
+    - "matplotlib/matplotlib"
+    - "scikit-learn/scikit-learn"
+    - "astropy/astropy"
+    - "pydata/xarray"
+    - "pytest-dev/pytest"
