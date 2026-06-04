@@ -816,6 +816,24 @@ def _run_single_repo_experiment(
             preloaded_skillbook=repo_skillbook,
             val_pass_k=val_pass_k,
         )
+
+        # Copy train_phase from source run so statistics show actual training data
+        source_stats_path = Path(skillbook_source_dir) / "statistics.json"
+        if source_stats_path.exists():
+            with open(source_stats_path) as _f:
+                _source_stats = json.load(_f)
+            # For iterate_repos, try per-repo stats first
+            if _source_stats.get("mode") == "iterate_repos":
+                _repo_stats_path = (
+                    Path(skillbook_source_dir) / "statistics_per_repo"
+                    / (repo.replace("/", "__") + ".json")
+                )
+                if _repo_stats_path.exists():
+                    with open(_repo_stats_path) as _f:
+                        _source_stats = json.load(_f)
+            _source_train = _source_stats.get("train_phase", {})
+            if _source_train.get("total_instances", 0) > 0:
+                stats["train_phase"] = _source_train
     else:
         # Normal two-phase: train then validate
         stats = loop.run(
