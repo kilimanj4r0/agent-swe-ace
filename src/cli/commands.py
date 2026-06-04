@@ -593,12 +593,27 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
             for iid, rp in resume_state.items()
             if not rp.is_fully_complete and rp.last_complete_iter >= 0
         }
+        broken_ids = {
+            iid
+            for iid, rp in resume_state.items()
+            if not rp.is_fully_complete and rp.last_complete_iter < 0
+        }
         fresh_ids = set(instance_ids) - set(resume_state.keys())
 
         print(f"  Resume dirs:       {[str(d) for d in resume_dirs]}")
-        print(f"  Complete (copy):   {len(complete_ids)}")
-        print(f"  Partial (continue): {len(partial_ids)}")
-        print(f"  Fresh (process):   {len(fresh_ids)}")
+        print(f"  Train complete (copy):     {len(complete_ids)}")
+        print(f"  Train broken (retry):      {len(broken_ids)}")
+        print(f"  Train partial (continue):  {len(partial_ids)}")
+        print(f"  Train fresh (process):     {len(fresh_ids)}")
+
+        # Val resume
+        if val_instances:
+            val_ids = [i["instance_id"] for i in val_instances]
+            val_resume = scan_resume_dirs(resume_dirs, benchmark, val_ids, max_attempts, skip_learn=True)
+            val_complete = {iid for iid, rp in val_resume.items() if rp.is_fully_complete}
+            val_broken = {iid for iid, rp in val_resume.items() if not rp.is_fully_complete and rp.last_complete_iter < 0}
+            print(f"  Val complete (copy):       {len(val_complete)}")
+            print(f"  Val broken (retry):        {len(val_broken)}")
     else:
         print("  No resume dirs")
         print(f"  All {len(train_instances)} train instances will be processed from scratch")
