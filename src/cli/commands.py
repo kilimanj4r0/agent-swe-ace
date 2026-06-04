@@ -217,9 +217,10 @@ def split_instances(instances: list, config: dict, repo: str | None = None) -> t
     # Try manifest first
     manifest = _load_split_manifest(config)
     if manifest:
-        ratio = split_config.get("val_ratio", 0.2)
+        ratio = split_config.get("val_ratio")
         manifest_ratio = manifest.get("val_ratio", 0.2)
-        if abs(ratio - manifest_ratio) > 0.01:
+        # Only warn if val_ratio is explicitly set and mismatches manifest
+        if ratio is not None and abs(ratio - manifest_ratio) > 0.01:
             logger.warning(
                 f"Requested val_ratio={ratio} doesn't match manifest val_ratio={manifest_ratio}, "
                 f"using manifest split"
@@ -566,7 +567,10 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
     print(f"  Val:   {len(val_instances)} instances")
     if is_two_phase:
         split_cfg = exp.get("split", {})
-        print(f"  Val ratio: {split_cfg.get('val_ratio', 0.2)}")
+        # Show actual ratio from manifest if available, otherwise config value
+        manifest = _load_split_manifest(config)
+        actual_ratio = manifest.get("val_ratio", split_cfg.get("val_ratio", 0.2)) if manifest else split_cfg.get("val_ratio", 0.2)
+        print(f"  Val ratio: {actual_ratio}")
 
     # --- Resume ---
     max_attempts = exp.get("max_attempts", 2)
