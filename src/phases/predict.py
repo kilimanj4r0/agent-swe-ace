@@ -220,11 +220,7 @@ class PredictPhase:
         n = rs["instances_retrieved"]
         summary = {
             "enabled": True,
-            "model": self.skill_retriever.model,
-            "top_k": self.skill_retriever.top_k,
-            "skip_threshold": self.skill_retriever.skip_threshold,
-            "filter_target": self.skill_retriever.filter_target,
-            "chunk_size": self.skill_retriever.chunk_size,
+            **self.skill_retriever.get_config_summary(),
             "instances_retrieved": n,
             "instances_no_change": rs["instances_no_change"],
             "instances_skipped_threshold": rs["instances_skipped_threshold"],

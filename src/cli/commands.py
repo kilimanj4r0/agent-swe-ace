@@ -28,7 +28,7 @@ from phases.predict import PredictPhase
 from phases.evaluate import EvaluatePhase
 from phases.learn import LearnPhase
 from runners.main_loop import ExperimentLoop
-from retrieval import SkillRetriever
+from retrieval import SkillRetriever, RandomRetriever, EmbeddingRetriever
 from data_io.readers import load_skillbook, load_trajectory
 from data_io.writers import save_config, save_statistics, get_run_dir
 from utils.logging import setup_logging
@@ -69,7 +69,12 @@ def deep_merge(base: dict, override: dict) -> dict:
 
 
 def _build_skill_retriever(experiment_cfg: dict):
-    """Create SkillRetriever from config, or None if disabled.
+    """Create a skill retriever from config, or None if disabled.
+
+    Supports three retriever types via the ``type`` config field:
+      - ``"llm"`` (default): Two-stage filter+rank using an LLM.
+      - ``"random"``: Pick k random skills (baseline).
+      - ``"embedding"``: Cosine similarity via sentence-transformers.
 
     Retrieval applies automatically on:
       - single-phase mode (phase=None): per_instance experiments
@@ -80,12 +85,38 @@ def _build_skill_retriever(experiment_cfg: dict):
         experiment_cfg: The experiment section of the config dict.
 
     Returns:
-        SkillRetriever instance or None.
+        A retriever instance (SkillRetrieverBase subclass) or None.
     """
     retrieval_cfg = experiment_cfg.get("skillbook", {}).get("retrieval", {})
     if not retrieval_cfg.get("enabled", False):
         return None
 
+    retriever_type = retrieval_cfg.get("type", "llm")
+
+    if retriever_type == "llm":
+        return _build_llm_retriever(retrieval_cfg)
+    elif retriever_type == "random":
+        return RandomRetriever(
+            top_k=retrieval_cfg.get("top_k", 5),
+            skip_threshold=retrieval_cfg.get("skip_threshold", 10),
+            seed=retrieval_cfg.get("seed"),
+        )
+    elif retriever_type == "embedding":
+        return EmbeddingRetriever(
+            model_name=retrieval_cfg.get("model", "Qwen/Qwen3-Embedding-4B"),
+            device=retrieval_cfg.get("device", "cuda"),
+            top_k=retrieval_cfg.get("top_k", 5),
+            skip_threshold=retrieval_cfg.get("skip_threshold", 10),
+            include_section=retrieval_cfg.get("include_section", False),
+            batch_size=retrieval_cfg.get("batch_size", 32),
+            cache_dir=retrieval_cfg.get("cache_dir"),
+        )
+    else:
+        raise ValueError(f"Unknown retriever type: {retriever_type!r}")
+
+
+def _build_llm_retriever(retrieval_cfg: dict):
+    """Build an LLM-based SkillRetriever from config."""
     model = retrieval_cfg.get("model")
     if not model:
         logger.warning("[Retriever] retrieval.enabled=true but no model specified, skipping")

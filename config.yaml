@@ -45,8 +45,10 @@ experiment:
 
     retrieval:
       enabled: false                   # Enable top-k skill retrieval before predict
+      type: "llm"                      # Retriever type: "llm" (default), "random", "embedding"
       top_k: 5                         # Number of skills to retrieve
       skip_threshold: 10               # Skip retrieval if skillbook has ≤ N skills
+      # --- LLM-specific (type: "llm") ---
       model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"  # LLM for filter + rank stages
       api_base: "http://localhost:8800/v1"          # API base URL
       api_key_env: "HOSTED_VLLM_API_KEY"            # Environment variable for API key
@@ -56,6 +58,14 @@ experiment:
       filter_target: 100               # Max skills to keep after filtering stage
       # filter_prompt: null            # Path to custom filter prompt file (null = built-in default)
       # rank_prompt: null              # Path to custom rank prompt file (null = built-in default)
+      # --- Embedding-specific (type: "embedding") ---
+      # model: "Qwen/Qwen3-Embedding-4B"  # Sentence-transformers model
+      # device: "cuda"                     # Device: "cuda" or "cpu"
+      # include_section: false             # Prepend skill section to embedding text
+      # batch_size: 32                     # Batch size for skill embedding
+      # cache_dir: null                    # Embedding cache dir (null = data/.retrieval_cache/)
+      # --- Random-specific (type: "random") ---
+      # seed: null                         # Random seed for reproducibility (null = non-deterministic)
 
   # resume_dirs:                       # Resume from previous runs (copies completed, continues partial)
   #   - data/run_20260415_020540

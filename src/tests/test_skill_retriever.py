@@ -409,3 +409,101 @@ class TestBuildSkillRetriever:
             }
         })
         assert result is None
+
+
+class TestBuildSkillRetrieverDispatch:
+    """Test _build_skill_retriever dispatches by type field."""
+
+    def test_type_random_returns_random_retriever(self):
+        from cli.commands import _build_skill_retriever
+        from retrieval.random_retriever import RandomRetriever
+
+        result = _build_skill_retriever({
+            "skillbook": {
+                "retrieval": {
+                    "enabled": True,
+                    "type": "random",
+                    "top_k": 3,
+                    "skip_threshold": 7,
+                    "seed": 42,
+                }
+            }
+        })
+
+        assert isinstance(result, RandomRetriever)
+        assert result.top_k == 3
+        assert result.skip_threshold == 7
+
+    def test_type_embedding_returns_embedding_retriever(self):
+        from cli.commands import _build_skill_retriever
+        from retrieval.embedding_retriever import EmbeddingRetriever
+
+        result = _build_skill_retriever({
+            "skillbook": {
+                "retrieval": {
+                    "enabled": True,
+                    "type": "embedding",
+                    "model": "test-emb-model",
+                    "top_k": 5,
+                    "skip_threshold": 3,
+                    "device": "cpu",
+                }
+            }
+        })
+
+        assert isinstance(result, EmbeddingRetriever)
+        assert result.top_k == 5
+        assert result.skip_threshold == 3
+        assert result.model == "test-emb-model"
+
+    def test_type_llm_default_no_type_field(self):
+        """When type is not specified, defaults to 'llm'."""
+        from cli.commands import _build_skill_retriever
+        from retrieval.skill_retriever import SkillRetriever
+
+        with patch.dict("os.environ", {"ZAI_API_KEY": "test-key-123"}):
+            result = _build_skill_retriever({
+                "skillbook": {
+                    "retrieval": {
+                        "enabled": True,
+                        "model": "glm-4.5-flash",
+                        "api_base": "https://api.example.com/v1",
+                        "top_k": 3,
+                    }
+                }
+            })
+
+        assert isinstance(result, SkillRetriever)
+        assert result.top_k == 3
+
+    def test_unknown_type_raises_error(self):
+        from cli.commands import _build_skill_retriever
+
+        with pytest.raises(ValueError, match="Unknown retriever type"):
+            _build_skill_retriever({
+                "skillbook": {
+                    "retrieval": {
+                        "enabled": True,
+                        "type": "nonexistent",
+                    }
+                }
+            })
+
+    def test_type_llm_explicit(self):
+        """Explicit type: 'llm' behaves the same as default."""
+        from cli.commands import _build_skill_retriever
+        from retrieval.skill_retriever import SkillRetriever
+
+        with patch.dict("os.environ", {"ZAI_API_KEY": "test-key-123"}):
+            result = _build_skill_retriever({
+                "skillbook": {
+                    "retrieval": {
+                        "enabled": True,
+                        "type": "llm",
+                        "model": "glm-4.5-flash",
+                        "api_base": "https://api.example.com/v1",
+                    }
+                }
+            })
+
+        assert isinstance(result, SkillRetriever)

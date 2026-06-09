@@ -14,6 +14,7 @@ from ace.core.skillbook import Skill
 from loguru import logger
 from openai import OpenAI
 
+from .base import SkillRetrieverBase, extract_issue_info
 from .prompts import (
     DEFAULT_FILTER_PROMPT,
     DEFAULT_RANK_PROMPT,
@@ -46,15 +47,6 @@ def _format_skill(idx: int, s: dict) -> str:
     return f"#{idx} | {s['section']}{tag} | {s['content']}"
 
 
-def _extract_issue_info(instance: dict) -> tuple[str, str, str]:
-    """Extract repo, title, body from a SWE-bench instance dict."""
-    repo = instance.get("repo", "unknown").replace("/", "__")
-    problem = instance.get("problem_statement", "")
-    title = problem.split("\n", 1)[0]
-    body = problem.split("\n", 1)[1] if "\n" in problem else ""
-    return repo, title, body
-
-
 def _skill_to_dict(skill: Skill) -> dict:
     """Convert a Skill object to a dict for _format_skill."""
     return {
@@ -65,7 +57,7 @@ def _skill_to_dict(skill: Skill) -> dict:
     }
 
 
-class SkillRetriever:
+class SkillRetriever(SkillRetrieverBase):
     """Two-stage LLM-based top-k skill retrieval.
 
     Args:
@@ -127,7 +119,7 @@ class SkillRetriever:
             )
             return list(skills)
 
-        repo, title, body = _extract_issue_info(instance)
+        repo, title, body = extract_issue_info(instance)
         skill_items = [(s.id, _skill_to_dict(s)) for s in skills]
         id_to_skill = {s.id: s for s in skills}
 
@@ -155,6 +147,13 @@ class SkillRetriever:
             return [id_to_skill[sid] for sid, _ in filtered[: self.top_k]]
 
         return [id_to_skill[sid] for sid, _ in ranked]
+
+    def get_config_summary(self) -> dict:
+        """Return retriever config including LLM-specific fields."""
+        base = super().get_config_summary()
+        base["filter_target"] = self.filter_target
+        base["chunk_size"] = self.chunk_size
+        return base
 
     def _filter_skills(
         self,
