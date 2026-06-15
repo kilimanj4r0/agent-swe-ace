@@ -28,7 +28,7 @@ from phases.predict import PredictPhase
 from phases.evaluate import EvaluatePhase
 from phases.learn import LearnPhase
 from runners.main_loop import ExperimentLoop
-from retrieval import SkillRetriever, RandomRetriever, EmbeddingRetriever
+from retrieval import SkillRetriever, RandomRetriever, EmbeddingRetriever, BM25Retriever
 from data_io.readers import load_skillbook, load_trajectory
 from data_io.writers import save_config, save_statistics, get_run_dir
 from utils.logging import setup_logging
@@ -71,10 +71,11 @@ def deep_merge(base: dict, override: dict) -> dict:
 def _build_skill_retriever(experiment_cfg: dict):
     """Create a skill retriever from config, or None if disabled.
 
-    Supports three retriever types via the ``type`` config field:
+    Supports four retriever types via the ``type`` config field:
       - ``"llm"`` (default): Two-stage filter+rank using an LLM.
       - ``"random"``: Pick k random skills (baseline).
       - ``"embedding"``: Cosine similarity via sentence-transformers.
+      - ``"bm25"``: Lexical Okapi BM25 via the bm25s package.
 
     Retrieval applies automatically on:
       - single-phase mode (phase=None): per_instance experiments
@@ -110,6 +111,14 @@ def _build_skill_retriever(experiment_cfg: dict):
             include_section=retrieval_cfg.get("include_section", False),
             batch_size=retrieval_cfg.get("batch_size", 32),
             cache_dir=retrieval_cfg.get("cache_dir"),
+        )
+    elif retriever_type == "bm25":
+        return BM25Retriever(
+            top_k=retrieval_cfg.get("top_k", 5),
+            skip_threshold=retrieval_cfg.get("skip_threshold", 10),
+            k1=retrieval_cfg.get("k1", 1.5),
+            b=retrieval_cfg.get("b", 0.75),
+            include_section=retrieval_cfg.get("include_section", False),
         )
     else:
         raise ValueError(f"Unknown retriever type: {retriever_type!r}")

@@ -21,6 +21,7 @@ dependencies = [
     "loguru",
     "torch>=2.10,<2.11",
     "vllm>=0.18.0,<0.21",
+    "bm25s>=0.3.9",
 ]
 
 [tool.uv.sources]
