@@ -587,14 +587,6 @@ class ExperimentLoop:
                 "(train/val split). Use 'per_repo' or 'global' so skills accumulate across "
                 "training instances."
             )
-        if two_phase and self.concurrency > 1 and not baseline_run_dir:
-            raise ValueError(
-                f"concurrency={self.concurrency} is incompatible with two-phase experiments "
-                f"without a baseline_run_dir. Without baseline reuse, the concurrent path "
-                f"would re-run all train predictions from scratch. Provide --baseline-run-dir "
-                f"or set concurrency=1."
-            )
-
         logger.info(f"\nStarting experiment: {self.run_name}")
         logger.info(f"Instances: {len(instances)}")
         logger.info(f"Max attempts: {self.max_attempts}")
@@ -676,8 +668,9 @@ class ExperimentLoop:
             if two_phase and baseline_run_dir and self.skillbook_mode in ("global", "per_repo"):
                 baseline_sb_compat = self._check_baseline_skillbook_compat(baseline_run_dir)
 
-            if self.concurrency <= 1:
-                # Sequential mode
+            if two_phase or self.concurrency <= 1:
+                # Sequential train (two-phase train is always sequential; per_instance
+                # only goes concurrent when concurrency > 1, handled in the else below).
                 for i, instance in enumerate(instances):
                     instance_id = instance.get("instance_id", f"unknown-{i}")
                     logger.info(f"\n[TRAIN {i+1}/{len(instances)}] Processing {instance_id}")

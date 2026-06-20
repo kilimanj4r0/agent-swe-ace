@@ -988,3 +988,75 @@ class TestPredictPhaseInjection:
         injected.run.assert_called_once()
         own_predict.run.assert_not_called()
         own_predict.prepare_skillbook.assert_not_called()
+
+
+class TestTrainSequentialInTwoPhase:
+    """Two-phase train must run sequentially even with concurrency > 1; the old
+    guard that raised ValueError for two_phase + concurrency>1 + no baseline is gone."""
+
+    def test_no_guard_error_without_baseline(self, tmp_path):
+        from runners.main_loop import ExperimentLoop
+
+        mock_predict = Mock()
+        mock_predict.run.return_value = Mock(
+            instance_id="x", exit_status="submitted", patch="p", trajectory=[],
+        )
+        mock_evaluate = Mock()
+        mock_evaluate.run.return_value = Mock(
+            instance_id="x", resolved=True, feedback="", metrics={},
+        )
+        loop = ExperimentLoop(
+            predict_phase=mock_predict, evaluate_phase=mock_evaluate, learn_phase=Mock(),
+            output_dir=tmp_path, run_name="t", max_attempts=1,
+            skillbook_mode="global", concurrency=4, agent_factory=lambda: Mock(),
+        )
+        train = [{"instance_id": "r__t-0", "problem_statement": "x", "repo": "r"}]
+        val = [{"instance_id": "r__v-0", "problem_statement": "x", "repo": "r"}]
+
+        # Must NOT raise (old behavior: ValueError without baseline_run_dir)
+        stats = loop.run(train, val_instances=val)
+        assert "train_phase" in stats
+
+    def test_train_runs_one_at_a_time(self, tmp_path):
+        import threading
+        import time
+        from ace import Skillbook
+        from runners.main_loop import ExperimentLoop
+
+        active = [0]
+        max_active = [0]
+        lock = threading.Lock()
+
+        def predict_run(**kw):
+            with lock:
+                active[0] += 1
+                max_active[0] = max(max_active[0], active[0])
+            time.sleep(0.05)
+            with lock:
+                active[0] -= 1
+            return Mock(instance_id="x", exit_status="submitted",
+                        patch="p", trajectory=[])
+
+        mock_predict = Mock()
+        mock_predict.run.side_effect = predict_run
+        mock_predict.prepare_skillbook.return_value = (Skillbook(), None)
+        mock_evaluate = Mock()
+        mock_evaluate.run.return_value = Mock(
+            instance_id="x", resolved=False, feedback="", metrics={},
+        )
+        loop = ExperimentLoop(
+            predict_phase=mock_predict, evaluate_phase=mock_evaluate, learn_phase=Mock(),
+            output_dir=tmp_path, run_name="t", max_attempts=1,
+            skillbook_mode="global", concurrency=4, agent_factory=lambda: Mock(),
+        )
+        # 4 train instances (would overlap if train were concurrent); 1 val instance
+        # (val stays sequential here: concurrent val is added in Task 4, and even then
+        # a single val instance runs inline).
+        train = [{"instance_id": f"r__t-{i}", "problem_statement": "x", "repo": "r"}
+                 for i in range(4)]
+        val = [{"instance_id": "r__v-0", "problem_statement": "x", "repo": "r"}]
+        loop.run(train, val_instances=val)
+
+        assert max_active[0] == 1, (
+            f"two-phase train must be sequential, max in-flight={max_active[0]}"
+        )
