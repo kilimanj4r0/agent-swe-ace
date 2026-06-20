@@ -23,6 +23,14 @@ _shared_model = None
 _shared_model_name = None
 _shared_model_lock = threading.Lock()
 
+# Lock held during model.encode() calls. _shared_model_lock above serializes
+# only model *creation*; SentenceTransformer.encode() is not guaranteed
+# thread-safe (it mutates model state, and on GPU concurrent CUDA kernels
+# sharing one module can interleave), so encoding across worker threads
+# (iterate_repos / experiment.concurrency > 1) is serialized here too.
+# Distinct from _shared_model_lock so construction can never deadlock encode.
+_shared_model_encode_lock = threading.Lock()
+
 
 def _get_shared_st_model(model_name: str, device: str):
     """Get or create the shared SentenceTransformer model (thread-safe)."""
@@ -39,9 +47,11 @@ def _get_shared_st_model(model_name: str, device: str):
                 "sentence-transformers is required for EmbeddingRetriever. "
                 "Install with: pip install sentence-transformers"
             )
+        # bfloat16 speeds up GPU encoding; on CPU it can be slow or
+        # unsupported on older torch/ISAs, so only request it for CUDA.
+        model_kwargs = {"torch_dtype": "bfloat16"} if device.startswith("cuda") else {}
         _shared_model = SentenceTransformer(
-            model_name, device=device,
-            model_kwargs={"torch_dtype": "bfloat16"},
+            model_name, device=device, model_kwargs=model_kwargs,
         )
         _shared_model_name = model_name
     return _shared_model
@@ -102,6 +112,8 @@ class EmbeddingRetriever(SkillRetrieverBase):
         batch_size: int = 32,
         cache_dir: str | None = None,
     ) -> None:
+        if top_k < 1:
+            raise ValueError(f"top_k must be >= 1, got {top_k}")
         self.model = model_name
         self.top_k = top_k
         self.skip_threshold = skip_threshold
@@ -139,7 +151,7 @@ class EmbeddingRetriever(SkillRetrieverBase):
 
         # Cosine similarity via dot product (vectors are L2-normalized)
         scores = skill_embs @ query_vec  # (num_skills,)
-        k = min(self.top_k, len(skills))
+        k = max(0, min(self.top_k, len(skills)))
         top_indices = np.argsort(scores)[::-1][:k]
 
         selected = [id_to_skill[skill_ids[i]] for i in top_indices]
@@ -148,6 +160,14 @@ class EmbeddingRetriever(SkillRetrieverBase):
             f"(scores: {', '.join(f'{scores[i]:.3f}' for i in top_indices)})"
         )
         return selected
+
+    def get_config_summary(self) -> dict:
+        """Return retriever config including embedding-specific fields."""
+        base = super().get_config_summary()
+        base["device"] = self._device
+        base["include_section"] = self._include_section
+        base["batch_size"] = self._batch_size
+        return base
 
     # ------------------------------------------------------------------
     # Embedding helpers
@@ -168,12 +188,13 @@ class EmbeddingRetriever(SkillRetrieverBase):
 
         texts = [_skill_text(s, include_section=self._include_section) for s in skills]
         skill_ids = [s.id for s in skills]
-        embeddings = model.encode(
-            texts,
-            batch_size=self._batch_size,
-            show_progress_bar=False,
-            normalize_embeddings=True,
-        )
+        with _shared_model_encode_lock:
+            embeddings = model.encode(
+                texts,
+                batch_size=self._batch_size,
+                show_progress_bar=False,
+                normalize_embeddings=True,
+            )
         embeddings = np.asarray(embeddings, dtype=np.float32)
 
         # Cache to disk
@@ -201,7 +222,8 @@ class EmbeddingRetriever(SkillRetrieverBase):
             return np.load(cache)
 
         model = _get_shared_st_model(self.model, self._device)
-        vec = model.encode([issue_text], normalize_embeddings=True)
+        with _shared_model_encode_lock:
+            vec = model.encode([issue_text], normalize_embeddings=True)
         vec = np.asarray(vec, dtype=np.float32)[0]
 
         cache.parent.mkdir(parents=True, exist_ok=True)

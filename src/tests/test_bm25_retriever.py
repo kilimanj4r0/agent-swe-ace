@@ -205,3 +205,44 @@ class TestBM25RetrieverConfigSummary:
         assert summary["skip_threshold"] == 15
         assert summary["k1"] == 1.4
         assert summary["b"] == 0.8
+
+
+class TestBM25RetrieverValidation:
+    """Test constructor validation."""
+
+    def test_zero_top_k_raises(self):
+        from retrieval.bm25_retriever import BM25Retriever
+        with pytest.raises(ValueError, match="top_k"):
+            BM25Retriever(top_k=0)
+
+    def test_negative_top_k_raises(self):
+        from retrieval.bm25_retriever import BM25Retriever
+        with pytest.raises(ValueError, match="top_k"):
+            BM25Retriever(top_k=-1)
+
+
+class TestBM25RetrieverRelevanceMulti:
+    """Stronger ranking assertions: multiple relevant skills outrank distractors."""
+
+    def test_two_relevant_skills_both_rank_top(self):
+        from retrieval.bm25_retriever import BM25Retriever
+
+        skills = [
+            _make_skill("migration_a", "Migrations", "fix migration bug in django orm"),
+            _make_skill("migration_b", "Schema", "django migration operations alter state"),
+            _make_skill("distract1", "Performance", "optimize postgresql query indexing"),
+            _make_skill("distract2", "Testing", "pytest fixture setup teardown"),
+            _make_skill("distract3", "Templates", "render html templates context"),
+        ]
+        sb = Mock()
+        sb.skills.return_value = skills
+
+        retriever = BM25Retriever(top_k=2, skip_threshold=2)
+        instance = _make_instance("Migration bug in django\nThe migration system is broken.")
+
+        result = retriever.retrieve(sb, instance)
+        result_ids = [s.id for s in result]
+        assert len(result_ids) == 2
+        # Both lexically-relevant skills must occupy the top-2 slots, regardless
+        # of their relative order, with no distractor sneaking in.
+        assert set(result_ids) == {"migration_a", "migration_b"}

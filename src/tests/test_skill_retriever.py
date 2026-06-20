@@ -456,6 +456,30 @@ class TestBuildSkillRetrieverDispatch:
         assert result.skip_threshold == 3
         assert result.model == "test-emb-model"
 
+    def test_type_bm25_returns_bm25_retriever(self):
+        from cli.commands import _build_skill_retriever
+        from retrieval.bm25_retriever import BM25Retriever
+
+        result = _build_skill_retriever({
+            "skillbook": {
+                "retrieval": {
+                    "enabled": True,
+                    "type": "bm25",
+                    "top_k": 4,
+                    "skip_threshold": 8,
+                    "k1": 1.2,
+                    "b": 0.5,
+                    "include_section": True,
+                }
+            }
+        })
+
+        assert isinstance(result, BM25Retriever)
+        assert result.top_k == 4
+        assert result.skip_threshold == 8
+        assert result.k1 == 1.2
+        assert result.b == 0.5
+
     def test_type_llm_default_no_type_field(self):
         """When type is not specified, defaults to 'llm'."""
         from cli.commands import _build_skill_retriever
@@ -507,3 +531,28 @@ class TestBuildSkillRetrieverDispatch:
             })
 
         assert isinstance(result, SkillRetriever)
+
+
+class TestSkillRetrieverConfigSummary:
+    """Test SkillRetriever.get_config_summary keys (statistics contract)."""
+
+    def test_config_summary_fields(self):
+        from retrieval.skill_retriever import SkillRetriever
+
+        retriever = SkillRetriever(
+            model="glm-4.5-flash",
+            api_base="https://api.example.com/v1",
+            api_key="k",
+            top_k=6,
+            skip_threshold=12,
+            chunk_size=150,
+            filter_target=80,
+        )
+        summary = retriever.get_config_summary()
+
+        assert summary["type"] == "SkillRetriever"
+        assert summary["model"] == "glm-4.5-flash"
+        assert summary["top_k"] == 6
+        assert summary["skip_threshold"] == 12
+        assert summary["filter_target"] == 80
+        assert summary["chunk_size"] == 150

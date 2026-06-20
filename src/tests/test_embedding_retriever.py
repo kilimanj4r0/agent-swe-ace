@@ -11,6 +11,22 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
+@pytest.fixture(autouse=True)
+def _reset_shared_st_model_singleton():
+    """Reset the module-level SentenceTransformer singleton between tests.
+
+    Embedding tests mock ``_get_shared_st_model`` so the real globals are
+    never populated today; this guards against order-dependent leaks if a
+    future test forgets the patch.
+    """
+    import retrieval.embedding_retriever as _er
+    _er._shared_model = None
+    _er._shared_model_name = None
+    yield
+    _er._shared_model = None
+    _er._shared_model_name = None
+
+
 def _make_skill(skill_id="s1", section="Testing", content="Test skill content"):
     """Create a mock Skill object."""
     skill = Mock()
@@ -129,8 +145,11 @@ class TestEmbeddingRetrieverConfigSummary:
 
         retriever = EmbeddingRetriever(
             model_name="Qwen/Qwen3-Embedding-4B",
+            device="cpu",
             top_k=7,
             skip_threshold=15,
+            include_section=True,
+            batch_size=16,
         )
         summary = retriever.get_config_summary()
 
@@ -138,6 +157,9 @@ class TestEmbeddingRetrieverConfigSummary:
         assert summary["model"] == "Qwen/Qwen3-Embedding-4B"
         assert summary["top_k"] == 7
         assert summary["skip_threshold"] == 15
+        assert summary["device"] == "cpu"
+        assert summary["include_section"] is True
+        assert summary["batch_size"] == 16
 
 
 class TestEmbeddingRetrieverCache:
@@ -167,3 +189,116 @@ class TestEmbeddingRetrieverCache:
         h_no_section = _skillbook_hash(skills, include_section=False)
         h_with_section = _skillbook_hash(skills, include_section=True)
         assert h_no_section != h_with_section
+
+
+class TestEmbeddingRetrieverValidation:
+    """Test constructor validation."""
+
+    def test_zero_top_k_raises(self):
+        from retrieval.embedding_retriever import EmbeddingRetriever
+        with pytest.raises(ValueError, match="top_k"):
+            EmbeddingRetriever(top_k=0)
+
+    def test_negative_top_k_raises(self):
+        from retrieval.embedding_retriever import EmbeddingRetriever
+        with pytest.raises(ValueError, match="top_k"):
+            EmbeddingRetriever(top_k=-1)
+
+
+class TestEmbeddingRetrieverCacheRoundTrip:
+    """Exercise the on-disk cache LOAD path (np.load round-trip)."""
+
+    @patch("retrieval.embedding_retriever._get_shared_st_model")
+    def test_second_retrieve_hits_cache(self, mock_get_model, tmp_path):
+        from retrieval.embedding_retriever import EmbeddingRetriever
+
+        mock_model = MagicMock()
+        mock_get_model.return_value = mock_model
+
+        skill_embs = np.eye(10, dtype=np.float32)
+        mock_model.encode.side_effect = [
+            skill_embs,        # 1st retrieve: skill embeddings (cache miss)
+            skill_embs[3:4],   # 1st retrieve: query embedding (cache miss)
+        ]
+
+        retriever = EmbeddingRetriever(
+            model_name="test-model",
+            top_k=3,
+            skip_threshold=2,
+            cache_dir=str(tmp_path / "cache"),
+        )
+        sb, _ = _make_skillbook(n_skills=10)
+
+        result1 = retriever.retrieve(sb, _make_instance())
+        result2 = retriever.retrieve(sb, _make_instance())  # loads from disk
+
+        # Only the first retrieve touches the model; the second is a cache hit,
+        # exercising the np.load round-trip of the .npz/.npy schema.
+        assert mock_model.encode.call_count == 2
+        assert [s.id for s in result1] == [s.id for s in result2]
+
+
+class TestEmbeddingRetrieverRanking:
+    """Ranking correctness beyond the symmetric one-hot case."""
+
+    @patch("retrieval.embedding_retriever._get_shared_st_model")
+    def test_nontrivial_ranking_order(self, mock_get_model, tmp_path):
+        from retrieval.embedding_retriever import EmbeddingRetriever
+
+        mock_model = MagicMock()
+        mock_get_model.return_value = mock_model
+
+        # Non-orthogonal skill vectors; query is not a one-hot. Dot products
+        # are s0=0.6, s1=0.8, s2=1.0 -> expected order 2, 1, 0. This would fail
+        # if the matmul were transposed or the descending reversal dropped.
+        skill_embs = np.array([[1.0, 0.0], [0.0, 1.0], [0.6, 0.8]], dtype=np.float32)
+        query_vec = np.array([[0.6, 0.8]], dtype=np.float32)
+        mock_model.encode.side_effect = [skill_embs, query_vec]
+
+        retriever = EmbeddingRetriever(
+            model_name="m", top_k=3, skip_threshold=2,
+            cache_dir=str(tmp_path / "c"),
+        )
+        sb, _ = _make_skillbook(n_skills=3)
+
+        result = retriever.retrieve(sb, _make_instance())
+        assert [s.id for s in result] == ["skill_2", "skill_1", "skill_0"]
+
+
+class TestEmbeddingRetrieverIncludeSection:
+    """include_section must control whether the repo reaches the query text."""
+
+    @staticmethod
+    def _query_text(mock_model):
+        # encode call #2 is the query; its first positional arg is [issue_text].
+        return mock_model.encode.call_args_list[1].args[0][0]
+
+    @patch("retrieval.embedding_retriever._get_shared_st_model")
+    def test_repo_prepended_when_enabled(self, mock_get_model, tmp_path):
+        from retrieval.embedding_retriever import EmbeddingRetriever
+        mock_model = MagicMock()
+        mock_get_model.return_value = mock_model
+        skill_embs = np.eye(4, dtype=np.float32)
+        mock_model.encode.side_effect = [skill_embs, skill_embs[0:1]]
+        retriever = EmbeddingRetriever(
+            model_name="m", top_k=2, skip_threshold=2,
+            include_section=True, cache_dir=str(tmp_path / "c"),
+        )
+        sb, _ = _make_skillbook(4)
+        retriever.retrieve(sb, _make_instance())
+        assert "django__django" in self._query_text(mock_model)
+
+    @patch("retrieval.embedding_retriever._get_shared_st_model")
+    def test_repo_absent_when_disabled(self, mock_get_model, tmp_path):
+        from retrieval.embedding_retriever import EmbeddingRetriever
+        mock_model = MagicMock()
+        mock_get_model.return_value = mock_model
+        skill_embs = np.eye(4, dtype=np.float32)
+        mock_model.encode.side_effect = [skill_embs, skill_embs[0:1]]
+        retriever = EmbeddingRetriever(
+            model_name="m", top_k=2, skip_threshold=2,
+            include_section=False, cache_dir=str(tmp_path / "c"),
+        )
+        sb, _ = _make_skillbook(4)
+        retriever.retrieve(sb, _make_instance())
+        assert "django__django" not in self._query_text(mock_model)

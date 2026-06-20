@@ -28,6 +28,8 @@ class RandomRetriever(SkillRetrieverBase):
         skip_threshold: int = 10,
         seed: int | None = None,
     ) -> None:
+        if top_k < 1:
+            raise ValueError(f"top_k must be >= 1, got {top_k}")
         self.top_k = top_k
         self.skip_threshold = skip_threshold
         self.model = "random"

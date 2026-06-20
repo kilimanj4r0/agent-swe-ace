@@ -36,6 +36,23 @@ def _load_prompt(path: Optional[str], default: str) -> str:
     return content
 
 
+def _safe_format(template: str, default: str, **kwargs) -> str:
+    """Format a prompt template, falling back to default on stray braces.
+
+    Custom prompt files may contain literal ``{``/``}`` (e.g. a JSON example
+    like ``{"keep": true}``) that makes ``str.format`` raise. Rather than
+    crashing the worker for that instance, log and fall back to the built-in
+    default template.
+    """
+    try:
+        return template.format(**kwargs)
+    except (KeyError, IndexError, ValueError) as e:
+        logger.warning(
+            f"[Retriever] Prompt template has unescaped braces ({e}); using default"
+        )
+        return default.format(**kwargs)
+
+
 def _format_skill(idx: int, s: dict) -> str:
     """Format a single skill for the prompt."""
     tags: list[str] = []
@@ -90,6 +107,8 @@ class SkillRetriever(SkillRetrieverBase):
         max_tokens: int = 2048,
         max_retries: int = 3,
     ) -> None:
+        if top_k < 1:
+            raise ValueError(f"top_k must be >= 1, got {top_k}")
         self.model = model
         self.top_k = top_k
         self.skip_threshold = skip_threshold
@@ -205,7 +224,9 @@ class SkillRetriever(SkillRetrieverBase):
         skills_block = "\n".join(
             _format_skill(i, s) for i, (_, s) in enumerate(skill_items)
         )
-        prompt = self._filter_prompt.format(
+        prompt = _safe_format(
+            self._filter_prompt,
+            DEFAULT_FILTER_PROMPT,
             repo=repo,
             title=issue_title,
             description=issue_body,
@@ -220,7 +241,14 @@ class SkillRetriever(SkillRetrieverBase):
                 if not parsed.relevant_indices:
                     # Model says nothing relevant — accept
                     return []
-                indices = [i for i in parsed.relevant_indices if i in valid]
+                # Dedup while preserving the model's ordering; the LLM can
+                # return the same index more than once.
+                seen: set[int] = set()
+                indices: list[int] = []
+                for i in parsed.relevant_indices:
+                    if i in valid and i not in seen:
+                        seen.add(i)
+                        indices.append(i)
                 if indices:
                     return [skill_items[i] for i in indices]
                 logger.debug(
@@ -245,7 +273,9 @@ class SkillRetriever(SkillRetrieverBase):
         skills_block = "\n".join(
             _format_skill(i, s) for i, (_, s) in enumerate(skill_items)
         )
-        prompt = self._rank_prompt.format(
+        prompt = _safe_format(
+            self._rank_prompt,
+            DEFAULT_RANK_PROMPT,
             k=k,
             repo=repo,
             title=issue_title,

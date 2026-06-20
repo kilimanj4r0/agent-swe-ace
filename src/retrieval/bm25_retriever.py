@@ -86,6 +86,8 @@ class BM25Retriever(SkillRetrieverBase):
         b: float = 0.75,
         include_section: bool = False,
     ) -> None:
+        if top_k < 1:
+            raise ValueError(f"top_k must be >= 1, got {top_k}")
         self.top_k = top_k
         self.skip_threshold = skip_threshold
         self.k1 = k1
@@ -142,12 +144,21 @@ class BM25Retriever(SkillRetrieverBase):
 
             results, scores = bm25.retrieve(query_tokens, k=k, show_progress=False)
 
-        # results/scores have shape (1, k) for a single query.
+        # results/scores have shape (1, k) for a single query. Pair each
+        # index with its score so the debug log stays aligned even if the
+        # range guard drops an index (bm25s returns valid indices today,
+        # but keep the pairing defensive).
         top_indices = results[0]
-        selected = [skills[i] for i in top_indices if 0 <= i < len(skills)]
+        top_scores = scores[0]
+        selected: list[Skill] = []
+        score_strs: list[str] = []
+        for idx, sc in zip(top_indices, top_scores):
+            if 0 <= idx < len(skills):
+                selected.append(skills[idx])
+                score_strs.append(f"{sc:.3f}")
         logger.debug(
             f"[BM25Retriever] Selected {len(selected)}/{len(skills)} skills "
-            f"(scores: {', '.join(f'{scores[0][j]:.3f}' for j in range(len(selected)))})"
+            f"(scores: {', '.join(score_strs)})"
         )
         return selected
 

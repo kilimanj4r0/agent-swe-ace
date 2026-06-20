@@ -147,3 +147,17 @@ class TestRandomRetrieverConfigSummary:
         assert summary["model"] == "random"
         assert summary["top_k"] == 7
         assert summary["skip_threshold"] == 15
+
+
+class TestRandomRetrieverValidation:
+    """Test constructor validation."""
+
+    def test_zero_top_k_raises(self):
+        from retrieval.random_retriever import RandomRetriever
+        with pytest.raises(ValueError, match="top_k"):
+            RandomRetriever(top_k=0)
+
+    def test_negative_top_k_raises(self):
+        from retrieval.random_retriever import RandomRetriever
+        with pytest.raises(ValueError, match="top_k"):
+            RandomRetriever(top_k=-1)
