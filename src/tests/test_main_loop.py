@@ -383,6 +383,10 @@ class TestForceLearn:
             max_attempts=3,
         )
 
+        # Frozen path now calls predict.prepare_skillbook once per instance (a no-op
+        # without a retriever); echo the skillbook so the mocked runs proceed.
+        mock_predict.prepare_skillbook.side_effect = lambda instance, skillbook, phase=None: (skillbook, None)
+
         instance = {"instance_id": "test__repo-123", "problem_statement": "Fix"}
         result = loop.run_instance(instance, frozen_skillbook=True, max_attempts_override=1)
 
@@ -581,6 +585,10 @@ class TestPerRepoMode:
         val = [
             {"instance_id": "val-1", "repo": "django/django"},
         ]
+
+        # Val pass (frozen) now calls predict.prepare_skillbook once per instance
+        # (a no-op without a retriever); echo the skillbook for the mocked runs.
+        mock_predict.prepare_skillbook.side_effect = lambda instance, skillbook, phase=None: (skillbook, None)
 
         stats = loop.run(train, val_instances=val)
 

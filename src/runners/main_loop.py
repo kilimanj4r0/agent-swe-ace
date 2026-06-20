@@ -322,6 +322,16 @@ class ExperimentLoop:
             # Partial resume — copy existing artifacts
             self._copy_resume_artifacts(instance_id, phase=phase)
 
+        # Frozen/val pass: narrow the skillbook ONCE per instance so all k attempts
+        # share the same retrieved skills (true pass@k of a fixed retrieval), instead
+        # of retrieving per attempt. No-op without a retriever or when the phase /
+        # skillbook doesn't warrant retrieval.
+        retrieval_stats = None
+        if frozen_skillbook:
+            skillbook, retrieval_stats = self.predict.prepare_skillbook(
+                instance, skillbook, phase
+            )
+
         for iteration in range(start_iteration, effective_max):
             logger.info(f"\n--- Iteration {iteration + 1}/{effective_max} ---")
 
@@ -343,6 +353,8 @@ class ExperimentLoop:
                     skillbook=skillbook,
                     iteration=iteration,
                     phase=phase,
+                    retrieval_stats=retrieval_stats,
+                    skillbook_prepared=frozen_skillbook,
                 )
 
                 # Phase 2: Evaluate

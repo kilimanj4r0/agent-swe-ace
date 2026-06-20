@@ -79,6 +79,8 @@ class PredictPhase:
         skillbook: Optional[Skillbook],
         iteration: int = 0,
         phase: Optional[str] = None,
+        retrieval_stats: Optional[Dict[str, Any]] = None,
+        skillbook_prepared: bool = False,
     ) -> PredictResult:
         """
         Run agent on instance with skillbook.
@@ -94,24 +96,14 @@ class PredictPhase:
         instance_id = instance.get("instance_id", "unknown")
         logger.info(f"[Predict] Running agent for {instance_id} (iter {iteration})")
 
-        # Apply skill retrieval if configured and phase matches
-        retrieval_stats = None
-        if self.skill_retriever and skillbook:
-            # Retrieval applies on:
-            #   - single-phase mode (phase=None): always
-            #   - two-phase mode: only on "val" (val skillbook pass)
-            # Skipped on "train" and "val_baseline" (empty skillbook there anyway)
-            phase_matches = phase is None or phase == "val"
-            if phase_matches:
-                n_skills = len(skillbook.skills())
-                if n_skills <= self.skill_retriever.skip_threshold:
-                    self._retrieval_run_stats["instances_skipped_threshold"] += 1
-                else:
-                    new_skillbook, retrieval_stats = self._retrieve_skills(skillbook, instance)
-                    if retrieval_stats is not None:
-                        skillbook = new_skillbook
-                    else:
-                        self._retrieval_run_stats["instances_no_change"] += 1
+        # Skill retrieval narrows the skillbook for this instance. In the frozen/val
+        # pass the runner retrieves ONCE per instance via prepare_skillbook() and
+        # passes retrieval_stats + skillbook_prepared=True, so all k attempts share
+        # one retrieved skillbook (true pass@k of a fixed retrieval). In single-phase
+        # per_instance mode the caller does not pre-retrieve, so retrieve per call
+        # here (the skillbook grows across iterations).
+        if not skillbook_prepared:
+            skillbook, retrieval_stats = self.prepare_skillbook(instance, skillbook, phase)
 
         # Run agent
         result = self.agent.run(
@@ -162,6 +154,44 @@ class PredictPhase:
             trajectory_path=trajectory_path,
         )
 
+    def prepare_skillbook(
+        self,
+        instance: Dict[str, Any],
+        skillbook: Optional[Skillbook],
+        phase: Optional[str] = None,
+    ) -> tuple:
+        """Retrieve top-k skills for this instance, exactly once.
+
+        Used by the runner to narrow the skillbook a single time per instance in the
+        frozen/val pass, so all k attempts reuse the same retrieved skills instead of
+        retrieving once per attempt (which re-randomized the random retriever and
+        redundantly recomputed the deterministic ones).
+
+        Retrieval applies on:
+          - single-phase mode (phase=None): always
+          - two-phase mode: only on "val" (val skillbook pass)
+        Skipped on "train" and "val_baseline" (empty skillbook there anyway).
+
+        Returns:
+            (skillbook, retrieval_stats). retrieval_stats is None when retrieval is
+            disabled, the phase doesn't match, the skillbook is ≤ skip_threshold, or
+            retrieval selected all skills (no change). Run-level stats accumulate
+            exactly once per call.
+        """
+        if not self.skill_retriever or not skillbook:
+            return skillbook, None
+        if not (phase is None or phase == "val"):
+            return skillbook, None
+        n_skills = len(skillbook.skills())
+        if n_skills <= self.skill_retriever.skip_threshold:
+            self._retrieval_run_stats["instances_skipped_threshold"] += 1
+            return skillbook, None
+        new_skillbook, retrieval_stats = self._retrieve_skills(skillbook, instance)
+        if retrieval_stats is None:
+            self._retrieval_run_stats["instances_no_change"] += 1
+            return skillbook, None
+        return new_skillbook, retrieval_stats
+
     def _retrieve_skills(
         self, skillbook: Skillbook, instance: Dict[str, Any]
     ) -> tuple:
@@ -184,12 +214,16 @@ class PredictPhase:
         all_ids = [s.id for s in skillbook.skills()]
         dropped_ids = [sid for sid in all_ids if sid not in selected_ids]
 
-        # Build filtered skillbook with only selected skills
+        # Build filtered skillbook with only selected skills.
+        # Preserve the original skill.id — a fresh Skillbook() would otherwise
+        # regenerate sequential IDs (00001..k), breaking the correspondence between
+        # retrieval_stats.selected_ids and the IDs rendered into the agent prompt.
         filtered_sb = Skillbook()
         for skill in selected:
             filtered_sb.add_skill(
                 section=skill.section,
                 content=skill.content,
+                skill_id=skill.id,
                 justification=getattr(skill, "justification", None),
                 evidence=getattr(skill, "evidence", None),
             )

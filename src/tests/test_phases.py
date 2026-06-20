@@ -129,6 +129,68 @@ class TestSkillbookInjection:
             assert template.index("## Learned Strategies") < template.index("<example_response>")
 
 
+class TestRetrieveSkillsPreservesIds:
+    """Retrieval must preserve the original skill IDs in the narrowed skillbook/prompt."""
+
+    MOCK_MINI_CONFIG = {
+        "agent": {
+            "system_template": "You are a coding assistant.",
+            "instance_template": "Problem:\n{{ problem_statement }}\n\n<example_response>...</example_response>",
+            "action_observation_template": "{{ observation }}",
+        }
+    }
+
+    def test_narrowed_skillbook_keeps_original_ids(self):
+        """Selected skills keep their real IDs; they must not be renumbered to 00001..k."""
+        from phases.predict import PredictPhase, build_instance_template
+
+        # High-numbered IDs that a fresh Skillbook's _generate_id counter (starts at 1)
+        # could never produce — so any renumbering is unambiguous.
+        full = []
+        for sid in [
+            "file_modification-00740",
+            "file_modification-00247",
+            "problem_analysis-00540",
+            "environment-00004",
+            "verification-00515",
+        ]:
+            skill = Mock()
+            skill.id = sid
+            skill.section = sid.rsplit("-", 1)[0]  # "file_modification", etc.
+            skill.content = f"AVOID: guidance from {sid}"
+            skill.justification = None
+            skill.evidence = None
+            full.append(skill)
+
+        # Retriever narrows the full pool down to the first 3 skills.
+        selected = full[:3]
+        mock_retriever = Mock()
+        mock_retriever.retrieve.return_value = selected
+
+        skillbook = Mock()
+        skillbook.skills.return_value = full
+
+        phase = PredictPhase(
+            agent=Mock(), output_dir=Path("/tmp"), skill_retriever=mock_retriever
+        )
+
+        filtered_sb, stats = phase._retrieve_skills(skillbook, {"instance_id": "x"})
+
+        # retrieval_stats is the source of truth for which skills were selected.
+        assert stats["selected_ids"] == [s.id for s in selected]
+
+        with patch("phases.predict._load_mini_swe_config", return_value=self.MOCK_MINI_CONFIG):
+            template = build_instance_template(skillbook=filtered_sb)
+
+        # Every real selected ID must appear as a section header in the injected prompt.
+        for sid in stats["selected_ids"]:
+            assert f"### {sid}" in template, f"{sid} missing from injected template"
+
+        # Fresh-counter IDs (the renumbering bug) must NOT appear.
+        assert "file_modification-00001" not in template
+        assert "problem_analysis-00003" not in template
+
+
 class TestIsValidPatch:
     """Test _is_valid_patch from evaluate.py."""
 
