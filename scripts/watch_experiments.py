@@ -377,7 +377,9 @@ def _results_dir_for(run_dir: Path, dataset: str | None = None) -> Path:
 def scan_progress(run_dir: Path, max_attempts: int | None = None,
                    total_instances: int | None = None,
                    dataset: str | None = None,
-                   filter_repos: list | None = None) -> dict:
+                   filter_repos: list | None = None,
+                   expected_counts: dict | None = None,
+                   train_skipped: bool = False) -> dict:
     """Count completed instances from results dir when statistics.json is absent.
 
     Handles both flat and two-phase (train/val) directory layouts.
@@ -410,6 +412,16 @@ def scan_progress(run_dir: Path, max_attempts: int | None = None,
                 phases[phase][1] += 1
             if last_data.get("resolved"):
                 phases[phase][0] += 1
+
+    # Overlay authoritative phase sizes from the split manifest so progress is
+    # measured against the true workload, not dirs-seen-so-far. val_baseline
+    # and val share the val size; train only applies when the phase is present.
+    if expected_counts:
+        exp_val = expected_counts.get("val", 0)
+        for pname, exp in (("train", expected_counts.get("train", 0)),
+                           ("val_baseline", exp_val), ("val", exp_val)):
+            if exp and pname in phases and exp > phases[pname][2]:
+                phases[pname][2] = exp
 
     # Compute top-level counts, deduplicating val across vb/val phases
     if phases:
@@ -446,25 +458,29 @@ def scan_progress(run_dir: Path, max_attempts: int | None = None,
             elif max_attempts is not None and len(iters) >= max_attempts:
                 processed += 1
 
-    if total_instances is not None and total_instances > 0:
-        total = max(total_instances, dir_count)
-    elif phases:
-        # Two-phase: total is the unique instance count (train + val)
-        train_total = phases.get("train", [0, 0, 0])[2]
-        vb_total = phases.get("val_baseline", [0, 0, 0])[2]
-        val_total = phases.get("val", [0, 0, 0])[2]
-        val_estimate = max(vb_total, val_total)
-        if val_estimate > 0:
-            total = train_total + val_estimate
-        else:
-            # Val phase hasn't started — try sibling runs for phase counts
-            phase_counts = find_repo_phase_counts(dataset, filter_repos) if filter_repos and dataset else None
-            if phase_counts:
-                total = phase_counts["train"] + phase_counts["val"]
+    if phases:
+        if expected_counts:
+            # Manifest gives authoritative workload sizes — use them directly
+            # so the total is correct from the start (not just at completion).
+            if "train" in phases:
+                # Full two-phase: train + val instances.
+                total = expected_counts.get("train", 0) + expected_counts.get("val", 0)
             else:
-                # No sibling data — use dataset total or dir_count
-                ds_total = find_dataset_total(dataset, filter_repos) if dataset else None
-                total = ds_total if ds_total else dir_count
+                # Validation-only (train skipped): just the val instances.
+                total = expected_counts.get("val", 0)
+        else:
+            # No manifest — fall back to dir counts, bumped by a sibling run's
+            # phase sizes if one is available (val may not have started yet).
+            total = dir_count
+            if filter_repos and dataset:
+                phase_counts = find_repo_phase_counts(dataset, filter_repos)
+                if phase_counts:
+                    total = max(total, phase_counts["train"] + phase_counts["val"])
+    elif train_skipped and expected_counts and expected_counts.get("val"):
+        # Validation-only before any instance dir exists yet.
+        total = expected_counts["val"]
+    elif total_instances is not None and total_instances > 0:
+        total = max(total_instances, dir_count)
     elif filter_repos:
         total = dir_count
     else:
@@ -487,6 +503,55 @@ def _repo_from_instance(instance_id: str) -> str | None:
     if len(segments) != 2 or not segments[1].isdigit():
         return None
     return f"{owner}/{segments[0]}"
+
+
+_MANIFEST_CACHE: dict[str, object] = {}
+_MANIFEST_MISSING = object()
+
+
+def _load_split_manifest(path: str) -> dict | None:
+    """Load and cache a split manifest JSON. Returns None if missing/empty."""
+    if path in _MANIFEST_CACHE:
+        v = _MANIFEST_CACHE[path]
+        return None if v is _MANIFEST_MISSING else v  # type: ignore[return-value]
+    m = load_json(Path(path))
+    if not m:
+        _MANIFEST_CACHE[path] = _MANIFEST_MISSING
+        return None
+    _MANIFEST_CACHE[path] = m
+    return m
+
+
+def _manifest_expected_counts(cfg: dict) -> dict | None:
+    """Expected {train, val} instance counts for a run, from its split manifest.
+
+    Applies filter_repos and exclude_instances so the counts match the run's
+    actual workload (e.g. a validation-only run only does the val instances).
+    Returns None when no manifest is configured.
+    """
+    manifest_path = cfg.get("experiment", {}).get("split", {}).get("manifest")
+    if not manifest_path:
+        return None
+    m = _load_split_manifest(manifest_path)
+    if not m:
+        return None
+    filter_repos = set(cfg.get("benchmark", {}).get("filter_repos") or [])
+    excludes = set(cfg.get("benchmark", {}).get("exclude_instances") or [])
+
+    def _applicable(ids: list) -> int:
+        n = 0
+        for iid in ids:
+            if iid in excludes:
+                continue
+            if filter_repos and _repo_from_instance(iid) not in filter_repos:
+                continue
+            n += 1
+        return n
+
+    return {
+        "train": _applicable(m.get("train_instances") or []),
+        "val": _applicable(m.get("val_instances") or []),
+    }
 
 
 def _get_repo_expected_sizes(dataset: str, repos: list[str], val_ratio: float | None,
@@ -818,8 +883,10 @@ def collect_runs(show_all: bool, only_running: bool, only_tests: bool = False):
                 errors = iterate_repos_progress["errors"]
                 rate = iterate_repos_progress["rate"]
             phases = {}
-        elif not has_stats or (total == 0 and is_active):
-            # If no statistics.json yet, scan filesystem
+        elif not has_stats or total == 0:
+            # No statistics.json, or top-level stats are zeroed (e.g. completed
+            # validation-only runs record total_instances=0 at the top level) —
+            # derive counts from the filesystem + split manifest instead.
             dataset = cfg.get("benchmark", {}).get("dataset")
             exclude = cfg.get("benchmark", {}).get("exclude_instances") or []
             # Compute effective total from config
@@ -837,12 +904,16 @@ def collect_runs(show_all: bool, only_running: bool, only_tests: bool = False):
                 computed = compute_eff_total(dataset, exclude)
                 if computed is not None:
                     eff_total = min(eff_total, computed)
+            manifest_counts = _manifest_expected_counts(cfg)
+            train_skipped = bool(exp.get("skillbook_source_dir"))
             prog = scan_progress(
                 d,
                 max_attempts=attempts if isinstance(attempts, int) else None,
                 total_instances=eff_total,
                 dataset=dataset,
                 filter_repos=cfg.get("benchmark", {}).get("filter_repos"),
+                expected_counts=manifest_counts,
+                train_skipped=train_skipped,
             )
             total = prog["total"]
             processed = prog["processed"]
@@ -994,8 +1065,9 @@ def render(entries, term_width: int):
 
     # Legend
     print(f"  {DIM}Legend: █ resolved  ░ failed  · remaining | "
+          f"col Res/Proc/Total = resolved/processed/total | "
+          f"Phases train/vb=val_baseline/val: x/y = resolved/total | "
           f"SWE=custom-swe-learn | "
-          f"Phases: train  vb=val_baseline  val | "
           f"TEST: e2e smoke test run | "
           f"Endpoints: UP/DOWN/cloud{RESET}")
     print()
@@ -1022,7 +1094,8 @@ def render(entries, term_width: int):
         is_test = bool(e.get("test_slug"))
         name = e["name"]
         if len(name) > col_name:
-            name = name[: col_name - 2] + ".."
+            # Configs share a long common prefix; keep the distinguishing suffix.
+            name = ".." + name[-(col_name - 2):]
 
         # Folder display: test slug for test runs, abbreviated run dir for production
         if is_test:
