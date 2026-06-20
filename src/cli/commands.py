@@ -464,58 +464,31 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
     agent_cfg = config.get("agent", {})
     llm_cfg = config.get("llm", {})
 
+    skip_learn = exp.get("skip_learn", False)
+    max_attempts = exp.get("max_attempts", 2)
+    val_pass_k = exp.get("val_pass_k", 1)
+    dedup = sb.get("deduplication")
+
     print("\n=== DRY RUN ===")
 
-    # --- Configuration ---
+    # ── 1. Configuration ─────────────────────────────────────────────────
     print("\nConfiguration:")
-    print(f"  Run name:         {run_name}")
-    print(f"  Output (would be): {output_dir}")
-    print(f"  Benchmark:        {config['benchmark']['dataset']} (split: {bm.get('split', 'test')})")
-    print(f"  Skillbook mode:   {sb.get('mode', 'per_instance')}")
-    print(f"  Custom SWE learn: {sb.get('custom_swe_learn', False)}")
-    print(f"  Concurrency:      {exp.get('concurrency', 1)}")
-    print(f"  Max attempts:     {exp.get('max_attempts', 2)}")
-    _skip_learn = exp.get("skip_learn", False)
-    if _skip_learn:
-        print(f"  Skip learn:       True (Learn phase disabled)")
+    print(f"  Run name:          {run_name}")
+    print(f"  Output:            {output_dir}")
+    print(f"  Benchmark:         {config['benchmark']['dataset']} (split: {bm.get('split', 'test')})")
+    print(f"  Skillbook mode:    {sb.get('mode', 'per_instance')}")
+    print(f"  Custom SWE learn:  {sb.get('custom_swe_learn', False)}")
+    print(f"  Concurrency:       {exp.get('concurrency', 1)}")
+    print(f"  Max attempts:      {max_attempts}")
+    print(f"  Val pass K:        {val_pass_k}")
+    if skip_learn:
+        print(f"  Skip learn:        True (Learn phase disabled)")
     else:
-        print(f"  Force learn:      {exp.get('force_learn', True)}")
-    dedup = sb.get("deduplication")
+        print(f"  Force learn:       {exp.get('force_learn', True)}")
     if dedup:
-        print(f"  Deduplication:    enabled (threshold={dedup.get('similarity_threshold', 'default')})")
+        print(f"  Deduplication:     enabled (threshold={dedup.get('similarity_threshold', 'default')})")
 
-    baseline_run_dir = getattr(args, "baseline_run_dir", None)
-    if not baseline_run_dir:
-        config_baseline = exp.get("baseline_run_dir")
-        if config_baseline:
-            baseline_run_dir = Path(config_baseline)
-    if baseline_run_dir:
-        baseline_run_dir = Path(baseline_run_dir)
-        if not baseline_run_dir.exists():
-            print(f"  Baseline run dir: {baseline_run_dir}  ⚠️  DOES NOT EXIST — reuse disabled")
-            baseline_run_dir = None
-        else:
-            print(f"  Baseline run dir: {baseline_run_dir}")
-
-    train_trajs_dir = exp.get("train_trajs_dir")
-    if train_trajs_dir:
-        print(f"  Train trajs dir: {train_trajs_dir} (teacher distillation)")
-        _trajs_dir = Path(train_trajs_dir)
-        if _trajs_dir.exists():
-            _teacher_ids = {
-                d.name for d in _trajs_dir.iterdir() if d.is_dir() and (d / f"{d.name}.traj.json").exists()
-            }
-            print(f"  Teacher trajs:    {len(_teacher_ids)} instances available")
-
-    skillbook_source_dir = exp.get("skillbook_source_dir")
-    if skillbook_source_dir:
-        print(f"  Skillbook source: {skillbook_source_dir} (validation-only)")
-
-    val_pass_k = exp.get("val_pass_k", 1)
-    if val_pass_k > 1:
-        print(f"  Val pass K:       {val_pass_k} attempts per val instance")
-
-    # --- LLM config ---
+    # ── 2. LLM ───────────────────────────────────────────────────────────
     print("\nLLM:")
     for role in ("agent", "ace"):
         role_cfg = llm_cfg.get(role, {})
@@ -524,71 +497,17 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
         max_tokens = role_cfg.get("max_tokens", "default")
         print(f"  {role}: model={model}, api_base={api_base}, max_tokens={max_tokens}")
 
-    # --- Dataset ---
+    # ── 3. Dataset ───────────────────────────────────────────────────────
     print("\nDataset:")
     if bm.get("max_instances"):
-        print(f"  Max instances:    {bm['max_instances']}")
+        print(f"  Max instances:     {bm['max_instances']}")
     if bm.get("exclude_instances"):
-        print(f"  Exclude:          {len(bm['exclude_instances'])} instances")
+        print(f"  Exclude:           {len(bm['exclude_instances'])} instances")
     if bm.get("filter_repos"):
-        print(f"  Filter repos:     {bm['filter_repos']}")
+        print(f"  Filter repos:      {bm['filter_repos']}")
 
     instances = get_instances(config)
-    print(f"  Instances loaded: {len(instances)}")
-
-    # Check for iterate_repos mode
-    iterate_repos_list = bm.get("iterate_repos")
-    if iterate_repos_list:
-        print(f"  iterate_repos:   {iterate_repos_list}")
-        # Group by repo
-        from collections import defaultdict
-        repo_groups = defaultdict(list)
-        for inst in instances:
-            repo_groups[inst.get("repo", "unknown")].append(inst)
-
-        print(f"\niterate_repos Plan ({len(iterate_repos_list)} repos):")
-        for repo in iterate_repos_list:
-            repo_insts = repo_groups.get(repo, [])
-            if not repo_insts:
-                print(f"  {repo}: NOT FOUND in dataset")
-                continue
-            train, val = split_instances(repo_insts, config, repo=repo)
-
-            # Teacher trajectory coverage for this repo
-            teacher_info = ""
-            if train_trajs_dir:
-                _trajs_dir = Path(train_trajs_dir)
-                if _trajs_dir.exists():
-                    _covered = sum(1 for i in train if (_trajs_dir / i["instance_id"] / f"{i['instance_id']}.traj.json").exists())
-                    teacher_info = f", teacher: {_covered}/{len(train)}"
-
-            # Skillbook source info
-            sb_info = ""
-            if skillbook_source_dir:
-                sb_info = " (validation-only, skip training)"
-
-            print(f"  {repo}: {len(repo_insts)} instances → {len(train)} train / {len(val)} val{teacher_info}{sb_info}")
-
-        concurrency = exp.get("concurrency", 1)
-        if concurrency > 1:
-            workers = min(concurrency, len(iterate_repos_list))
-            print(f"\n  Parallelism: {workers} repos at a time")
-
-        # Train source info
-        if train_trajs_dir:
-            print(f"\n  Train source: teacher distillation from {train_trajs_dir}")
-        elif baseline_run_dir:
-            print(f"\n  Train source: baseline reuse from {baseline_run_dir}")
-
-        if skillbook_source_dir:
-            print(f"  Skillbook: pre-loaded from {skillbook_source_dir} (validation-only)")
-        if baseline_run_dir:
-            print(f"  Val reuse: baseline results from {baseline_run_dir}")
-        if val_pass_k > 1:
-            print(f"  Val attempts: {val_pass_k} per instance (val_baseline reuse from baseline_run_dir)")
-
-        print("\n=== END DRY RUN ===")
-        return
+    print(f"  Instances loaded:  {len(instances)}")
 
     # Instance filter
     if args.instance:
@@ -596,107 +515,214 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
         if not instances:
             print(f"\n  ERROR: Instance not found: {args.instance}")
             return
-        print(f"  Filtered to:      {args.instance}")
+        print(f"  Filtered to:       {args.instance}")
 
-    # --- Split ---
-    train_instances, val_instances = split_instances(instances, config)
-    is_two_phase = len(val_instances) > 0
+    # ── 4. Data Sources ──────────────────────────────────────────────────
+    # Resolve baseline_run_dir (CLI > config > auto-derived from resume_dirs)
+    baseline_run_dir = getattr(args, "baseline_run_dir", None)
+    if not baseline_run_dir:
+        config_baseline = exp.get("baseline_run_dir")
+        if config_baseline:
+            baseline_run_dir = Path(config_baseline)
+    if baseline_run_dir:
+        baseline_run_dir = Path(baseline_run_dir)
+        if not baseline_run_dir.exists():
+            print(f"\n  Baseline run dir:  {baseline_run_dir}  ⚠️  DOES NOT EXIST — reuse disabled")
+            baseline_run_dir = None
 
-    print(f"\nSplit:")
-    print(f"  Train: {len(train_instances)} instances")
-    print(f"  Val:   {len(val_instances)} instances")
-    if is_two_phase:
-        split_cfg = exp.get("split", {})
-        # Show actual ratio from manifest if available, otherwise config value
-        manifest = _load_split_manifest(config)
-        actual_ratio = manifest.get("val_ratio", split_cfg.get("val_ratio", 0.2)) if manifest else split_cfg.get("val_ratio", 0.2)
-        print(f"  Val ratio: {actual_ratio}")
-
-    # --- Resume ---
-    max_attempts = exp.get("max_attempts", 2)
+    # Resolve resume_dirs (CLI > config)
     cli_resume_dirs = getattr(args, "resume_dir", None)
     config_resume_dirs = exp.get("resume_dirs")
     resume_dirs = cli_resume_dirs or (
         [Path(p) for p in config_resume_dirs] if config_resume_dirs else None
     )
 
-    print(f"\nResume:")
-    if resume_dirs:
-        from data_io.resume_scanner import scan_resume_dirs
+    # Auto-derive baseline_run_dir from resume_dirs (matches execution logic)
+    if not baseline_run_dir and resume_dirs:
+        baseline_run_dir = resume_dirs[0]
 
-        instance_ids = [i["instance_id"] for i in train_instances]
-        resume_state = scan_resume_dirs(resume_dirs, benchmark, instance_ids, max_attempts)
+    train_trajs_dir = exp.get("train_trajs_dir")
+    skillbook_source_dir = exp.get("skillbook_source_dir")
 
-        complete_ids = {iid for iid, rp in resume_state.items() if rp.is_fully_complete}
-        partial_ids = {
-            iid
-            for iid, rp in resume_state.items()
-            if not rp.is_fully_complete and rp.last_complete_iter >= 0
-        }
-        broken_ids = {
-            iid
-            for iid, rp in resume_state.items()
-            if not rp.is_fully_complete and rp.last_complete_iter < 0
-        }
-        fresh_ids = set(instance_ids) - set(resume_state.keys())
+    # Print data sources (each shown exactly once)
+    if baseline_run_dir or train_trajs_dir or skillbook_source_dir or resume_dirs:
+        print("\nData sources:")
+        if baseline_run_dir:
+            print(f"  Baseline run dir:  {baseline_run_dir}")
+        if train_trajs_dir:
+            print(f"  Train trajs dir:   {train_trajs_dir} (teacher distillation)")
+        if skillbook_source_dir:
+            print(f"  Skillbook source:  {skillbook_source_dir} (validation-only)")
+        if resume_dirs:
+            print(f"  Resume dirs:       {[str(d) for d in resume_dirs]}")
 
-        print(f"  Resume dirs:       {[str(d) for d in resume_dirs]}")
-        print(f"  Train complete (copy):     {len(complete_ids)}")
-        print(f"  Train broken (retry):      {len(broken_ids)}")
-        print(f"  Train partial (continue):  {len(partial_ids)}")
-        print(f"  Train fresh (process):     {len(fresh_ids)}")
+    # ── 5. Split ─────────────────────────────────────────────────────────
+    iterate_repos_list = bm.get("iterate_repos")
 
-        # Val resume
-        if val_instances:
-            val_ids = [i["instance_id"] for i in val_instances]
-            val_resume = scan_resume_dirs(resume_dirs, benchmark, val_ids, max_attempts, skip_learn=True)
-            val_complete = {iid for iid, rp in val_resume.items() if rp.is_fully_complete}
-            val_broken = {iid for iid, rp in val_resume.items() if not rp.is_fully_complete and rp.last_complete_iter < 0}
-            print(f"  Val complete (copy):       {len(val_complete)}")
-            print(f"  Val broken (retry):        {len(val_broken)}")
+    if iterate_repos_list:
+        # iterate_repos mode: split per-repo
+        print(f"\nIterate repos ({len(iterate_repos_list)} repos):")
+        repo_groups = defaultdict(list)
+        for inst in instances:
+            repo_groups[inst.get("repo", "unknown")].append(inst)
+
+        for repo in iterate_repos_list:
+            repo_insts = repo_groups.get(repo, [])
+            if not repo_insts:
+                print(f"  {repo}: NOT FOUND in dataset")
+                continue
+            train, val = split_instances(repo_insts, config, repo=repo)
+
+            extras = []
+            if train_trajs_dir:
+                _trajs_dir = Path(train_trajs_dir)
+                if _trajs_dir.exists():
+                    _covered = sum(
+                        1 for i in train
+                        if (_trajs_dir / i["instance_id"] / f"{i['instance_id']}.traj.json").exists()
+                    )
+                    extras.append(f"teacher: {_covered}/{len(train)}")
+            if skillbook_source_dir:
+                extras.append("validation-only")
+
+            extra_str = f" ({', '.join(extras)})" if extras else ""
+            print(f"  {repo}: {len(repo_insts)} total → {len(train)} train / {len(val)} val{extra_str}")
+
+        # Show split source (manifest vs config)
+        _manifest = _load_split_manifest(config)
+        _manifest_path = exp.get("split", {}).get("manifest")
+        _split_cfg = exp.get("split", {})
+        if _manifest:
+            print(f"  Val ratio:         {_manifest.get('val_ratio', _split_cfg.get('val_ratio', 0.2))} (from manifest)")
+            if _manifest_path:
+                print(f"  Manifest:          {_manifest_path}")
+        elif _split_cfg.get("val_ratio"):
+            print(f"  Val ratio:         {_split_cfg['val_ratio']} (from config)")
+
+        # Per-repo train source
+        if skillbook_source_dir:
+            print(f"  Train:             SKIPPED (validation-only)")
+        elif train_trajs_dir:
+            print(f"  Train:             teacher distillation")
+        elif baseline_run_dir:
+            print(f"  Train:             baseline reuse from {baseline_run_dir}")
+
+        if baseline_run_dir:
+            print(f"  Val reuse:         baseline results from {baseline_run_dir}")
     else:
-        print("  No resume dirs")
-        print(f"  All {len(train_instances)} train instances will be processed from scratch")
+        # Standard split
+        train_instances, val_instances = split_instances(instances, config)
+        is_two_phase = len(val_instances) > 0
 
-    # Baseline reuse info
-    if baseline_run_dir and not is_two_phase:
-        baseline_dir = Path(baseline_run_dir)
-        baseline_traj_dir = baseline_dir / benchmark / "trajectories"
-        baseline_count = 0
-        if baseline_traj_dir.exists():
-            baseline_count = sum(
-                1 for iid in (i["instance_id"] for i in train_instances)
-                if (baseline_traj_dir / iid / "iter_0.json").exists()
-            )
-        print(f"\nBaseline reuse (iter_0 predict+eval):")
-        print(f"  {baseline_count}/{len(train_instances)} instances available in baseline")
-        print(f"  Remaining {len(train_instances) - baseline_count} will run from scratch")
+        print(f"\nSplit:")
+        print(f"  Train:             {len(train_instances)} instances")
+        print(f"  Val:               {len(val_instances)} instances")
+        if is_two_phase:
+            split_cfg = exp.get("split", {})
+            manifest = _load_split_manifest(config)
+            manifest_path = split_cfg.get("manifest")
+            if manifest:
+                actual_ratio = manifest.get("val_ratio", split_cfg.get("val_ratio", 0.2))
+                print(f"  Val ratio:         {actual_ratio} (from manifest)")
+                if manifest_path:
+                    print(f"  Manifest:          {manifest_path}")
+            else:
+                actual_ratio = split_cfg.get("val_ratio", 0.2)
+                print(f"  Val ratio:         {actual_ratio} (from config)")
 
-    if baseline_run_dir and is_two_phase:
-        print(f"\n  Baseline run dir: {baseline_run_dir} (reuse existing val baseline)")
+        # ── 6. Resume ────────────────────────────────────────────────────
+        print(f"\nResume:")
+        if resume_dirs:
+            from data_io.resume_scanner import scan_resume_dirs
 
-    # Teacher trajectory coverage
-    if train_trajs_dir and is_two_phase:
-        _trajs_dir = Path(train_trajs_dir)
-        if _trajs_dir.exists():
-            _covered = sum(
-                1 for i in train_instances
-                if (_trajs_dir / i["instance_id"] / f"{i['instance_id']}.traj.json").exists()
-            )
-            print(f"\nTeacher trajectory coverage:")
-            print(f"  {_covered}/{len(train_instances)} train instances have teacher trajs")
-            print(f"  {_covered} will learn-only, {len(train_instances) - _covered} will be skipped")
+            instance_ids = [i["instance_id"] for i in train_instances]
+            resume_state = scan_resume_dirs(resume_dirs, benchmark, instance_ids, max_attempts)
 
-    # Skillbook source (validation-only mode)
-    if skillbook_source_dir:
-        print(f"\nValidation-only mode:")
-        print(f"  Skillbook source: {skillbook_source_dir}")
-        print(f"  Training will be SKIPPED entirely")
+            complete_ids = {iid for iid, rp in resume_state.items() if rp.is_fully_complete}
+            partial_ids = {
+                iid for iid, rp in resume_state.items()
+                if not rp.is_fully_complete and rp.last_complete_iter >= 0
+            }
+            broken_ids = {
+                iid for iid, rp in resume_state.items()
+                if not rp.is_fully_complete and rp.last_complete_iter < 0
+            }
+            fresh_ids = set(instance_ids) - set(resume_state.keys())
 
-    # --- Execution Plan ---
+            print(f"  Train complete:    {len(complete_ids)} (copy)")
+            print(f"  Train broken:      {len(broken_ids)} (retry)")
+            print(f"  Train partial:     {len(partial_ids)} (continue)")
+            print(f"  Train fresh:       {len(fresh_ids)} (new)")
+
+            if val_instances:
+                val_ids = [i["instance_id"] for i in val_instances]
+                val_resume = scan_resume_dirs(resume_dirs, benchmark, val_ids, max_attempts, skip_learn=True)
+                val_complete = {iid for iid, rp in val_resume.items() if rp.is_fully_complete}
+                val_broken = {iid for iid, rp in val_resume.items() if not rp.is_fully_complete and rp.last_complete_iter < 0}
+                val_partial = {iid for iid, rp in val_resume.items() if not rp.is_fully_complete and rp.last_complete_iter >= 0}
+                val_fresh = set(val_ids) - set(val_resume.keys())
+                print(f"  Val complete:      {len(val_complete)} (copy)")
+                print(f"  Val broken:        {len(val_broken)} (retry)")
+                print(f"  Val partial:       {len(val_partial)} (continue)")
+                print(f"  Val fresh:         {len(val_fresh)} (new)")
+        else:
+            print(f"  None — all instances processed from scratch")
+
+        # ── 7. Baseline / Teacher coverage ───────────────────────────────
+        if baseline_run_dir and not is_two_phase:
+            baseline_dir = Path(baseline_run_dir)
+            baseline_traj_dir = baseline_dir / benchmark / "trajectories"
+            baseline_count = 0
+            if baseline_traj_dir.exists():
+                baseline_count = sum(
+                    1 for iid in (i["instance_id"] for i in train_instances)
+                    if (baseline_traj_dir / iid / "iter_0.json").exists()
+                )
+            print(f"\nBaseline reuse:")
+            print(f"  Available:         {baseline_count}/{len(train_instances)} instances")
+            print(f"  Remaining:         {len(train_instances) - baseline_count} will run from scratch")
+
+        if baseline_run_dir and is_two_phase:
+            print(f"\nBaseline reuse:")
+            print(f"  Reuse from:        {baseline_run_dir} (val baseline)")
+
+        if train_trajs_dir and is_two_phase:
+            _trajs_dir = Path(train_trajs_dir)
+            if _trajs_dir.exists():
+                _covered = sum(
+                    1 for i in train_instances
+                    if (_trajs_dir / i["instance_id"] / f"{i['instance_id']}.traj.json").exists()
+                )
+                print(f"\nTeacher trajectory coverage:")
+                print(f"  Available:         {_covered}/{len(train_instances)} train instances")
+                print(f"  Skipped:           {len(train_instances) - _covered} (no teacher traj)")
+
+        if skillbook_source_dir:
+            print(f"\nValidation-only mode:")
+            print(f"  Skillbook source:  {skillbook_source_dir}")
+            print(f"  Training:          SKIPPED entirely")
+
+    # ── 8. Execution Plan ────────────────────────────────────────────────
     print(f"\nExecution Plan:")
-    if is_two_phase:
-        print(f"  Mode: Two-phase (train → val baseline → val skillbook)")
+    if iterate_repos_list:
+        concurrency = exp.get("concurrency", 1)
+        if concurrency > 1:
+            workers = min(concurrency, len(iterate_repos_list))
+            print(f"  Mode:              iterate_repos ({workers} repos in parallel)")
+        else:
+            print(f"  Mode:              iterate_repos (sequential)")
+        print(f"  Per repo:          train → val baseline ({val_pass_k} attempt(s)) → val skillbook ({val_pass_k} attempt(s))")
+        if skillbook_source_dir:
+            print(f"  Train:             SKIPPED (validation-only)")
+        elif train_trajs_dir:
+            print(f"  Train:             learn-only from teacher trajectories")
+        else:
+            print(f"  Train:             {max_attempts} attempt(s), force_learn=True")
+        print(f"  Skillbook:         {sb.get('mode', 'per_instance')} mode")
+        if dedup:
+            print(f"  Post-train dedup:  enabled")
+    elif is_two_phase:
+        print(f"  Mode:              Two-phase (train → val baseline → val skillbook)")
         print(f"  Phase 1 - Train:")
         if skillbook_source_dir:
             print(f"    SKIPPED (validation-only, skillbook loaded from {skillbook_source_dir})")
@@ -719,47 +745,51 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
         print(f"  Phase 3 - Val skillbook:")
         print(f"    {len(val_instances)} instances × {val_pass_k} attempt(s), learned skillbook, frozen")
     else:
-        print(f"  Mode: Single-phase (predict → evaluate → learn loop)")
-        print(f"  {len(train_instances)} instances × up to {max_attempts} attempts each")
+        print(f"  Mode:              Single-phase")
+        print(f"  Instances:         {len(train_instances)} × up to {max_attempts} attempts")
         if baseline_run_dir:
-            print(f"  iter_0: reuse predict+eval from baseline, then learn + continue")
+            print(f"  iter_0:            reuse predict+eval from baseline, then learn + continue")
         else:
-            print(f"  Per instance: predict → evaluate → (if unresolved) learn → retry")
+            if skip_learn:
+                print(f"  Per instance:      predict → evaluate (no learning)")
+            else:
+                print(f"  Per instance:      predict → evaluate → (if unresolved) learn → retry")
 
     concurrency = exp.get("concurrency", 1)
     if concurrency > 1:
-        print(f"  Concurrency: {concurrency} workers (prediction parallel, evaluation serialized)")
+        print(f"  Concurrency:       {concurrency} workers (prediction parallel, evaluation serialized)")
 
-    # --- Limits ---
+    # ── 9. Limits ────────────────────────────────────────────────────────
     ctx = agent_cfg.get("context", {})
     agent_llm = llm_cfg.get("agent", {})
     print(f"\nLimits:")
-    print(f"  Step limit:       {agent_cfg.get('step_limit', 100)}")
-    print(f"  Cost limit:       ${agent_cfg.get('cost_limit', 5.0):.2f}")
-    print(f"  Context window:   {ctx.get('context_window', 65536)}")
-    print(f"  Max tokens:       {agent_llm.get('max_tokens', 4096)}")
-    print(f"  Keep recent msgs: {ctx.get('keep_recent_messages', 6)}")
-    print(f"  Truncate thresh:  {ctx.get('truncate_threshold', 0.85)}")
+    print(f"  Step limit:        {agent_cfg.get('step_limit', 100)}")
+    print(f"  Cost limit:        ${agent_cfg.get('cost_limit', 5.0):.2f}")
+    print(f"  Context window:    {ctx.get('context_window', 65536)}")
+    print(f"  Max tokens:        {agent_llm.get('max_tokens', 4096)}")
+    print(f"  Keep recent msgs:  {ctx.get('keep_recent_messages', 6)}")
+    print(f"  Truncate thresh:   {ctx.get('truncate_threshold', 0.85)}")
 
-    # --- Observability ---
+    # ── 10. Observability ────────────────────────────────────────────────
     obs_cfg = config.get("observability", {})
     if args.observe or obs_cfg.get("enabled", False):
         project = obs_cfg.get("project_name", "agent-swe-ace")
         print(f"\nObservability:")
-        print(f"  Project: {project}_{output_dir.name}")
+        print(f"  Project:           {project}_{output_dir.name}")
 
-    # --- Instance IDs ---
-    print(f"\nTrain instances ({len(train_instances)}):")
-    for inst in train_instances[:15]:
-        print(f"  - {inst['instance_id']}")
-    if len(train_instances) > 15:
-        print(f"  ... and {len(train_instances) - 15} more")
-    if val_instances:
-        print(f"\nVal instances ({len(val_instances)}):")
-        for inst in val_instances[:15]:
+    # ── 11. Instance IDs ─────────────────────────────────────────────────
+    if not iterate_repos_list:
+        print(f"\nTrain instances ({len(train_instances)}):")
+        for inst in train_instances[:15]:
             print(f"  - {inst['instance_id']}")
-        if len(val_instances) > 15:
-            print(f"  ... and {len(val_instances) - 15} more")
+        if len(train_instances) > 15:
+            print(f"  ... and {len(train_instances) - 15} more")
+        if val_instances:
+            print(f"\nVal instances ({len(val_instances)}):")
+            for inst in val_instances[:15]:
+                print(f"  - {inst['instance_id']}")
+            if len(val_instances) > 15:
+                print(f"  ... and {len(val_instances) - 15} more")
 
     print("\n=== END DRY RUN ===")
 
@@ -1553,15 +1583,23 @@ def run_predict_cmd(config: dict, args):
         sys.exit(1)
 
     if args.dry_run:
-        agent_cfg = config.get("llm", {}).get("agent", {})
+        agent_llm_cfg = config.get("llm", {}).get("agent", {})
+        agent_cfg = config.get("agent", {})
+        ctx = agent_cfg.get("context", {})
         print(f"\n=== DRY RUN: predict ===")
-        print(f"  Instance:   {args.instance}")
-        print(f"  Iteration:  {args.iteration}")
-        print(f"  Skillbook:  {args.skillbook or '(empty)'}")
-        print(f"  Model:      {agent_cfg.get('model', 'not set')}")
-        print(f"  Step limit: {config.get('agent', {}).get('step_limit', 100)}")
-        print(f"  Cost limit: ${config.get('agent', {}).get('cost_limit', 5.0):.2f}")
-        print(f"  Docker:     {config.get('environment', {}).get('type') == 'docker'}")
+        print(f"  Run name:          {run_name}")
+        print(f"  Output:            {output_dir}")
+        print(f"  Instance:          {args.instance}")
+        print(f"  Iteration:         {args.iteration}")
+        print(f"  Skillbook:         {args.skillbook or '(empty)'}")
+        print(f"  Model:             {agent_llm_cfg.get('model', 'not set')}")
+        print(f"  Step limit:        {agent_cfg.get('step_limit', 100)}")
+        print(f"  Cost limit:        ${agent_cfg.get('cost_limit', 5.0):.2f}")
+        print(f"  Docker:            {config.get('environment', {}).get('type') == 'docker'}")
+        print(f"  Context window:    {ctx.get('context_window', 65536)}")
+        print(f"  Max tokens:        {agent_llm_cfg.get('max_tokens', 4096)}")
+        print(f"  Keep recent msgs:  {ctx.get('keep_recent_messages', 6)}")
+        print(f"  Truncate thresh:   {ctx.get('truncate_threshold', 0.85)}")
         print(f"\n=== END DRY RUN ===")
         sys.exit(0)
 
@@ -1615,15 +1653,21 @@ def run_evaluate_cmd(config: dict, args):
 
     if args.dry_run:
         eval_cfg = config.get("evaluation", {})
+        if args.patch:
+            patch_source = "(from --patch)"
+        elif args.trajectory:
+            patch_source = f"(from --trajectory: {args.trajectory})"
+        else:
+            patch_source = "NOT SPECIFIED"
         print(f"\n=== DRY RUN: evaluate ===")
-        print(f"  Instance:    {args.instance}")
-        print(f"  Iteration:   {args.iteration}")
-        print(f"  Patch:       {'(from --patch)' if args.patch else '(from --trajectory)' if args.trajectory else 'NOT SPECIFIED'}")
-        if args.trajectory:
-            print(f"  Trajectory:  {args.trajectory}")
-        print(f"  Docker:      {eval_cfg.get('use_docker', True)}")
-        print(f"  Timeout:     {eval_cfg.get('timeout', 1800)}s")
-        print(f"  RM image:    {eval_cfg.get('rm_image', True)}")
+        print(f"  Run name:          {run_name}")
+        print(f"  Output:            {output_dir}")
+        print(f"  Instance:          {args.instance}")
+        print(f"  Iteration:         {args.iteration}")
+        print(f"  Patch:             {patch_source}")
+        print(f"  Docker:            {eval_cfg.get('use_docker', True)}")
+        print(f"  Timeout:           {eval_cfg.get('timeout', 1800)}s")
+        print(f"  RM image:          {eval_cfg.get('rm_image', True)}")
         print(f"\n=== END DRY RUN ===")
         sys.exit(0)
 
@@ -1669,12 +1713,14 @@ def run_learn_cmd(config: dict, args):
         ace_cfg = config.get("llm", {}).get("ace", {})
         custom_swe = config.get("experiment", {}).get("skillbook", {}).get("custom_swe_learn", False)
         print(f"\n=== DRY RUN: learn ===")
-        print(f"  Instance:       {args.instance}")
-        print(f"  Trajectory:     {args.trajectory}")
-        print(f"  Iteration:      {args.iteration}")
-        print(f"  ACE model:      {ace_cfg.get('model', 'not set')}")
-        print(f"  Custom SWE:     {custom_swe}")
-        print(f"  Skillbook mode: {config.get('experiment', {}).get('skillbook', {}).get('mode', 'per_instance')}")
+        print(f"  Run name:          {run_name}")
+        print(f"  Output:            {output_dir}")
+        print(f"  Instance:          {args.instance}")
+        print(f"  Trajectory:        {args.trajectory}")
+        print(f"  Iteration:         {args.iteration}")
+        print(f"  ACE model:         {ace_cfg.get('model', 'not set')}")
+        print(f"  Custom SWE:        {custom_swe}")
+        print(f"  Skillbook mode:    {config.get('experiment', {}).get('skillbook', {}).get('mode', 'per_instance')}")
         print(f"\n=== END DRY RUN ===")
         sys.exit(0)
 
