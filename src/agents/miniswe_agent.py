@@ -191,12 +191,25 @@ class MiniSWEAgent:
             )
 
         except Exception as e:
-            logger.error(f"Agent execution error: {e}")
-            # Extract partial trajectory even on failure (e.g. ContextWindowExceededError)
+            # Extract partial trajectory even on failure
             trajectory = []
             if "agent" in dir():
                 if hasattr(agent, "messages"):
                     trajectory = agent.messages
+
+            # Distinguish context window overflow from other errors — it's a terminal
+            # condition (retrying won't help), so we give it a dedicated exit_status.
+            import litellm
+            if isinstance(e, litellm.ContextWindowExceededError):
+                logger.error(f"Agent context window exceeded: {e}")
+                return AgentResult(
+                    exit_status="ContextWindowExceeded",
+                    patch="",
+                    trajectory=trajectory,
+                    error=str(e),
+                )
+
+            logger.error(f"Agent execution error: {e}")
             return AgentResult(
                 exit_status="error",
                 patch="",

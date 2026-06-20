@@ -161,6 +161,24 @@ class TestScanResumeState:
         assert rp.is_fully_complete is True
         assert rp.last_complete_iter == 0
 
+    def test_context_window_exceeded_is_good_exit(self, tmp_path):
+        """ContextWindowExceeded is a good exit status — chain doesn't break on it."""
+        _write_iter(tmp_path, "trajectories", INSTANCE, 0, _make_trajectory("ContextWindowExceeded"))
+        _write_iter(tmp_path, "results", INSTANCE, 0, _make_result(resolved=True))
+
+        rp = scan_resume_state(tmp_path, BENCHMARK, INSTANCE, max_attempts=4)
+        assert rp.is_fully_complete is True
+        assert rp.last_complete_iter == 0
+
+    def test_context_window_exceeded_single_attempt_complete(self, tmp_path):
+        """ContextWindowExceeded with max_attempts=1 is fully complete."""
+        _write_iter(tmp_path, "trajectories", INSTANCE, 0, _make_trajectory("ContextWindowExceeded"))
+        _write_iter(tmp_path, "results", INSTANCE, 0, _make_result(resolved=False))
+
+        rp = scan_resume_state(tmp_path, BENCHMARK, INSTANCE, max_attempts=1)
+        assert rp.is_fully_complete is True
+        assert rp.last_complete_iter == 0
+
 
 class TestScanResumeDirs:
     """Tests for scan_resume_dirs — multi-directory merging."""

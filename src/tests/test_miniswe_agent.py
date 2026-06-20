@@ -181,6 +181,41 @@ class TestMiniSWEAgentRun:
         assert result.trajectory == failing_agent.messages
         assert "LLM connection lost" in result.error
 
+    def test_context_window_exceeded_returns_dedicated_status(self):
+        """ContextWindowExceededError should produce exit_status='ContextWindowExceeded'."""
+        import litellm
+        model = Mock()
+        failing_agent = Mock()
+        failing_agent.run.side_effect = litellm.ContextWindowExceededError(
+            message="Context window exceeded", model="test", llm_provider="vllm"
+        )
+        failing_agent.messages = [
+            {"role": "user", "content": "first"},
+            {"role": "assistant", "content": "partial"},
+        ]
+
+        mock_default_cls = Mock(return_value=failing_agent)
+        mock_config_cls = Mock(return_value="config-instance")
+
+        miniswe_patches = _install_minisweagent_mocks(mock_default_cls, mock_config_cls)
+
+        with patch.dict("sys.modules", miniswe_patches), \
+             patch("agents.miniswe_agent.create_local_environment", return_value=Mock()), \
+             patch("agents.miniswe_agent.create_docker_environment", return_value=Mock()), \
+             patch("agents.miniswe_agent.build_system_template", return_value="sys template"), \
+             patch("agents.miniswe_agent.build_instance_template", return_value="instance template"), \
+             patch("agents.miniswe_agent.build_action_observation_template", return_value="action template"), \
+             patch("agents.miniswe_agent.get_platform_info", return_value={"system": "Linux"}):
+
+            agent = MiniSWEAgent(llm_model=model, use_docker=False, context_management=False)
+            result = agent.run(problem="Fix", instance={"instance_id": "test-1"})
+
+        assert isinstance(result, AgentResult)
+        assert result.exit_status == "ContextWindowExceeded"
+        assert result.patch == ""
+        assert result.trajectory == failing_agent.messages
+        assert "Context window exceeded" in result.error
+
     def test_string_result_extraction(self):
         """When agent.run() returns a string result, it should be used as the patch directly."""
         model = Mock()

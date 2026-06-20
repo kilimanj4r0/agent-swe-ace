@@ -46,8 +46,9 @@ class ResumePoint:
         return self.last_complete_iter + 1 if not self.is_fully_complete else -1
 
 
-# exit_status values that indicate the agent ran successfully
-_GOOD_EXIT_STATUSES = {"Submitted", "LimitsExceeded"}
+# exit_status values that indicate the agent ran to completion (even if unresolved).
+# These are considered valid endpoints — resume copies them, baseline reuse loads them.
+_GOOD_EXIT_STATUSES = {"Submitted", "LimitsExceeded", "ContextWindowExceeded"}
 
 # Known phase subdirectories in two-phase runs
 _PHASE_PREFIXES = ("train", "val_baseline", "val")
@@ -87,7 +88,10 @@ def _diagnose_break(
     if exit_status not in _GOOD_EXIT_STATUSES:
         return f"bad_exit_status: {exit_status}"
 
-    result_file = resume_dir / benchmark / "results" / instance_id / f"iter_{break_at}.json"
+    if phase:
+        result_file = resume_dir / benchmark / "results" / phase / instance_id / f"iter_{break_at}.json"
+    else:
+        result_file = resume_dir / benchmark / "results" / instance_id / f"iter_{break_at}.json"
     if not result_file.exists():
         return "missing_result"
 
@@ -166,6 +170,7 @@ def scan_resume_state(
                 resume_dir=resume_dir,
                 last_complete_iter=k,
                 is_fully_complete=True,
+                phase=phase,
             )
 
         # Not resolved — need skillbook for next iteration (unless skip_learn)
@@ -201,6 +206,7 @@ def scan_resume_state(
                                 resume_dir=resume_dir,
                                 last_complete_iter=k,
                                 is_fully_complete=True,
+                                phase=phase,
                             )
                 except Exception:
                     continue
@@ -220,6 +226,7 @@ def scan_resume_state(
         is_fully_complete=is_complete,
         break_reason=break_reason,
         break_iteration=break_iteration if not is_complete else None,
+        phase=phase,
     )
 
 
@@ -251,8 +258,6 @@ def scan_resume_dirs(
             # Store detected phase
             if rp.phase is None:
                 rp.phase = phase
-            if rp is None:
-                continue
 
             existing = best.get(instance_id)
             if existing is None or rp.last_complete_iter > existing.last_complete_iter:

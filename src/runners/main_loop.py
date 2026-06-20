@@ -1152,7 +1152,7 @@ class ExperimentLoop:
                 result_data = json.load(f)
 
             exit_status = traj_data.get("info", {}).get("exit_status", "")
-            if exit_status not in ("Submitted", "LimitsExceeded"):
+            if exit_status not in ("Submitted", "LimitsExceeded", "ContextWindowExceeded"):
                 return None, None
 
             # Copy artifacts to output dir
@@ -1281,7 +1281,7 @@ class ExperimentLoop:
                 exit_status = traj_data.get("info", {}).get("exit_status", "")
 
                 # Only reuse if trajectory has a valid exit status
-                if exit_status not in ("Submitted", "LimitsExceeded"):
+                if exit_status not in ("Submitted", "LimitsExceeded", "ContextWindowExceeded"):
                     logger.info(
                         f"[TRAIN] {instance_id}: baseline trajectory has invalid "
                         f"exit_status='{exit_status}', running full predict→eval→learn"
@@ -1658,7 +1658,7 @@ class ExperimentLoop:
                                     result_data = json.load(f)
 
                                 exit_status = traj_data.get("info", {}).get("exit_status", "")
-                                if exit_status not in ("Submitted", "LimitsExceeded"):
+                                if exit_status not in ("Submitted", "LimitsExceeded", "ContextWindowExceeded"):
                                     break  # Stop at invalid iteration
 
                                 iters_found.append((tp, rp, result_data.get("resolved", False)))
