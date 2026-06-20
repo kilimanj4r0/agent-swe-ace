@@ -14,7 +14,8 @@ experiment:
   # --- Two-phase experiment settings (per_repo/global modes) ---
   split:                             # Enable train/val split
     manifest: "configs/splits/princeton-nlp__SWE-bench_Verified/val_ratio_0_25.json"
-  baseline_run_dir: "data/run_20260529_164021_completed_qwen3_global_split025_default_verified"
+  baseline_run_dir: "data/baseline_split025_verified"
+  val_pass_k: 5
 
 agent:
   step_limit: 250                    # Max agent steps per attempt
