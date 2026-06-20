@@ -258,6 +258,7 @@ class ExperimentLoop:
         max_attempts_override: Optional[int] = None,
         phase: Optional[str] = None,
         skip_baseline_reuse: bool = False,
+        predict_phase=None,
     ) -> InstanceResult:
         """
         Run experiment loop for a single instance.
@@ -285,13 +286,15 @@ class ExperimentLoop:
                 max_attempts_override=max_attempts_override,
                 phase=phase,
                 skip_baseline_reuse=skip_baseline_reuse,
+                predict_phase=predict_phase,
             )
 
     def _run_instance_inner(self, instance, instance_id, repo, initial_skillbook=None,
                             frozen_skillbook=False, force_learn=False,
                             max_attempts_override=None, phase=None,
-                            skip_baseline_reuse=False):
+                            skip_baseline_reuse=False, predict_phase=None):
         """Inner implementation with instance context set."""
+        predict = predict_phase or self.predict
         effective_max = max_attempts_override if max_attempts_override is not None else self.max_attempts
 
         logger.info(f"\n{'='*60}")
@@ -328,7 +331,7 @@ class ExperimentLoop:
         # skillbook doesn't warrant retrieval.
         retrieval_stats = None
         if frozen_skillbook:
-            skillbook, retrieval_stats = self.predict.prepare_skillbook(
+            skillbook, retrieval_stats = predict.prepare_skillbook(
                 instance, skillbook, phase
             )
 
@@ -348,7 +351,7 @@ class ExperimentLoop:
 
             if not baseline_reused:
                 # Phase 1: Predict
-                predict_result = self.predict.run(
+                predict_result = predict.run(
                     instance=instance,
                     skillbook=skillbook,
                     iteration=iteration,

@@ -952,3 +952,39 @@ class TestTrainBaselineReuse:
         assert mock_predict.run.call_count == 1
         mock_learn.run.assert_called_once()  # Learned from failure
         assert result.final_resolved is False
+
+
+class TestPredictPhaseInjection:
+    """run_instance(predict_phase=X) must use X for retrieval + predict, not self.predict."""
+
+    def test_injected_predict_phase_is_used(self, tmp_path):
+        from ace import Skillbook
+        from runners.main_loop import ExperimentLoop
+
+        injected = Mock()
+        injected.prepare_skillbook.return_value = (Skillbook(), None)
+        injected.run.return_value = Mock(
+            instance_id="repo__i-1", exit_status="submitted",
+            patch="p", trajectory=[],
+        )
+
+        own_predict = Mock()  # must NOT be called when predict_phase is injected
+        evaluate = Mock()
+        evaluate.run.return_value = Mock(
+            instance_id="repo__i-1", resolved=True, feedback="", metrics={},
+        )
+
+        loop = ExperimentLoop(
+            predict_phase=own_predict, evaluate_phase=evaluate, learn_phase=Mock(),
+            output_dir=tmp_path, run_name="t", max_attempts=1,
+        )
+        instance = {"instance_id": "repo__i-1", "problem_statement": "Fix"}
+        loop.run_instance(
+            instance, frozen_skillbook=True, phase="val",
+            predict_phase=injected,
+        )
+
+        injected.prepare_skillbook.assert_called_once()
+        injected.run.assert_called_once()
+        own_predict.run.assert_not_called()
+        own_predict.prepare_skillbook.assert_not_called()
