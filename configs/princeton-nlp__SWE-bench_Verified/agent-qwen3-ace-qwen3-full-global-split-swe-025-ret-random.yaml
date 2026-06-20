@@ -1,0 +1,55 @@
+experiment:
+  name: "agent-qwen3-ace-qwen3-full-global-split-swe-025-retk5-random"
+  description: "ACE skillbook global per repo learning experiment on SWE-bench Verified"
+  max_attempts: 1                    # Max retry attempts per instance
+  concurrency: 1
+
+  skillbook:
+    mode: "global"              # "per_instance", "per_repo", or "global"
+    custom_swe_learn: true            # SWE-optimized Reflector+SkillManager (anti-patterns, type prefixes)
+    deduplication:
+      enabled: true
+      similarity_threshold: 0.85      # Cosine similarity threshold
+    retrieval:
+      enabled: true                   # Top-k skill retrieval before predict
+      type: "random"                  # Uniformly random k skills (baseline)
+      top_k: 5                        # Number of skills to retrieve
+      seed: 42                        # Reproducible sampling (null = non-deterministic)
+  split:
+    manifest: "configs/splits/princeton-nlp__SWE-bench_Verified/val_ratio_0_25.json"
+  baseline_run_dir: "data/run_20260605_111718_completed_qwen3_global_split025_swe_verified_vpk5"  # 5-attempt val baseline → skips recomputation
+  val_pass_k: 5
+  skillbook_source_dir: "data/run_20260605_111718_completed_qwen3_global_split025_swe_verified_vpk5"  # Trained skillbook → validation-only mode
+
+agent:
+  step_limit: 250                    # Max agent steps per attempt
+
+llm:
+  agent:
+    provider: "hosted_vllm"
+    # model: "Qwen/Qwen3-Coder-Next-FP8"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    # api_base: "http://10.100.30.241:8801/v1"
+    api_base: "http://localhost:8800/v1"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+  ace:
+    provider: "hosted_vllm"
+    # model: "Qwen/Qwen3-Coder-Next-FP8"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    # api_base: "http://10.100.30.241:8801/v1"
+    api_base: "http://localhost:8800/v1"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+
+benchmark:
+  dataset: "princeton-nlp/SWE-bench_Verified"
+  split: "test"
+  max_instances: null                 # null = all instances, or set number
+  filter_repos:
+    - "django/django"
+    - "sympy/sympy"
+    - "sphinx-doc/sphinx"
+    - "matplotlib/matplotlib"
+    - "scikit-learn/scikit-learn"
+    - "astropy/astropy"
+    - "pydata/xarray"
+    - "pytest-dev/pytest"
