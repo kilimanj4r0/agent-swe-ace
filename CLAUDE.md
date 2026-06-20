@@ -95,6 +95,7 @@ src/
 ├── evaluation/       # swebench.py (serialized via threading.Lock)
 ├── cli/              # commands.py (entry point)
 ├── prompts/          # SWE-optimized learning (SWEReflector, SWESkillManager, output models)
+├── retrieval/        # skill retrieval: skill_retriever.py (LLM filter+rank), bm25/embedding/random_retriever.py, base.py
 ├── tests/            # Unit and integration tests
 └── utils/            # logging.py (thread-local instance context), platform.py, llm_observer.py
 
@@ -154,6 +155,7 @@ data/
 
 ## Experiment Flow
 
+0. **Retrieve** (optional): when `experiment.skillbook.retrieval.enabled`, narrow the skillbook to the top-k skills most relevant to the instance (type: `llm` two-stage filter+rank, `bm25`, `embedding`, or `random` baseline)
 1. **Predict**: MiniSWEAgent generates patch using skillbook
 2. **Evaluate**: Test patch in Docker container (SWE-bench harness)
 3. **Learn**: If unresolved, ACE Reflector analyzes failure, updates skillbook
@@ -203,6 +205,7 @@ data/
 - Skillbook files include `skill_count` at top level
 - `experiment.log` is saved to each run folder via `setup_logging(run_dir=...)`
 - Skill deduplication via experiment.skillbook.deduplication with configurable similarity threshold
+- Skill retrieval (optional, runs before predict): `experiment.skillbook.retrieval.{enabled,type,top_k,skip_threshold}` — type is `llm` (default, two-stage filter+rank), `bm25`, `embedding`, or `random` baseline; built by `_build_skill_retriever()` in commands.py. A single retriever instance is shared across worker threads under `concurrency > 1` (BM25/embedding guard shared state with locks).
 - Config structure: `experiment.skillbook.{mode,custom_swe_learn,deduplication}`, `agent.context.{enabled,context_window,...}`
 - All config reads are in `src/cli/commands.py` — other files receive values via constructor args
 - PydanticAI schema monkey-patch on import in `config/llm.py`: inlines `$ref`/`$defs` in tool schemas (Z.AI/GLM models can't handle JSON references)

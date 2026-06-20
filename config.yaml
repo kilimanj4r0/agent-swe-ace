@@ -45,7 +45,7 @@ experiment:
 
     retrieval:
       enabled: false                   # Enable top-k skill retrieval before predict
-      type: "llm"                      # Retriever type: "llm" (default), "random", "embedding"
+      type: "llm"                      # Retriever type: "llm" (default), "random", "embedding", "bm25"
       top_k: 5                         # Number of skills to retrieve
       skip_threshold: 10               # Skip retrieval if skillbook has ≤ N skills
       # --- LLM-specific (type: "llm") ---
@@ -66,6 +66,10 @@ experiment:
       # cache_dir: null                    # Embedding cache dir (null = data/.retrieval_cache/)
       # --- Random-specific (type: "random") ---
       # seed: null                         # Random seed for reproducibility (null = non-deterministic)
+      # --- BM25-specific (type: "bm25") ---
+      # k1: 1.5                            # BM25 term-frequency saturation (typical 1.2-2.0)
+      # b: 0.75                            # BM25 length-normalization (0..1, typical 0.75)
+      # include_section: false             # Prepend skill section to indexed/query text
 
   # resume_dirs:                       # Resume from previous runs (copies completed, continues partial)
   #   - data/run_20260415_020540

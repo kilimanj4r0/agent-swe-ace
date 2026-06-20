@@ -11,11 +11,12 @@
 7. [Evaluation Pipeline](#7-evaluation-pipeline)
 8. [Learning Pipeline](#8-learning-pipeline)
 9. [Skillbook System](#9-skillbook-system)
-10. [Configuration System](#10-configuration-system)
-11. [Data Structures](#11-data-structures)
-12. [Output Directory Layout](#12-output-directory-layout)
-13. [Concurrency Model](#13-concurrency-model)
-14. [Resume & Baseline Reuse](#14-resume--baseline-reuse)
+10. [Skill Retrieval](#10-skill-retrieval)
+11. [Configuration System](#11-configuration-system)
+12. [Data Structures](#12-data-structures)
+13. [Output Directory Layout](#13-output-directory-layout)
+14. [Concurrency Model](#14-concurrency-model)
+15. [Resume & Baseline Reuse](#15-resume--baseline-reuse)
 
 ---
 
@@ -30,17 +31,17 @@ An LLM agent resolves GitHub issues (SWE-bench), and when it fails, a reflector 
 ### High-Level
 
 ```
-Instance → Agent reads issue + skillbook → generates patch → test in Docker
-                                                         ↓
-                                              Resolved? ── Yes → Done
-                                                  │
-                                                  No
-                                                  ↓
-                                        Reflector analyzes failure
-                                                  ↓
-                                        Skill added to skillbook
-                                                  ↓
-                                           Retry (up to N)
+Instance → [Retrieve top-k skills] → Agent reads issue + narrowed skillbook → generates patch → test in Docker
+                                                                                              ↓
+                                                                                   Resolved? ── Yes → Done
+                                                                                       │
+                                                                                       No
+                                                                                       ↓
+                                                                             Reflector analyzes failure
+                                                                                       ↓
+                                                                             Skill added to skillbook
+                                                                                       ↓
+                                                                                Retry (up to N)
 ```
 
 ### Detailed
@@ -52,6 +53,19 @@ Instance → Agent reads issue + skillbook → generates patch → test in Docke
 │  • get skillbook (empty | per_repo | global)                     │
 │  • determine start iteration (0 or resume point)                 │
 └────────────────────────────┬─────────────────────────────────────┘
+                             │
+              ┌──────────────▼──────────────┐
+              │     RETRIEVE (optional)      │
+              │                              │
+              │  if retrieval.enabled:       │
+              │   narrow skillbook → top-k   │
+              │   skills relevant to THIS    │
+              │   issue (once per instance,  │
+              │   reused across k attempts)  │
+              │  else: full skillbook        │
+              │  skip if count ≤ threshold   │
+              │  (single-phase + val pass)   │
+              └──────────────┬──────────────┘
                              │
               ┌──────────────▼──────────────┐
               │         PREDICT              │
@@ -366,6 +380,11 @@ AVOID: Using sed command with improper syntax for code modifications
 ... (rest of template)
 ```
 
+> **Retrieval (Section 10):** when `retrieval.enabled`, the skillbook injected here is
+> the *narrowed* top-k subset selected for this specific instance — not the full
+> skillbook. Retrieval runs once per instance (single-phase + val pass) via
+> `prepare_skillbook()` and is reused across all k attempts of that instance.
+
 ---
 
 ## 6. Context Management
@@ -616,7 +635,134 @@ Consolidation:
 
 ---
 
-## 10. Configuration System
+## 10. Skill Retrieval
+
+When a skillbook grows large (hundreds of skills), injecting all of it into every
+instance prompt wastes context and dilutes signal. **Skill retrieval** narrows the
+skillbook to the top-k skills most relevant to *this* issue, *before* the agent runs.
+
+```
+Full skillbook (e.g. 263 skills)
+        │
+        │  experiment.skillbook.retrieval.enabled = true
+        ▼
+   ┌─────────────────────────────────┐
+   │   SkillRetrieverBase            │
+   │   .retrieve(skillbook, instance)│
+   └────────────────┬────────────────┘
+                    │
+        ┌───────────┴────────────────────┐
+        │  count ≤ skip_threshold (10)?  │── yes ──► return ALL skills (no cost)
+        └───────────┬────────────────────┘
+                    │ no
+                    ▼
+            top-k relevant skills
+                    │
+                    ▼
+   narrowed Skillbook (k skills) → injected into agent prompt
+```
+
+### When Retrieval Runs
+
+Retrieval is **opt-in** (`retrieval.enabled: true`) and phase-scoped:
+
+| Phase | Retrieval? | Why |
+|-------|:----------:|-----|
+| single-phase (`phase=None`) | ✅ | per_instance experiments |
+| `val` (val skillbook pass) | ✅ | measures retrieval benefit on held-out instances |
+| `train` | ❌ | skillbook is being built up; learning needs full context |
+| `val_baseline` | ❌ | empty skillbook by definition |
+
+The runner retrieves **once per instance** via `PredictPhase.prepare_skillbook()` and
+reuses the same narrowed skillbook across all k attempts of that instance — so a
+5-attempt val pass reflects a *fixed* retrieval (true pass@k of the retrieved set),
+rather than re-retrieving per attempt (which would also re-randomize the random
+retriever each time). In single-phase per_instance mode there is no pre-retrieve, so
+retrieval runs per predict call (the skillbook grows across iterations).
+
+### Retriever Types
+
+Built by `_build_skill_retriever()` in `commands.py`, dispatched on `retrieval.type`:
+
+| `type` | Class | Cost | Deterministic | Description |
+|--------|-------|------|:-------------:|-------------|
+| `llm` (default) | `SkillRetriever` | 2 LLM calls+ | ❌ (LLM) | two-stage filter → rank, most accurate |
+| `bm25` | `BM25Retriever` | local CPU | ✅ | Okapi BM25 via `bm25s`, sparse lexical |
+| `embedding` | `EmbeddingRetriever` | GPU/CPU | ✅ | cosine sim, sentence-transformers |
+| `random` | `RandomRetriever` | none | ✅ (seeded) | baseline; measures whether retrieval adds value |
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│  All retrievers share a common interface (SkillRetrieverBase)  │
+│                                                               │
+│    retrieve(skillbook, instance) -> list[Skill]               │
+│    get_config_summary() -> dict          # logged to stats    │
+│                                                               │
+│  Common params: top_k, skip_threshold                         │
+│  Shared: a single retriever instance across worker threads     │
+│          (BM25/embedding guard shared state with locks)        │
+└───────────────────────────────────────────────────────────────┘
+```
+
+**LLM retriever** (`skill_retriever.py`) — two-stage, OpenAI-compatible client:
+- **Stage 1 (filter):** chunks the skillbook (default 200/chunk), asks the LLM which
+  skills are plausibly useful for this issue, keeping ≤ `filter_target` (default 100).
+- **Stage 2 (rank):** from the filtered set, the LLM picks exactly `top_k`, applying
+  quality (prefer `[evidence]`/`[justified]`), diversity, and type-balance rules
+  (≈60% code-modification / 20% testing / 20% cautionary).
+- Retries up to `max_retries` (3) on malformed structured output; falls back to all
+  skills if a stage returns nothing. Both stages use JSON-schema structured output.
+
+**BM25 retriever** (`bm25_retriever.py`) — tokenizes each skill + the issue, builds a
+sparse Okapi BM25 index (`k1`/`b` tunable), returns top-k by score. Pure CPU, no GPU/LLM,
+fully deterministic. The index is cached **in memory** keyed by a content hash of the
+skillbook, so the common workload — one global skillbook queried across many val
+instances — tokenizes/indexes only once.
+
+**Embedding retriever** (`embedding_retriever.py`) — embeds skills + issue with a
+sentence-transformer model (default `Qwen/Qwen3-Embedding-4B`), selects top-k by cosine
+similarity (dot product on L2-normalized vectors). Embeddings cached to **disk**
+(`data/.retrieval_cache/`), keyed by skillbook content hash and query hash. The
+SentenceTransformer model is a shared singleton across worker threads. ⚠️ Configs must
+set `model` explicitly or it loads a 30B coder model and OOMs.
+
+**Random retriever** (`random_retriever.py`) — samples k skills uniformly at random
+(optional `seed` for reproducibility). Baseline: if structured retrieval doesn't beat
+random, retrieval isn't adding value.
+
+### Caching & Determinism
+
+| Retriever | Cache location | Key |
+|-----------|----------------|-----|
+| bm25 | in-memory index | sha256(skill ids + content) |
+| embedding | disk `.npz` / `.npy` | sha256(model + skill content) / (model + query) |
+| llm | none (per-call) | — |
+| random | none | rng state (seeded) |
+
+### Retrieval Statistics
+
+Each retrieved instance records `total` / `selected` / `selected_ids` / `dropped_ids`
+in its trajectory (`info.retrieval_stats`). The run aggregates these to a top-level
+`retrieval` block in `statistics.json`:
+
+```json
+"retrieval": {
+  "enabled": true,
+  "type": "BM25Retriever",
+  "model": "bm25",
+  "top_k": 5,
+  "skip_threshold": 10,
+  "instances_retrieved": 60,
+  "instances_no_change": 0,
+  "instances_skipped_threshold": 0,
+  "avg_skills_before": 263.0,
+  "avg_skills_after": 5.0
+}
+```
+
+---
+
+## 11. Configuration System
 
 ### Config Hierarchy
 
@@ -657,8 +803,37 @@ experiment:
       embedding_device: cpu | cuda
       within_section_only: bool      # default true
 
+    retrieval:                       # top-k skill retrieval before predict (Section 10)
+      enabled: bool                  # default false
+      type: llm | bm25 | embedding | random   # default llm
+      top_k: int                     # default 5
+      skip_threshold: int            # default 10 (skip retrieval if ≤ N skills)
+      # --- type: llm ---
+      model: str                     # LLM for filter + rank stages
+      api_base: str
+      api_key_env: str               # default ZAI_API_KEY
+      temperature: float             # default 0.0
+      max_tokens: int                # default 2048
+      chunk_size: int                # default 200 (skills per filter chunk)
+      filter_target: int             # default 100 (max skills after filtering)
+      filter_prompt: str | null      # custom prompt file (null = built-in default)
+      rank_prompt: str | null
+      # --- type: embedding ---
+      model: str                     # default Qwen/Qwen3-Embedding-4B
+      device: cpu | cuda             # default cuda
+      include_section: bool          # default false (prepend section to embedding text)
+      batch_size: int                # default 32
+      cache_dir: str | null          # default data/.retrieval_cache/
+      # --- type: bm25 ---
+      k1: float                      # default 1.5 (term-frequency saturation)
+      b: float                       # default 0.75 (length normalization)
+      include_section: bool
+      # --- type: random ---
+      seed: int | null               # null = non-deterministic
+
   split:
-    val_ratio: float                 # e.g. 0.2 for 80/20 split
+    manifest: str                    # path to pre-computed split JSON (overrides seed split)
+    val_ratio: float                 # e.g. 0.2 for 80/20 split (seed-based fallback)
 
   resume_dirs:
     - str                            # paths to previous run dirs
@@ -762,7 +937,7 @@ observability:
 
 ---
 
-## 11. Data Structures
+## 12. Data Structures
 
 ### Result Types
 
@@ -809,6 +984,7 @@ ResumePoint
 ├── last_complete_iter: int    # -1 if nothing complete
 ├── is_fully_complete: bool
 ├── break_reason: str
+├── phase: str | None          # detected phase: "train" | "val_baseline" | "val" | None (flat)
 └── start_iteration: int       # property: last_complete_iter + 1
 ```
 
@@ -848,7 +1024,7 @@ UpdateOperation
 
 ---
 
-## 12. Output Directory Layout
+## 13. Output Directory Layout
 
 ```
 data/run_{YYYYMMDD_HHMMSS}/
@@ -985,13 +1161,26 @@ data/run_{YYYYMMDD_HHMMSS}/
     "skillbook_improvement_pct": "+100.0%",
     "newly_resolved_by_skillbook": ["id1", "id2"],
     "lost_by_skillbook": []
+  },
+
+  "retrieval": {
+    "enabled": true,
+    "type": "BM25Retriever",
+    "model": "bm25",
+    "top_k": 5,
+    "skip_threshold": 10,
+    "instances_retrieved": 60,
+    "instances_skipped_threshold": 0,
+    "instances_no_change": 0,
+    "avg_skills_before": 263.0,
+    "avg_skills_after": 5.0
   }
 }
 ```
 
 ---
 
-## 13. Concurrency Model
+## 14. Concurrency Model
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -1018,6 +1207,12 @@ data/run_{YYYYMMDD_HHMMSS}/
 │  3. results_lock (threading.Lock)                                │
 │     → Protects all_results, resolved_ids, unresolved_ids          │
 │                                                                  │
+│  4. retrieval locks (single shared retriever instance)           │
+│     • BM25Retriever._lock → index build + retrieve (bm25s not    │
+│       guaranteed thread-safe)                                    │
+│     • EmbeddingRetriever: _shared_model_lock (model creation) +  │
+│       _shared_model_encode_lock (encode, CUDA interleave-safe)   │
+│                                                                  │
 │  PER-WORKER ISOLATION                                            │
 │                                                                  │
 │  Each concurrent worker gets:                                    │
@@ -1025,12 +1220,14 @@ data/run_{YYYYMMDD_HHMMSS}/
 │  • Own PredictPhase                                              │
 │  • Shared EvaluatePhase (serialized via _eval_lock)              │
 │  • Shared LearnPhase (shared dedup model, own SB per mode)       │
+│  • Shared skill retriever (one instance; BM25/embedding locks    │
+│    guard shared state under concurrency > 1)                     │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 14. Resume & Baseline Reuse
+## 15. Resume & Baseline Reuse
 
 ### Resume
 
@@ -1052,6 +1249,27 @@ data/run_{YYYYMMDD_HHMMSS}/
 │    • Fully complete instances → removed from train list      │
 │    • Partial instances → start from last_complete_iter + 1   │
 │    • Artifacts copied from resume dir to new run dir         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Phase-Aware Resume (Two-Phase)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  resume_dirs → completed two-phase run                       │
+│                                                              │
+│  scan_resume_state(phase=...) auto-detects phase subdir:     │
+│    trajectories/{train,val_baseline,val}/<instance>/iter_*   │
+│    → ResumePoint carries detected phase                      │
+│                                                              │
+│  • train instances   → scanned for train-phase resume        │
+│  • val instances     → scanned for val-phase resume          │
+│  • baseline_run_dir  → auto-derived from resume_dirs         │
+│  • copy_instance_artifacts(source_phase → dest_phase)        │
+│                                                              │
+│  When resume_dirs points to a completed two-phase run, ALL   │
+│  completed instances are copied and only error/incomplete    │
+│  instances are retried — no other config needed.             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
