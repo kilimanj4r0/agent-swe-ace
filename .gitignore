@@ -16,7 +16,6 @@ data/**
 .env
 
 # Temporary files
-_*
 *.tmp
 output.json
 
