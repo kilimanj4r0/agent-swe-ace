@@ -10,7 +10,7 @@ Usage:
     uv run python scripts/analyze_skillbook_quality.py data/run_a data/run_b
     uv run python scripts/analyze_skillbook_quality.py data/                    # all run_* inside
     uv run python scripts/analyze_skillbook_quality.py data/run_a --output csv
-    uv run python scripts/analyze_skillbook_quality.py data/run_a --sample-references 5
+    uv run python scripts/analyze_skillbook_quality.py data/run_a --list-dumps 5
     uv run python scripts/analyze_skillbook_quality.py data/run_a --learn-mode SWE
     uv run python scripts/analyze_skillbook_quality.py data/run_a --growth
 """
@@ -18,11 +18,10 @@ Usage:
 import argparse
 import csv
 import json
-import random
 import re
 import statistics
 import sys
-from collections import Counter, defaultdict
+from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
@@ -31,70 +30,34 @@ import numpy as np
 # Configurable definitions
 # ---------------------------------------------------------------------------
 
-# Stop-phrases for indirect (content) reference matching.
-# These common phrases produce false positives and are excluded from matching.
-INDIRECT_STOP_PHRASES = {
-    "git diff",
-    "source files",
-    "source file",
-    "test case",
-    "test cases",
-    "the code",
-    "a fix",
-    "the issue",
-    "the problem",
-    "make sure",
-    "ensure that",
-    "in the",
-    "of the",
-    "to the",
-    "for the",
-    "on the",
-    "with the",
-    "from the",
-    "is a",
-    "is an",
-    "it is",
-    "to be",
-    "can be",
-    "will be",
-    "should be",
-    "do not",
-    "does not",
-    "is not",
-    "are not",
-    "was not",
-    "have been",
-    "has been",
-    "there are",
-    "there is",
-    "this is",
-    "that is",
-    "such as",
-    "for example",
-    "in order",
-    "need to",
-    "needs to",
-    "try to",
-    "trying to",
-    "used to",
-    "using the",
-    "check the",
-    "verify the",
-    "run the",
-    "look at",
-    "look for",
-    "file and",
-    "files and",
-    "code and",
-    "function or",
-    "method or",
-}
+# NOTE: content-based "indirect" reference matching (n-grams of skill text
+# appearing in the agent's output) was removed. It measured lexical overlap,
+# not skill usage: on val_baseline trajectories that never saw the skillbook it
+# fired at essentially the same rate, and what signal remained was confounded
+# by the instance topic (the agent writes `CharField.__init__` because it is
+# fixing that code, not because it read a skill). Only explicit ID citations —
+# split into selective vs. dumped below — carry a clean signal.
 
-# Minimum n-gram length (in words) for indirect matching.
-INDIRECT_MIN_WORDS = 4
-# Minimum character length for an n-gram to be considered (filters short noise).
-INDIRECT_MIN_CHARS = 20
+# An "ID dump" is a single assistant message echoing (most of) the presented
+# skill list wholesale rather than citing a skill selectively. The threshold
+# is tied to how many skills were presented (= top_k under retrieval, = the
+# whole skillbook otherwise), so it adapts across runs instead of using one
+# magic number:
+#     dump_threshold = max(DUMP_MIN_IDS, min(n_presented, DUMP_CAP_IDS))
+# Rationale (validated on real runs): distinct-IDs-per-message is sharply
+# bimodal — selective use is 1-4 IDs, real dumps are 30+, with an empty zone
+# in between. DUMP_CAP_IDS sits inside that empty zone so large skillbooks
+# (where the agent echoes a 50-150 ID chunk, not the full 748) are still
+# caught, while a fraction-of-skillbook rule would miss them. For small
+# presented sets the cap collapses to "cited the whole list"; DUMP_MIN_IDS
+# keeps a 1-2 skill book from ever counting as a dump.
+DUMP_CAP_IDS = 10
+DUMP_MIN_IDS = 3
+
+
+def _dump_threshold(n_presented: int) -> int:
+    """Min distinct skill IDs in one message to call it an ID dump."""
+    return max(DUMP_MIN_IDS, min(n_presented, DUMP_CAP_IDS))
 
 # ---------------------------------------------------------------------------
 # Token counting
@@ -664,120 +627,56 @@ def compute_presented_skill_specificity(run: dict) -> dict:
 
 def _extract_assistant_text(traj: dict) -> str:
     """Concatenate all assistant messages from a trajectory."""
-    return " ".join(
+    return " ".join(_extract_assistant_messages(traj))
+
+
+def _extract_assistant_messages(traj: dict) -> list[str]:
+    """List of assistant message contents from a trajectory."""
+    return [
         m.get("content", "") for m in traj.get("messages", []) if m.get("role") == "assistant"
-    )
+    ]
 
 
-def _find_explicit_refs(assistant_text: str, skill_ids: list[str]) -> set[str]:
-    """Find skill IDs directly mentioned in assistant text."""
-    return {sid for sid in skill_ids if sid in assistant_text}
+def _find_explicit_refs(
+    assistant_messages: list[str], skill_ids: list[str]
+) -> tuple[set[str], set[str], list[dict]]:
+    """Find skill IDs directly mentioned in assistant messages.
 
-
-def _build_content_ngrams(content: str) -> set[str]:
-    """Build significant n-grams from skill content for indirect matching."""
-    # Strip prefix (AVOID:/VERIFIED:/CONSIDER:) for matching
-    clean = re.sub(r"^(AVOID|VERIFIED|CONSIDER):\s*", "", content)
-    words = clean.split()
-    ngrams = set()
-    for i in range(max(0, len(words) - INDIRECT_MIN_WORDS + 1)):
-        ngram = " ".join(words[i:i + INDIRECT_MIN_WORDS]).lower()
-        if len(ngram) >= INDIRECT_MIN_CHARS and ngram not in INDIRECT_STOP_PHRASES:
-            ngrams.add(ngram)
-    return ngrams
-
-
-def _build_ngram_index(
-    skills: list[dict],
-    skill_ngrams_cache: dict[str, set[str]],
-) -> dict[str, str]:
-    """Build inverted index: ngram → skill_id (first skill containing it)."""
-    index: dict[str, str] = {}
-    for s in skills:
-        sid = s["id"]
-        if sid not in skill_ngrams_cache:
-            skill_ngrams_cache[sid] = _build_content_ngrams(s["content"])
-        for ng in skill_ngrams_cache[sid]:
-            if ng not in index:
-                index[ng] = sid
-    return index
-
-
-def _find_indirect_refs(
-    assistant_text: str,
-    skills: list[dict],
-    explicit_ids: set[str],
-    skill_ngrams_cache: dict[str, set[str]] | None = None,
-    ngram_index: dict[str, str] | None = None,
-) -> tuple[set[str], list[dict]]:
-    """Find indirect (content-based) references.
-
-    Returns (referenced_ids, sample_matches) where sample_matches has
-    {skill_id, ngram, context} for later sampling.
-
-    Uses ngram_index (inverted index) when available for O(text × window)
-    instead of O(skills × ngrams × text).
+    Returns (selective, dumped, dump_msgs). A message citing >= dump_threshold
+    distinct skill IDs is an ID dump — the agent echoing the presented list —
+    and its IDs go to `dumped` instead of `selective`. The threshold is derived
+    from how many skills were presented (len(skill_ids)) via _dump_threshold,
+    so it scales with top_k / skillbook size. `dump_msgs` records each such
+    message for manual inspection:
+    {"msg_idx": int, "n_ids": int, "ids": list[str], "snippet": str}.
     """
-    lower_text = assistant_text.lower()
-    referenced = set()
-    sample_matches = []
-
-    if ngram_index is not None and skill_ngrams_cache is not None:
-        # Fast path: scan text once, look up ngrams in index
-        words = lower_text.split()
-        matched_skills_ngrams: dict[str, str] = {}  # skill_id → first matching ngram
-        for i in range(max(0, len(words) - INDIRECT_MIN_WORDS + 1)):
-            ngram = " ".join(words[i:i + INDIRECT_MIN_WORDS])
-            if len(ngram) < INDIRECT_MIN_CHARS:
-                continue
-            sid = ngram_index.get(ngram)
-            if sid and sid not in explicit_ids and sid not in matched_skills_ngrams:
-                matched_skills_ngrams[sid] = ngram
-
-        # Collect sample matches with context
-        for sid, ngram in matched_skills_ngrams.items():
-            referenced.add(sid)
-            idx = lower_text.find(ngram)
-            start = max(0, idx - 40)
-            end = min(len(lower_text), idx + len(ngram) + 40)
-            context = assistant_text[start:end]
-            sample_matches.append({
-                "skill_id": sid,
-                "ngram": ngram,
-                "context": f"...{context}...",
+    threshold = _dump_threshold(len(skill_ids))
+    selective: set[str] = set()
+    dumped: set[str] = set()
+    dump_msgs: list[dict] = []
+    for idx, msg in enumerate(assistant_messages):
+        found = {sid for sid in skill_ids if sid in msg}
+        if not found:
+            continue
+        if len(found) >= threshold:
+            dumped |= found
+            first = min((msg.find(sid) for sid in found if sid in msg), default=0)
+            start = max(0, first - 80)
+            dump_msgs.append({
+                "msg_idx": idx,
+                "n_ids": len(found),
+                "ids": sorted(found),
+                "snippet": msg[start:first + 200].replace("\n", " "),
             })
-    else:
-        # Slow fallback path
-        for s in skills:
-            if s["id"] in explicit_ids:
-                continue
-            if skill_ngrams_cache is not None and s["id"] in skill_ngrams_cache:
-                ngrams = skill_ngrams_cache[s["id"]]
-            else:
-                ngrams = _build_content_ngrams(s["content"])
-                if skill_ngrams_cache is not None:
-                    skill_ngrams_cache[s["id"]] = ngrams
-            for ng in ngrams:
-                if ng in lower_text:
-                    referenced.add(s["id"])
-                    idx = lower_text.find(ng)
-                    start = max(0, idx - 40)
-                    end = min(len(lower_text), idx + len(ng) + 40)
-                    context = assistant_text[start:end]
-                    sample_matches.append({
-                        "skill_id": s["id"],
-                        "ngram": ng,
-                        "context": f"...{context}...",
-                    })
-                    break
-
-    return referenced, sample_matches
+        else:
+            selective |= found
+    return selective, dumped - selective, dump_msgs
 
 
 def compute_references(run: dict) -> dict:
     """Compute reference stats for a run (cached per run_dir).
 
-    Returns {skill_id: {"explicit": bool, "indirect": bool, "specificity": str/None}, ...}
+    Returns {skill_id: {"explicit": int, "dumped": int, "specificity": str/None}, ...}
     plus aggregate stats.
     """
     # Cache by run_dir so we don't recompute for each output table
@@ -801,7 +700,7 @@ def compute_references(run: dict) -> dict:
     elif sb_mode == "global":
         result = _compute_refs_global(run, trajectories)
     else:
-        result = {"skill_refs": {}, "sample_matches": [], "summary": {}}
+        result = {"skill_refs": {}, "summary": {}}
 
     if cache_key is not None:
         compute_references._cache[cache_key] = result
@@ -827,65 +726,59 @@ def _compute_presented_skill_refs(run: dict) -> dict:
     skill_refs = {}
     total_presentations = 0
     total_explicit = 0
-    total_indirect = 0
-    total_any = 0
-    all_sample_matches = []
+    total_dumped = 0
+    traj_iters = 0
+    cite_traj_iters = 0
+    dump_traj_iters = 0
+    dump_locations = []
 
     for inst_id, iters in trajectories.items():
         for it, traj in iters.items():
             presented = _extract_presented_skills(traj)
             if not presented:
                 continue
-            assistant_text = _extract_assistant_text(traj)
-            if not assistant_text:
+            assistant_msgs = _extract_assistant_messages(traj)
+            if not any(assistant_msgs):
                 continue
-            lower_text = assistant_text.lower()
+            traj_iters += 1
+
+            presented_ids = [s["id"] for s in presented]
+            explicit, dumped, dump_msgs = _find_explicit_refs(assistant_msgs, presented_ids)
+            if explicit:
+                cite_traj_iters += 1
+            if dumped:
+                dump_traj_iters += 1
+            for dm in dump_msgs:
+                dump_locations.append({**dm, "instance": inst_id, "iter": it})
 
             for s in presented:
                 sid = s["id"]
                 total_presentations += 1
                 spec = classify_skill_specificity(s["content"], s["section"])
 
-                is_explicit = sid in assistant_text
-                is_indirect = False
-                if not is_explicit:
-                    clean = re.sub(r"^(AVOID|VERIFIED|CONSIDER):\s*", "", s["content"])
-                    words = clean.lower().split()
-                    for i in range(max(0, len(words) - 2)):
-                        phrase = " ".join(words[i:i + 3])
-                        if len(phrase) >= 15 and phrase not in INDIRECT_STOP_PHRASES:
-                            if phrase in lower_text:
-                                is_indirect = True
-                                idx = lower_text.find(phrase)
-                                start = max(0, idx - 40)
-                                end = min(len(lower_text), idx + len(phrase) + 40)
-                                context = assistant_text[start:end]
-                                all_sample_matches.append({
-                                    "skill_id": sid,
-                                    "ngram": phrase,
-                                    "context": f"...{context}...",
-                                })
-                                break
+                is_explicit = sid in explicit
+                is_dumped = sid in dumped
 
                 if sid not in skill_refs:
-                    skill_refs[sid] = {"explicit": 0, "indirect": 0, "specificity": spec}
+                    skill_refs[sid] = {"explicit": 0, "dumped": 0, "specificity": spec}
                 if is_explicit:
                     skill_refs[sid]["explicit"] += 1
                     total_explicit += 1
-                if is_indirect:
-                    skill_refs[sid]["indirect"] += 1
-                    total_indirect += 1
-                if is_explicit or is_indirect:
-                    total_any += 1
+                if is_dumped:
+                    skill_refs[sid]["dumped"] += 1
+                    total_dumped += 1
 
     result = {
         "skill_refs": skill_refs,
-        "sample_matches": all_sample_matches,
+        "dump_locations": dump_locations,
         "summary": {
             "total_skill_presentations": total_presentations,
             "explicit_refs": total_explicit,
-            "indirect_refs": total_indirect,
-            "any_refs": total_any,
+            "dumped_refs": total_dumped,
+            "any_refs": total_explicit,
+            "traj_iters": traj_iters,
+            "cite_traj_iters": cite_traj_iters,
+            "dump_traj_iters": dump_traj_iters,
         },
     }
     if cache_key is not None:
@@ -899,14 +792,15 @@ _compute_presented_skill_refs._cache = {}
 def _compute_refs_per_instance(run: dict, trajectories: dict) -> dict:
     """Reference computation for per_instance mode."""
     per_inst = run["per_instance_sbs"]
-    skill_refs = {}  # skill_id -> {"explicit": int, "indirect": int}
-    all_sample_matches = []
-    skill_ngrams_cache: dict[str, set[str]] = {}
+    skill_refs = {}  # skill_id -> {"explicit": int, "dumped": int, "specificity": str}
+    dump_locations = []
 
     total_skills = 0
     total_explicit = 0
-    total_indirect = 0
-    total_skills_with_any_ref = 0
+    total_dumped = 0
+    traj_iters = 0
+    cite_traj_iters = 0
+    dump_traj_iters = 0
 
     for inst_id, iters in per_inst.items():
         if inst_id not in trajectories:
@@ -923,41 +817,41 @@ def _compute_refs_per_instance(run: dict, trajectories: dict) -> dict:
                 continue
 
             skill_ids = [s["id"] for s in skills]
-            assistant_text = _extract_assistant_text(trajs[it])
+            assistant_msgs = _extract_assistant_messages(trajs[it])
 
-            # Build index for this skillbook (skills differ per instance/iteration)
-            ngram_index = _build_ngram_index(skills, skill_ngrams_cache)
-
-            explicit = _find_explicit_refs(assistant_text, skill_ids)
-            indirect, samples = _find_indirect_refs(assistant_text, skills, explicit, skill_ngrams_cache, ngram_index)
-            all_sample_matches.extend(samples)
+            explicit, dumped, dump_msgs = _find_explicit_refs(assistant_msgs, skill_ids)
+            for dm in dump_msgs:
+                dump_locations.append({**dm, "instance": inst_id, "iter": it})
 
             for s in skills:
                 sid = s["id"]
                 if sid not in skill_refs:
-                    skill_refs[sid] = {"explicit": 0, "indirect": 0, "specificity": classify_skill_specificity(s["content"], s["section"])}
-                is_explicit = sid in explicit
-                is_indirect = sid in indirect
-                if is_explicit:
+                    skill_refs[sid] = {"explicit": 0, "dumped": 0, "specificity": classify_skill_specificity(s["content"], s["section"])}
+                if sid in explicit:
                     skill_refs[sid]["explicit"] += 1
-                if is_indirect:
-                    skill_refs[sid]["indirect"] += 1
+                if sid in dumped:
+                    skill_refs[sid]["dumped"] += 1
 
-            n_skills = len(skills)
-            n_any = len(explicit | indirect)
-            total_skills += n_skills
+            total_skills += len(skills)
             total_explicit += len(explicit)
-            total_indirect += len(indirect)
-            total_skills_with_any_ref += n_any
+            total_dumped += len(dumped)
+            traj_iters += 1
+            if explicit:
+                cite_traj_iters += 1
+            if dumped:
+                dump_traj_iters += 1
 
     return {
         "skill_refs": skill_refs,
-        "sample_matches": all_sample_matches,
+        "dump_locations": dump_locations,
         "summary": {
             "total_skill_presentations": total_skills,
             "explicit_refs": total_explicit,
-            "indirect_refs": total_indirect,
-            "any_refs": total_skills_with_any_ref,
+            "dumped_refs": total_dumped,
+            "any_refs": total_explicit,
+            "traj_iters": traj_iters,
+            "cite_traj_iters": cite_traj_iters,
+            "dump_traj_iters": dump_traj_iters,
         },
     }
 
@@ -969,60 +863,63 @@ def _compute_refs_for_skillbook(skills: list[dict], trajectories: dict, traj_pha
     For global: all trajectories.
     """
     skill_refs = {}
-    all_sample_matches = []
+    dump_locations = []
 
     total_skills_seen = 0
     total_explicit = 0
-    total_indirect = 0
-    total_any = 0
+    total_dumped = 0
+    traj_iters = 0
+    cite_traj_iters = 0
+    dump_traj_iters = 0
 
     # Build skill lookup
     skill_by_id = {s["id"]: s for s in skills}
     skill_ids = list(skill_by_id.keys())
 
-    # Cache n-grams per skill (same skillbook for all trajectories)
-    skill_ngrams_cache: dict[str, set[str]] = {}
-
-    # Build inverted index: ngram → skill_id for fast lookup
-    ngram_index = _build_ngram_index(skills, skill_ngrams_cache)
-
     for inst_id, trajs in trajectories.items():
         # per_repo/global: skillbook is shared and present in all iters (including 0)
         for it, traj in trajs.items():
-            assistant_text = _extract_assistant_text(traj)
-            if not assistant_text:
+            assistant_msgs = _extract_assistant_messages(traj)
+            if not any(assistant_msgs):
                 continue
 
-            explicit = _find_explicit_refs(assistant_text, skill_ids)
-            indirect, samples = _find_indirect_refs(assistant_text, skills, explicit, skill_ngrams_cache, ngram_index)
-            all_sample_matches.extend(samples)
+            explicit, dumped, dump_msgs = _find_explicit_refs(assistant_msgs, skill_ids)
+            for dm in dump_msgs:
+                dump_locations.append({**dm, "instance": inst_id, "iter": it})
 
-            for sid in explicit | indirect:
+            for sid in explicit | dumped:
                 if sid not in skill_refs:
-                    skill_refs[sid] = {"explicit": 0, "indirect": 0, "specificity": classify_skill_specificity(skill_by_id[sid]["content"], skill_by_id[sid]["section"])}
+                    skill_refs[sid] = {"explicit": 0, "dumped": 0, "specificity": classify_skill_specificity(skill_by_id[sid]["content"], skill_by_id[sid]["section"])}
                 if sid in explicit:
                     skill_refs[sid]["explicit"] += 1
-                if sid in indirect:
-                    skill_refs[sid]["indirect"] += 1
+                if sid in dumped:
+                    skill_refs[sid]["dumped"] += 1
 
             total_skills_seen += len(skills)
             total_explicit += len(explicit)
-            total_indirect += len(indirect)
-            total_any += len(explicit | indirect)
+            total_dumped += len(dumped)
+            traj_iters += 1
+            if explicit:
+                cite_traj_iters += 1
+            if dumped:
+                dump_traj_iters += 1
 
     # Ensure all skills are in skill_refs even if never referenced
     for s in skills:
         if s["id"] not in skill_refs:
-            skill_refs[s["id"]] = {"explicit": 0, "indirect": 0, "specificity": classify_skill_specificity(s["content"], s["section"])}
+            skill_refs[s["id"]] = {"explicit": 0, "dumped": 0, "specificity": classify_skill_specificity(s["content"], s["section"])}
 
     return {
         "skill_refs": skill_refs,
-        "sample_matches": all_sample_matches,
+        "dump_locations": dump_locations,
         "summary": {
             "total_skill_presentations": total_skills_seen,
             "explicit_refs": total_explicit,
-            "indirect_refs": total_indirect,
-            "any_refs": total_any,
+            "dumped_refs": total_dumped,
+            "any_refs": total_explicit,
+            "traj_iters": traj_iters,
+            "cite_traj_iters": cite_traj_iters,
+            "dump_traj_iters": dump_traj_iters,
         },
     }
 
@@ -1031,15 +928,18 @@ def _compute_refs_per_repo(run: dict, trajectories: dict) -> dict:
     """Reference computation for per_repo mode."""
     per_repo = run["per_repo_sbs"]
     if not per_repo:
-        return {"skill_refs": {}, "sample_matches": [], "summary": {}}
+        return {"skill_refs": {}, "summary": {}}
 
     combined_refs = {}
-    combined_samples = []
+    combined_dumps = []
     combined_summary = {
         "total_skill_presentations": 0,
         "explicit_refs": 0,
-        "indirect_refs": 0,
+        "dumped_refs": 0,
         "any_refs": 0,
+        "traj_iters": 0,
+        "cite_traj_iters": 0,
+        "dump_traj_iters": 0,
     }
 
     for repo_name, sb in per_repo.items():
@@ -1053,18 +953,18 @@ def _compute_refs_per_repo(run: dict, trajectories: dict) -> dict:
         }
         result = _compute_refs_for_skillbook(skills, repo_trajs)
         combined_refs.update(result["skill_refs"])
-        combined_samples.extend(result["sample_matches"])
+        combined_dumps.extend(result.get("dump_locations", []))
         for k in combined_summary:
             combined_summary[k] += result["summary"].get(k, 0)
 
-    return {"skill_refs": combined_refs, "sample_matches": combined_samples, "summary": combined_summary}
+    return {"skill_refs": combined_refs, "dump_locations": combined_dumps, "summary": combined_summary}
 
 
 def _compute_refs_global(run: dict, trajectories: dict) -> dict:
     """Reference computation for global mode."""
     global_sb = run["global_sb"]
     if global_sb is None:
-        return {"skill_refs": {}, "sample_matches": [], "summary": {}}
+        return {"skill_refs": {}, "summary": {}}
     skills = _extract_skills(global_sb)
     return _compute_refs_for_skillbook(skills, trajectories)
 
@@ -1403,6 +1303,7 @@ def print_reference_table(runs: list[dict]):
     """Output 3: Reference rate in cross-tab of learn_mode × specificity."""
     print("=== Reference rate by learn mode × skill type ===")
     print("  (Retrieval runs: stats based on top_k skills actually presented, not full skillbook)")
+    print("  (Cited = explicit selective citation; Dumped counted separately and NOT included in Cited)")
     print()
 
     # Aggregate across all runs, grouped by learn_mode
@@ -1411,7 +1312,7 @@ def print_reference_table(runs: list[dict]):
         "general_total": 0, "specific_total": 0,
         "general_cited": 0, "specific_cited": 0,
         "general_explicit": 0, "specific_explicit": 0,
-        "general_indirect": 0, "specific_indirect": 0,
+        "general_dumped": 0, "specific_dumped": 0,
     })
 
     for r in runs:
@@ -1423,7 +1324,7 @@ def print_reference_table(runs: list[dict]):
 
         for sid, ref_info in skill_refs.items():
             spec = ref_info.get("specificity", "general")
-            is_cited = ref_info["explicit"] > 0 or ref_info["indirect"] > 0
+            is_cited = ref_info["explicit"] > 0
             key_prefix = "general" if spec == "general" else "specific"
 
             a[f"{key_prefix}_total"] += 1
@@ -1431,14 +1332,14 @@ def print_reference_table(runs: list[dict]):
                 a[f"{key_prefix}_cited"] += 1
             if ref_info["explicit"] > 0:
                 a[f"{key_prefix}_explicit"] += 1
-            if ref_info["indirect"] > 0:
-                a[f"{key_prefix}_indirect"] += 1
+            if ref_info.get("dumped", 0) > 0:
+                a[f"{key_prefix}_dumped"] += 1
 
     if not any(a for a in agg.values()):
         print("  (No reference data available)")
         return
 
-    headers = ["Category", "Skills", "% SB", "Cited", "Ref Rate", "Explicit", "Indirect"]
+    headers = ["Category", "Skills", "% SB", "Cited", "Ref Rate", "Explicit", "Dumped"]
     rows = []
 
     for learn in sorted(agg.keys()):
@@ -1459,7 +1360,7 @@ def print_reference_table(runs: list[dict]):
                 "Cited": str(cited),
                 "Ref Rate": f"{ref_rate:.1f}%",
                 "Explicit": str(a[f"{prefix}_explicit"]),
-                "Indirect": str(a[f"{prefix}_indirect"]),
+                "Dumped": str(a[f"{prefix}_dumped"]),
             })
 
     # Totals
@@ -1477,7 +1378,7 @@ def print_reference_table(runs: list[dict]):
             "Cited": str(total_cited),
             "Ref Rate": f"{ref_rate:.1f}%",
             "Explicit": str(a["general_explicit"] + a["specific_explicit"]),
-            "Indirect": str(a["general_indirect"] + a["specific_indirect"]),
+            "Dumped": str(a["general_dumped"] + a["specific_dumped"]),
         })
 
     _print_table_rows(headers, rows)
@@ -1501,25 +1402,20 @@ def print_reference_table(runs: list[dict]):
 
 
 def _compute_presented_ref_rate(run: dict) -> dict:
-    """Compute ref rate among actually presented skills.
+    """Compute selective-citation rate among actually presented skills.
 
-    For retrieval runs: extracts presented skills from each trajectory prompt,
-    then checks if each presented skill's content appears in the assistant text.
-    Uses substring matching (content phrases in assistant text) rather than
-    fixed-width n-grams, which work poorly for short skill descriptions.
-    For non-retrieval: uses the full skillbook reference data.
+    For retrieval runs: skills extracted from each trajectory prompt (top_k).
+    For non-retrieval: the full skillbook. A skill counts as cited only if it
+    was cited selectively (explicit); dumped IDs do not count.
 
     Returns {"cited_presented": int, "total_presented": int, "rate": float}
     """
-    retrieval = run.get("retrieval", {})
-    ret_enabled = retrieval.get("enabled", False)
-    trajectories = {k: v for k, v in run.get("trajectories", {}).items() if "/" not in k}
+    ret_enabled = run.get("retrieval", {}).get("enabled", False)
 
     if not ret_enabled:
-        # For non-retrieval, use compute_references result
         ref_data = compute_references(run)
         skill_refs = ref_data.get("skill_refs", {})
-        n_cited = sum(1 for r in skill_refs.values() if r["explicit"] > 0 or r["indirect"] > 0)
+        n_cited = sum(1 for r in skill_refs.values() if r["explicit"] > 0)
         n_total = len(skill_refs)
         return {
             "cited_presented": n_cited,
@@ -1527,42 +1423,11 @@ def _compute_presented_ref_rate(run: dict) -> dict:
             "rate": n_cited / n_total * 100 if n_total > 0 else 0,
         }
 
-    # For retrieval: check each trajectory's presented skills against assistant text
-    total_presented = 0
-    cited_presented = 0
-
-    for inst_id, iters in trajectories.items():
-        for it, traj in iters.items():
-            presented = _extract_presented_skills(traj)
-            if not presented:
-                continue
-            assistant_text = _extract_assistant_text(traj)
-            if not assistant_text:
-                continue
-            lower_text = assistant_text.lower()
-
-            for s in presented:
-                total_presented += 1
-                # Check explicit (skill ID in text)
-                if s["id"] in assistant_text:
-                    cited_presented += 1
-                    continue
-                # Check indirect: extract key phrases from skill content
-                # Use 3-word sliding window (shorter than n-gram matching)
-                content = s["content"]
-                cited = False
-                # First try the full content (minus prefix) as substring
-                clean = re.sub(r"^(AVOID|VERIFIED|CONSIDER):\s*", "", content)
-                # Try significant 3-word phrases
-                words = clean.lower().split()
-                for i in range(max(0, len(words) - 2)):
-                    phrase = " ".join(words[i:i + 3])
-                    if len(phrase) >= 15 and phrase not in INDIRECT_STOP_PHRASES:
-                        if phrase in lower_text:
-                            cited = True
-                            break
-                if cited:
-                    cited_presented += 1
+    # For retrieval: per-trajectory presented skills, selective citations only
+    ref_data = _compute_presented_skill_refs(run)
+    summary = ref_data.get("summary", {})
+    total_presented = summary.get("total_skill_presentations", 0)
+    cited_presented = summary.get("any_refs", 0)
 
     return {
         "cited_presented": cited_presented,
@@ -1579,27 +1444,29 @@ def print_per_run_reference_table(runs: list[dict]):
     headers = [
         "Run", "Learn", "Mode", "Retrieval",
         "SB Skills", "Skills/i", "Gen/i", "Spec/i",
-        "Explicit", "Indirect", "Any Ref", "Refs/i",
-        "Ref Rate", "Presented RR",
+        "Explicit", "Dumped", "Cite Trajs", "Presented RR",
     ]
     rows = []
 
     for r in runs:
-        ref_data = compute_references(r)
-        summary = ref_data.get("summary", {})
-        skill_refs = ref_data.get("skill_refs", {})
-
         retrieval = r.get("retrieval", {})
         ret_enabled = retrieval.get("enabled", False)
         top_k = retrieval.get("top_k", 0)
 
+        # For retrieval runs, references must be computed against the skills
+        # actually presented in the prompt (retrieval renumbers skill IDs to
+        # 00001..k, so matching against original skillbook IDs finds nothing).
+        ref_data = _compute_presented_skill_refs(r) if ret_enabled else compute_references(r)
+        summary = ref_data.get("summary", {})
+        skill_refs = ref_data.get("skill_refs", {})
+
         # Total unique skills in the skillbook
         total_skills = len(skill_refs)
 
-        # References (against full skillbook — may include non-presented for retrieval)
         explicit = summary.get("explicit_refs", 0)
-        indirect = summary.get("indirect_refs", 0)
-        any_ref = summary.get("any_refs", 0)
+        dumped = summary.get("dumped_refs", 0)
+        dump_trajs = summary.get("dump_traj_iters", 0)
+        cite_trajs = summary.get("cite_traj_iters", 0)
 
         # Retrieval label
         if ret_enabled:
@@ -1607,9 +1474,11 @@ def print_per_run_reference_table(runs: list[dict]):
         else:
             ret_label = "off"
 
-        # Count trajectory iterations where skillbook was present (unprefixed only)
-        trajectories = {k: v for k, v in r.get("trajectories", {}).items() if "/" not in k}
-        n_traj_iters = sum(len(iters) for iters in trajectories.values())
+        # Count trajectory iterations where skillbook was present
+        n_traj_iters = summary.get("traj_iters", 0)
+        if n_traj_iters == 0:
+            trajectories = {k: v for k, v in r.get("trajectories", {}).items() if "/" not in k}
+            n_traj_iters = sum(len(iters) for iters in trajectories.values())
 
         # Skills actually presented to agent per instance
         stats = r.get("statistics", {})
@@ -1617,7 +1486,7 @@ def print_per_run_reference_table(runs: list[dict]):
         total_presentations = summary.get("total_skill_presentations", 0)
         if ret_enabled:
             skills_per_inst = ret_stats.get("avg_skills_after", top_k)
-        elif r["sb_mode"] == "per_repo" and total_presentations > 0 and n_traj_iters > 0:
+        elif total_presentations > 0 and n_traj_iters > 0:
             skills_per_inst = total_presentations / n_traj_iters
         else:
             skills_per_inst = total_skills
@@ -1633,11 +1502,7 @@ def print_per_run_reference_table(runs: list[dict]):
             gen_per_inst = spec_data["gen_pct"] * skills_per_inst / 100
             spec_per_inst = spec_data["spec_pct"] * skills_per_inst / 100
 
-        # Per-instance reference rate (against full skillbook)
-        refs_per_inst = any_ref / n_traj_iters if n_traj_iters > 0 else 0
-        ref_rate = refs_per_inst / skills_per_inst * 100 if skills_per_inst > 0 else 0
-
-        # Presented RR: ref rate among actually presented skills
+        # Presented RR: selective-citation rate among actually presented skills
         presented_rr = _compute_presented_ref_rate(r)
 
         rows.append({
@@ -1650,10 +1515,11 @@ def print_per_run_reference_table(runs: list[dict]):
             "Gen/i": f"{gen_per_inst:.1f}",
             "Spec/i": f"{spec_per_inst:.1f}",
             "Explicit": str(explicit),
-            "Indirect": str(indirect),
-            "Any Ref": str(any_ref),
-            "Refs/i": f"{refs_per_inst:.2f}",
-            "Ref Rate": f"{ref_rate:.1f}%",
+            "Dumped": f"{dumped} ({dump_trajs}t)" if dumped else "0",
+            "Cite Trajs": (
+                f"{cite_trajs}/{n_traj_iters} ({cite_trajs / n_traj_iters * 100:.1f}%)"
+                if n_traj_iters > 0 else "-"
+            ),
             "Presented RR": f"{presented_rr['rate']:.1f}%",
         })
 
@@ -1663,8 +1529,11 @@ def print_per_run_reference_table(runs: list[dict]):
 
     _print_table_rows(headers, rows)
     print()
-    print("  (Skills/i, Gen/i, Spec/i = avg per instance; Gen=process advice, Spec=repo-specific)")
-    print("  (Ref Rate = refs per instance / skills per instance; Presented RR = % presented skills cited in output)")
+    print("  (Skills/i, Gen/i, Spec/i = avg per trajectory; Gen=process advice, Spec=repo-specific)")
+    print("  (Explicit = selective ID citation events; Dumped = IDs from list-dump messages "
+          f">=max({DUMP_MIN_IDS},min(presented,{DUMP_CAP_IDS})) IDs/message, with #trajectories)")
+    print("  (Cite Trajs = trajectories with >=1 selective citation / total trajectories; dumps don't count)")
+    print("  (Presented RR = explicit citations / all presented skill-slots across trajectories; dumps excluded)")
     print()
 
 
@@ -1771,39 +1640,67 @@ def print_classification_table(runs: list[dict]):
 
 
 # ---------------------------------------------------------------------------
-# Sample references (for manual validation)
+# Dump-message listing (for manual validation)
 # ---------------------------------------------------------------------------
 
 
-def print_sample_references(runs: list[dict], n_samples: int):
-    """Print N random indirect reference matches for manual inspection."""
-    print(f"=== Sample indirect references (N={n_samples}) ===")
+def print_dump_locations(runs: list[dict], max_per_run: int | None = None):
+    """List every ID-dump message (run → instance → iter → snippet).
+
+    A dump is an assistant message echoing most of the presented skill list
+    (>= max(DUMP_MIN_IDS, min(presented, DUMP_CAP_IDS)) distinct IDs).
+    Prints the trajectory file path so it can be opened and eyeballed directly.
+    """
+    print("=== ID-dump messages (manual check) ===")
+    print(f"  (A dump = one assistant message citing >=max({DUMP_MIN_IDS},min(presented,{DUMP_CAP_IDS})) "
+          f"distinct skill IDs — agent echoing the presented list, not selective use)")
     print()
 
-    all_samples = []
+    any_dumps = False
     for r in runs:
-        ref_data = compute_references(r)
-        samples = ref_data.get("sample_matches", [])
-        for s in samples:
-            s["run"] = _short_run(r["run_name"])
-            s["learn"] = r["learn_mode"]
-        all_samples.extend(samples)
+        ret_enabled = r.get("retrieval", {}).get("enabled", False)
+        ref_data = _compute_presented_skill_refs(r) if ret_enabled else compute_references(r)
+        dumps = ref_data.get("dump_locations", [])
+        if not dumps:
+            continue
+        any_dumps = True
 
-    if not all_samples:
-        print("  (No indirect references found)")
-        return
+        # Where the trajectories live (so the user can open the files)
+        bench_dir = _find_benchmark_dir(r["run_dir"])
+        traj_root = bench_dir / "trajectories" if bench_dir else r["run_dir"]
 
-    selected = random.sample(all_samples, min(n_samples, len(all_samples)))
+        def _resolve_traj_path(inst: str, it: int) -> str:
+            # Mirror load_trajectories: unprefixed keys resolve to the first
+            # phase that has the instance, preferring val > val_baseline > train;
+            # flat (non-split) runs keep the instance dir at the root.
+            for sub in ("", "val", "val_baseline", "train"):
+                cand = (traj_root / sub / inst / f"iter_{it}.json") if sub else (traj_root / inst / f"iter_{it}.json")
+                if cand.exists():
+                    return str(cand)
+            return str(traj_root / inst / f"iter_{it}.json")
 
-    for i, s in enumerate(selected, 1):
-        print(f"  [{i}] {s['run']} [{s['learn']}]")
-        print(f"      Skill: {s['skill_id']}")
-        print(f"      N-gram: \"{s['ngram']}\"")
-        print(f"      Context: {s['context']}")
+        shown = sorted(dumps, key=lambda d: (d["instance"], d["iter"], d["msg_idx"]))
+        total = len(shown)
+        if max_per_run is not None and total > max_per_run:
+            shown = shown[:max_per_run]
+
+        print(f"  {_short_run(r['run_name'], 50)} [{r['learn_mode']}/{r['sb_mode']}]  "
+              f"— {total} dump message(s) across {len(set(d['instance'] for d in dumps))} instance(s)")
+        for d in shown:
+            traj_path = _resolve_traj_path(d["instance"], d["iter"])
+            ids_preview = ", ".join(d["ids"][:6]) + (" …" if len(d["ids"]) > 6 else "")
+            print(f"    • {d['instance']}  iter_{d['iter']}  msg#{d['msg_idx']}  "
+                  f"({d['n_ids']} IDs)")
+            print(f"        file: {traj_path}")
+            print(f"        IDs : {ids_preview}")
+            print(f"        text: ...{d['snippet'][:200]}...")
+        if max_per_run is not None and total > max_per_run:
+            print(f"    … {total - max_per_run} more (raise --list-dumps to see all)")
         print()
 
-    print(f"  Total indirect matches: {len(all_samples)} (showing {len(selected)})")
-    print()
+    if not any_dumps:
+        print("  (No ID-dump messages found)")
+        print()
 
 
 # ---------------------------------------------------------------------------
@@ -1893,8 +1790,9 @@ def main():
                         help="Filter runs by learn mode")
     parser.add_argument("--sb-mode", choices=["per_instance", "per_repo", "global"], default=None,
                         help="Filter runs by skillbook mode")
-    parser.add_argument("--sample-references", type=int, metavar="N", default=None,
-                        help="Print N random indirect reference matches for manual validation")
+    parser.add_argument("--list-dumps", type=int, metavar="N", nargs="?", const=0, default=None,
+                        help="List ID-dump messages (run/instance/iter/file) for manual check; "
+                             "optional N caps messages shown per run (0/omitted = all)")
     parser.add_argument("--growth", action="store_true",
                         help="Show ASCII growth chart by iteration")
     parser.add_argument("--growth-runs", nargs="*", metavar="SUBSTR",
@@ -1910,9 +1808,9 @@ def main():
     print(f"Skillbook Quality Analysis")
     print(f"  Tokenizer: {TOKEN_METHOD}")
     print(f"  Runs processed: {len(runs)}, skipped: {skipped}")
-    print(f"  Definitions: explicit ref = skill ID in assistant msg; "
-          f"indirect ref = {INDIRECT_MIN_WORDS}-word n-gram match (min {INDIRECT_MIN_CHARS} chars); "
-          f"general = process advice; specific = mentions concrete identifiers")
+    print(f"  Definitions: explicit ref = skill ID cited selectively (below dump threshold); "
+          f"dumped = IDs from list-dump messages (>=max({DUMP_MIN_IDS},min(presented,{DUMP_CAP_IDS})) IDs/message, agent echoing the list)")
+    print(f"  general = process advice; specific = mentions concrete identifiers")
     print(f"  General/specific classification: by content analysis (NOT by AVOID/VERIFIED/CONSIDER prefix)")
     print()
 
@@ -1926,8 +1824,8 @@ def main():
     print_per_run_reference_table(runs)
     print_classification_table(runs)
 
-    if args.sample_references:
-        print_sample_references(runs, args.sample_references)
+    if args.list_dumps is not None:
+        print_dump_locations(runs, max_per_run=args.list_dumps or None)
 
     if args.output in ("csv", "both"):
         write_csv_tables(runs, args.csv_file)
