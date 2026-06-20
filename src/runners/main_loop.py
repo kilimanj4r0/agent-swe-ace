@@ -1608,8 +1608,24 @@ class ExperimentLoop:
                     "rate": count / total if total else 0.0,
                 }
 
+            # Per-attempt (per-iteration) resolution rates: how many instances
+            # resolved at each individual attempt, independent of other attempts.
+            # Unlike cumulative pass@k, averaging these yields a correct per-attempt
+            # mean. compare_runs.py reads this for the "avg" metric.
+            per_attempt = {}
+            for i in range(max_attempts):
+                resolved_at_i = sum(
+                    1 for a in all_attempts.values() if i < len(a) and a[i]
+                )
+                per_attempt[f"iter_{i}"] = {
+                    "resolved": resolved_at_i,
+                    "total": total,
+                    "rate": resolved_at_i / total if total else 0.0,
+                }
+
             stats["max_attempts"] = max_attempts
             stats["pass_at_k"] = pass_at
+            stats["per_attempt_rate"] = per_attempt
 
         return stats
 

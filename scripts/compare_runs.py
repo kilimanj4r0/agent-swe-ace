@@ -22,12 +22,99 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# Aggregated val-baseline reference for qwen3 split025 experiments. Built across
+# 12 runs x 5 attempts = 60 attempts per instance (113 val instances) under a
+# uniform empty-skillbook / no-learning condition. For matching runs we override
+# the ValBL avg with this low-noise reference instead of a single run's noisy
+# 5-attempt val_baseline, so the SB Delta compares against a stable baseline.
+AGGREGATED_VAL_BASELINE_DIR = _REPO_ROOT / "data" / "val_baseline_aggregated_split025_vpk5_qwen3"
+_aggregated_val_baseline_cache: dict | None | bool = None  # None=unloaded, False=missing
+
+
+def _load_aggregated_val_baseline() -> dict | None:
+    """Load (cached) aggregated val-baseline stats. Returns None if unavailable."""
+    global _aggregated_val_baseline_cache
+    if _aggregated_val_baseline_cache is not None:
+        return _aggregated_val_baseline_cache if _aggregated_val_baseline_cache else None
+    overall_path = AGGREGATED_VAL_BASELINE_DIR / "stats" / "overall.json"
+    per_repo_path = AGGREGATED_VAL_BASELINE_DIR / "stats" / "per_repo.json"
+    if not overall_path.exists() or not per_repo_path.exists():
+        _aggregated_val_baseline_cache = False
+        return None
+    with open(overall_path) as f:
+        overall = json.load(f)
+    with open(per_repo_path) as f:
+        per_repo = json.load(f)
+    _aggregated_val_baseline_cache = {"overall": overall, "per_repo": per_repo}
+    return _aggregated_val_baseline_cache
+
+
+def _is_qwen3_coder(agent_llm: str) -> bool:
+    """True for the Qwen3-Coder-30B agent model (excludes the Qwen3-Coder-Next variant)."""
+    m = (agent_llm or "").lower()
+    return "qwen3-coder" in m and "next" not in m
+
+
+def _is_qwen3_split025(run: dict) -> bool:
+    """True for qwen3 split025 experiments that share the aggregated baseline's val set."""
+    return "split025" in run.get("run_dir", "") and _is_qwen3_coder(run.get("agent_llm", ""))
+
+
+def _apply_aggregated_val_baseline(pd: dict, repo: str | None) -> None:
+    """Override a val_baseline phase dict's avg with the aggregated reference.
+
+    Sets pd['aggregated_avg'] = {'avg': rate, 'att_per_inst': N}. repo selects the
+    per-repo value (iterate_repos / single-repo rows); None uses the overall value.
+    No-op if the aggregated baseline is unavailable or the repo is missing.
+    """
+    agg = _load_aggregated_val_baseline()
+    if agg is None:
+        return
+    if repo:
+        entry = agg["per_repo"].get(repo.replace("/", "__"))
+        if not entry:
+            return
+        avg = entry.get("avg")
+        n_att = entry.get("n_attempts")
+        n_inst = entry.get("n_instances")
+    else:
+        ov = agg["overall"]
+        avg = ov.get("avg")
+        n_att = ov.get("total_attempts")
+        n_inst = ov.get("n_instances")
+    if avg is None:
+        return
+    att_per_inst = round(n_att / n_inst) if n_inst else n_att
+    pd["aggregated_avg"] = {"avg": avg, "att_per_inst": att_per_inst}
+
 
 def _find_benchmark_dir(run_dir: Path) -> Path | None:
     """Find the benchmark subdirectory (e.g. princeton-nlp__SWE-bench_Lite)."""
     for sub in run_dir.iterdir():
         if sub.is_dir() and "__" in sub.name:
             return sub
+    return None
+
+
+def _resolve_run_dir(dir_ref: str | None) -> Path | None:
+    """Resolve a run-dir reference to an existing path.
+
+    Configs often store a shorthand prefix (e.g. ``data/run_20260605_111733``)
+    while the actual dir is ``run_20260605_111733_completed_...``; fall back to a
+    prefix glob when the exact path doesn't exist.
+    """
+    if not dir_ref:
+        return None
+    p = Path(dir_ref)
+    if not p.is_absolute():
+        p = _REPO_ROOT / dir_ref
+    if p.exists() and p.is_dir():
+        return p
+    for cand in sorted(p.parent.glob(p.name + "*")):
+        if cand.is_dir():
+            return cand
     return None
 
 
@@ -130,9 +217,20 @@ def _collect_all_statuses_from_es(es_list: list[dict]) -> list[str]:
     return sorted(statuses, key=lambda s: (priority.get(s, 1), s))
 
 
+def _shorten_status(status: str) -> str:
+    """Shorten exit status names for compact column headers."""
+    _ALIASES = {
+        "Submitted": "Sub",
+        "LimitsExceeded": "Lim",
+        "ContextWindowExceeded": "Ctx",
+        "ModelRetryError": "Retry",
+    }
+    return _ALIASES.get(status, status)
+
+
 def _fmt_exit_status_header(statuses: list[str]) -> str:
-    """Format header: 'Submitted/LimitsExceeded/error'."""
-    return "/".join(statuses) if statuses else "Exit Status"
+    """Format header: 'Sub/Lim/Ctx'."""
+    return "/".join(_shorten_status(s) for s in statuses) if statuses else "Exit"
 
 
 def _fmt_exit_status_row(es_data: dict[str, dict[int, int]], statuses: list[str]) -> str:
@@ -177,6 +275,83 @@ def _count_iter0_resolved(run_dir: Path) -> tuple[int, int]:
             resolved += 1
 
     return resolved, total
+
+
+def _phase_results_dir(run_dir: Path) -> Path | None:
+    """Return the <bench>/results dir for a run, or None if not found."""
+    bench_dir = _find_benchmark_dir(run_dir)
+    if bench_dir is None:
+        return None
+    results_dir = bench_dir / "results"
+    return results_dir if results_dir.exists() else None
+
+
+def _compute_per_attempt_rate(results_dir: Path, repo_prefix: str | None = None) -> dict:
+    """Scan instance result dirs for per-iteration resolution.
+
+    Returns a per_attempt_rate dict in the same schema main_loop writes:
+    ``{"iter_0": {"resolved": N, "total": T, "rate": r}, ...}``.
+
+    This is the per-attempt (per-iteration) rate -- how many instances resolved at
+    each individual attempt -- as opposed to cumulative pass@k. Averaging these
+    rates is the correct "avg per attempt"; averaging cumulative pass@k rates is
+    inflated and wrong.
+
+    Args:
+        results_dir: a phase results dir (e.g. ``.../results/val_baseline``) whose
+            children are per-instance dirs containing ``iter_N.json``.
+        repo_prefix: if set (iterate_repos per-repo rows), only count instances
+            whose id starts with this prefix (e.g. ``"django__django-"``).
+    """
+    if not results_dir.exists():
+        return {}
+
+    per_iter_counts: dict[int, int] = {}
+    total = 0
+    max_iter = -1
+    for inst_dir in sorted(results_dir.iterdir()):
+        if not inst_dir.is_dir():
+            continue
+        if repo_prefix and not inst_dir.name.startswith(repo_prefix):
+            continue
+        has_any = False
+        for i in range(10):  # iterations are contiguous from iter_0
+            f = inst_dir / f"iter_{i}.json"
+            if not f.exists():
+                break
+            has_any = True
+            max_iter = max(max_iter, i)
+            with open(f) as fh:
+                if json.load(fh).get("resolved"):
+                    per_iter_counts[i] = per_iter_counts.get(i, 0) + 1
+        if has_any:
+            total += 1
+
+    if total == 0 or max_iter < 0:
+        return {}
+
+    out = {}
+    for i in range(max_iter + 1):
+        resolved = per_iter_counts.get(i, 0)
+        out[f"iter_{i}"] = {
+            "resolved": resolved,
+            "total": total,
+            "rate": resolved / total,
+        }
+    return out
+
+
+def _backfill_per_attempt_rate(pd: dict, results_dir: Path, repo_prefix: str | None = None) -> None:
+    """Set ``pd['per_attempt_rate']`` from result files if not already present.
+
+    Lets old runs (whose statistics.json only stored cumulative pass@k) show a
+    correct per-attempt avg without re-running the experiment or the enrich script.
+    """
+    if pd.get("per_attempt_rate"):
+        return
+    par = _compute_per_attempt_rate(results_dir, repo_prefix=repo_prefix)
+    if par:
+        pd["per_attempt_rate"] = par
 
 
 def load_run(run_dir: Path, iteration: int | None = None, phase: str | None = None) -> dict | None:
@@ -225,6 +400,32 @@ def load_run(run_dir: Path, iteration: int | None = None, phase: str | None = No
             "newly_resolved": _nr if _nr is not None else [],
             "lost": _lt if _lt is not None else [],
         }
+        # Backfill per_attempt_rate from result files so the per-attempt avg is
+        # correct. statistics.json stores only cumulative pass@k (whose mean is not
+        # a valid per-attempt average); per-iteration rates are derived from files.
+        # val_skillbook results live under the "val" subdir.
+        _results_root = _phase_results_dir(run_dir)
+        if _results_root is not None:
+            _backfill_per_attempt_rate(split_data["val_baseline"], _results_root / "val_baseline")
+            _backfill_per_attempt_rate(split_data["val_skillbook"], _results_root / "val")
+
+        # Validation-only runs (skillbook_source_dir set) skip training, so their
+        # own train_phase is empty (0/0). Inherit train stats from the source run
+        # so the Train column reflects the skillbook's actual training results.
+        _tr = split_data["train"]
+        if _tr.get("total", 0) == 0:
+            _src = exp.get("skillbook_source_dir")
+            _src_path = _resolve_run_dir(_src) if _src else None
+            _src_stats_path = _src_path / "statistics.json" if _src_path else None
+            if _src_stats_path and _src_stats_path.exists():
+                with open(_src_stats_path) as _f:
+                    _sp = json.load(_f).get("train_phase", {})
+                if _sp.get("total_instances", 0) > 0:
+                    _tr["resolved"] = _sp.get("resolved_count", 0)
+                    _tr["total"] = _sp.get("total_instances", 0)
+                    _tr["rate"] = _sp.get("resolution_rate", 0.0)
+                    _tr["resolved_ids"] = _sp.get("resolved_ids", [])
+                    _tr["unresolved_ids"] = _sp.get("unresolved_ids", [])
 
     # Compute duration
     duration_h = None
@@ -247,11 +448,13 @@ def load_run(run_dir: Path, iteration: int | None = None, phase: str | None = No
     # Exit status counts per iteration
     exit_statuses = _count_exit_statuses(run_dir)
 
-    # Retrieval info
+    # Retrieval info. Prefer the config keyword (clean: llm/embedding/bm25/random)
+    # over statistics.json, which stores retriever class names or omits type.
     retrieval = stats.get("retrieval", {})
+    retrieval_cfg = exp.get("skillbook", {}).get("retrieval", {})
     if not retrieval:
-        retrieval_cfg = exp.get("skillbook", {}).get("retrieval", {})
         retrieval = {"enabled": retrieval_cfg.get("enabled", False), "top_k": retrieval_cfg.get("top_k")}
+    retrieval_type_raw = retrieval_cfg.get("type") or retrieval.get("type")
 
     # Step limit from agent config
     step_limit = config.get("agent", {}).get("step_limit", "N/A")
@@ -296,6 +499,8 @@ def load_run(run_dir: Path, iteration: int | None = None, phase: str | None = No
         "exit_statuses": exit_statuses,
         "retrieval_enabled": retrieval.get("enabled", False),
         "retrieval_top_k": retrieval.get("top_k"),
+        "retrieval_type": retrieval_type_raw,
+        "val_pass_k": exp.get("val_pass_k", 1),
     }
 
     # --phase override: replace top-level data with specific phase
@@ -442,9 +647,12 @@ def _format_sb_assist(r: dict) -> str:
     return f"{count}{delta_str}{iter_str}"
 
 
-def _fmt_phase(pd: dict, distil: bool = False) -> str:
-    """Format a phase dict as 'resolved/total rate% [p@1:N p@2:M ...] avg:N.N%'.
-    If distil=True, prefix with 'distil'."""
+def _fmt_phase(pd: dict, distil: bool = False, val_pass_k: int = 1) -> str:
+    """Format a phase dict. Line layout (each shown only when present):
+      line 1: avg:N.N% [(agg Natt)]   -- per-attempt avg, shown first when vpk > 1
+      line 2: resolved/total rate%    -- 'distil '-prefixed for distillation train
+      line 3: [p@1:N, p@2:M, ...]     -- cumulative pass@k counts
+    """
     r, t = pd["resolved"], pd["total"]
     pct = f"{pd['rate'] * 100:.1f}%"
     base = f"{r}/{t} {pct}"
@@ -453,29 +661,33 @@ def _fmt_phase(pd: dict, distil: bool = False) -> str:
 
     pak = pd.get("pass_at_k", {})
     par = pd.get("per_attempt_rate", {})
-    extra_lines = []
+    lines = []
+
+    # Per-attempt avg FIRST (the primary metric), only when vpk > 1. Sourced from
+    # per_attempt_rate (per-iteration rates), never cumulative pass@k -- the mean
+    # of monotonic pass@k rates is inflated, not a per-attempt average. An
+    # aggregated_avg override (qwen3 split025 reference) takes precedence.
+    if val_pass_k > 1:
+        aavg = pd.get("aggregated_avg")
+        if aavg:
+            lines.append(f"avg:{aavg['avg'] * 100:.1f}% (agg {aavg['att_per_inst']}att)")
+        elif len(par) > 1:
+            avg_rate = sum(v["rate"] for v in par.values()) / len(par)
+            lines.append(f"avg:{avg_rate * 100:.1f}%")
+
+    lines.append(base)
 
     if len(pak) > 1:
-        # Show per-pass@k resolved counts (skip last since it equals overall resolved)
+        # Cumulative per-pass@k resolved counts
         parts = []
         for k_label in sorted(pak, key=lambda x: int(x.split("@")[1])):
-            n = int(k_label.split("@")[1])
             info = pak[k_label]
-            # Skip pass@k that matches the overall resolved count
-            if n < len(pak):
-                short_label = k_label.replace("pass@", "p@")
-                parts.append(f"{short_label}:{info['count']}")
+            short_label = k_label.replace("pass@", "p@")
+            parts.append(f"{short_label}:{info['count']}")
         if parts:
-            extra_lines.append("[{0}]".format(", ".join(parts)))
+            lines.append("[{0}]".format(", ".join(parts)))
 
-    # Show average per-attempt resolution rate when multiple attempts exist
-    if len(par) > 1:
-        avg_rate = sum(v["rate"] for v in par.values()) / len(par)
-        extra_lines.append(f"avg:{avg_rate * 100:.1f}%")
-
-    if extra_lines:
-        return base + "\n" + "\n".join(extra_lines)
-    return base
+    return "\n".join(lines)
 
 
 def _fmt_delta_pp(delta) -> str:
@@ -485,30 +697,107 @@ def _fmt_delta_pp(delta) -> str:
     return f"{float(delta) * 100:+.1f}pp"
 
 
+def _fmt_sb_delta(delta_rate, total: int) -> str:
+    """SB Δ as two lines: '±N.Npp' then the same delta as a resolved-count diff.
+
+    Line 1 is the rate delta in percentage points; line 2 is that delta expressed
+    as an absolute resolved-instance difference (delta_rate * total, rounded).
+    """
+    if delta_rate is None or delta_rate == "N/A":
+        return "-"
+    dr = float(delta_rate)
+    pp = _fmt_delta_pp(dr)
+    count = round(dr * total) if total else 0
+    cnt = f"{count:+d}" if count != 0 else "0"
+    return f"{pp}\n{cnt}"
+
+
+def _compute_avg_rate(pd: dict) -> float | None:
+    """Average per-attempt resolution rate. Returns None if unavailable.
+
+    An aggregated_avg override (qwen3 split025 reference baseline) takes
+    precedence. Otherwise uses per_attempt_rate (per-iteration rates). Cumulative
+    pass@k is intentionally NOT used: its rates are monotonic, so averaging them
+    is inflated and does not represent a per-attempt average. per_attempt_rate is
+    written by the runner (main_loop) or backfilled from result files in load_run.
+    """
+    if pd.get("aggregated_avg"):
+        return pd["aggregated_avg"]["avg"]
+    par = pd.get("per_attempt_rate", {})
+    if len(par) > 1:
+        return sum(v["rate"] for v in par.values()) / len(par)
+    return None
+
+
+def _aggregate_pass_at_k(per_repo_stats: list[dict], phase_key: str) -> dict[str, dict]:
+    """Aggregate pass_at_k across repos by summing counts and totals."""
+    agg: dict[str, dict] = {}
+    for prd in per_repo_stats:
+        pak = prd.get(phase_key, {}).get("pass_at_k", {})
+        for k_label, info in pak.items():
+            if k_label not in agg:
+                agg[k_label] = {"count": 0, "total": 0, "rate": 0.0}
+            agg[k_label]["count"] += info.get("count", 0)
+            agg[k_label]["total"] += info.get("total", 0)
+    # Recompute rates from aggregated counts
+    for k_label in agg:
+        t = agg[k_label]["total"]
+        agg[k_label]["rate"] = agg[k_label]["count"] / t if t > 0 else 0.0
+    return agg
+
+
+def _retrieval_code(raw) -> str:
+    """Map a retrieval type to a short code: llm / emb / bm25 / rand.
+
+    Accepts either the config keyword (llm/embedding/bm25/random) or the
+    retriever class name stored in statistics.json. Absent => llm (default).
+    """
+    if not raw:
+        return "llm"
+    s = str(raw).lower()
+    if "embed" in s:
+        return "emb"
+    if "bm25" in s:
+        return "bm25"
+    if "random" in s:
+        return "rand"
+    return "llm"
+
+
 def _fmt_learn(r: dict) -> str:
-    """Format Learn column: phase name + retrieval info on next line."""
+    """Learn column: skillbook learn phase, with retrieval type/k on the (Ret) line."""
     learn = r["learn_phase"]
-    if r.get("retrieval_enabled") and r.get("retrieval_top_k") is not None:
-        learn += f"\nret k={r['retrieval_top_k']}"
+    if r.get("retrieval_enabled"):
+        code = _retrieval_code(r.get("retrieval_type"))
+        k = r.get("retrieval_top_k")
+        learn += f"\n{code} k{k}" if k is not None else f"\n{code}"
+    else:
+        learn += "\nno ret"
     return learn
 
 
 def _print_table_rows(headers: list[str], rows: list[dict]):
-    """Print a formatted table with auto-width columns, supporting multi-line cells."""
-    # Compute widths: for multi-line cells, take max line width
+    """Print a formatted table with auto-width columns, supporting multi-line
+    headers and cells (newline-separated lines)."""
+    # Compute widths: take the max line width across the header and all cells.
     col_widths = {}
     for h in headers:
-        max_w = len(h)
+        max_w = max((len(line) for line in h.split("\n")), default=0)
         for row in rows:
-            val = row.get(h, "")
-            for line in val.split("\n"):
+            for line in row.get(h, "").split("\n"):
                 max_w = max(max_w, len(line))
         col_widths[h] = max_w
 
-    header_line = " | ".join(h.ljust(col_widths[h]) for h in headers)
-    sep_line = "-+-".join("-" * col_widths[h] for h in headers)
-    print(header_line)
-    print(sep_line)
+    def _join(cells):
+        return " | ".join(cell.ljust(col_widths[h]) for h, cell in zip(headers, cells))
+
+    # Header (may span multiple lines)
+    header_lines = [h.split("\n") for h in headers]
+    n_header_lines = max(len(lines) for lines in header_lines)
+    for i in range(n_header_lines):
+        print(_join(lines[i] if i < len(lines) else "" for lines in header_lines))
+    print("-+-".join("-" * col_widths[h] for h in headers))
+
     for row in rows:
         # Split each cell into lines
         cell_lines = {}
@@ -518,11 +807,7 @@ def _print_table_rows(headers: list[str], rows: list[dict]):
             cell_lines[h] = lines
             max_lines = max(max_lines, len(lines))
         for i in range(max_lines):
-            parts = []
-            for h in headers:
-                line = cell_lines[h][i] if i < len(cell_lines[h]) else ""
-                parts.append(line.ljust(col_widths[h]))
-            print(" | ".join(parts))
+            print(_join(cell_lines[h][i] if i < len(cell_lines[h]) else "" for h in headers))
 
 
 _DATASET_ALIASES = {
@@ -592,7 +877,7 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
         flat_headers = ["ID", "Dataset", "Proc", "Unres", "Res", "Rate", "i0 Rate", "LLM", "Att", "Steps", "Learn", "SB Assist", "Traj Exit Status"]
         flat_rows = []
         flat_statuses = _collect_all_statuses(flat_runs)
-        flat_headers = ["ID", "Dataset", "Proc", "Unres", "Res", "Rate", "i0 Rate", "LLM", "Att", "Steps", "Learn", "SB Assist", _fmt_exit_status_header(flat_statuses)]
+        flat_headers = ["ID", "Dataset", "Proc", "Unres", "Res", "Rate", "i0 Rate", "LLM", "Att", "Steps", "Learn\n(Ret)", "SB Assist", _fmt_exit_status_header(flat_statuses)]
         flat_rows = []
         for r in flat_runs:
             i0_r, i0_t = r["iter0_resolved"], r["iter0_total"]
@@ -608,7 +893,7 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                 "LLM": llm_col(r),
                 "Att": str(r["max_attempts"]),
                 "Steps": str(r["step_limit"]),
-                "Learn": _fmt_learn(r),
+                "Learn\n(Ret)": _fmt_learn(r),
                 "SB Assist": _format_sb_assist(r),
                 _fmt_exit_status_header(flat_statuses): _fmt_exit_status_row(r["exit_statuses"], flat_statuses),
             })
@@ -617,11 +902,11 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
 
     # --- Split runs: separate per_repo and global tables ---
     if split_runs:
-        # per_repo = iterate_repos OR single-repo split (filter_repos set)
-        # global = no filter_repos, all repos together
-        per_repo_runs = [r for r in split_runs if r["is_iterate_repos"] or r.get("filter_repos")]
-        global_runs = [r for r in split_runs if not r["is_iterate_repos"] and not r.get("filter_repos")]
-        global_headers = ["ID", "Dataset", "Train", "ValBL", "ValSB", "SB Δ", "New/Lost", "LLM", "Learn", "Traj Exit Status"]
+        # per_repo = iterate_repos OR skillbook mode per_repo (single-repo or multi-repo)
+        # global = skillbook mode global (may have filter_repos for subset selection)
+        per_repo_runs = [r for r in split_runs if r["is_iterate_repos"] or r.get("skillbook_mode") == "per_repo"]
+        global_runs = [r for r in split_runs if not r["is_iterate_repos"] and r.get("skillbook_mode") != "per_repo"]
+        global_headers = ["ID", "Dataset", "Train", "ValBL", "ValSB", "SB Δ (avg)", "New/Lost", "LLM", "Learn", "Traj Exit Status"]
         all_details: list[tuple[str, dict]] = []
 
         # --- Per-repo table ---
@@ -639,29 +924,66 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                 if r["is_iterate_repos"] and r.get("repos"):
                     # Aggregate row (from top-level statistics)
                     n_repos = len(r["repos"])
+                    vpk = r.get("val_pass_k", 1)
 
                     # When top-level stats lack newly_resolved/lost (e.g. validation-only
                     # or retrieval runs), aggregate from per-repo statistics files.
                     agg_nr = agg["newly_resolved"]
                     agg_lost = agg["lost"]
-                    if not agg_nr and not agg_lost and full_path:
+                    all_prd: list[dict] = []
+                    if full_path:
                         for repo in r["repos"]:
                             prd = _load_per_repo_stats(full_path, repo)
                             if prd:
-                                agg_nr = agg_nr + prd.get("summary", {}).get("newly_resolved_by_skillbook", [])
-                                agg_lost = agg_lost + prd.get("summary", {}).get("lost_by_skillbook", [])
+                                all_prd.append(prd)
+                                if not agg_nr and not agg_lost:
+                                    agg_nr = agg_nr + prd.get("summary", {}).get("newly_resolved_by_skillbook", [])
+                                    agg_lost = agg_lost + prd.get("summary", {}).get("lost_by_skillbook", [])
+
+                    # Build aggregate phase dicts with aggregated pass_at_k
+                    agg_train = dict(agg["train"])
+                    agg_valbl = dict(agg["val_baseline"])
+                    agg_valsb = dict(agg["val_skillbook"])
+                    if all_prd:
+                        agg_train["pass_at_k"] = _aggregate_pass_at_k(all_prd, "train_phase")
+                        agg_valbl["pass_at_k"] = _aggregate_pass_at_k(all_prd, "val_baseline_phase")
+                        agg_valsb["pass_at_k"] = _aggregate_pass_at_k(all_prd, "val_skillbook_phase")
+
+                    # Backfill combined per_attempt_rate from result files (scan all
+                    # repos; instance ids are already namespaced) for a correct avg.
+                    if full_path:
+                        _results_root = _phase_results_dir(full_path)
+                        if _results_root is not None:
+                            _backfill_per_attempt_rate(agg_valbl, _results_root / "val_baseline")
+                            _backfill_per_attempt_rate(agg_valsb, _results_root / "val")
+
+                    # Override ValBL avg with the aggregated reference baseline
+                    # (qwen3 split025) so SB Δ uses a low-noise baseline.
+                    if _is_qwen3_split025(r):
+                        _apply_aggregated_val_baseline(agg_valbl, repo=None)
+
+                    # Compute SB Δ from avg rates when vpk > 1
+                    if vpk > 1:
+                        avg_bl = _compute_avg_rate(agg_valbl)
+                        avg_sb = _compute_avg_rate(agg_valsb)
+                        if avg_bl is not None and avg_sb is not None:
+                            sb_delta = avg_sb - avg_bl
+                        else:
+                            sb_delta = agg["skillbook_improvement"]
+                    else:
+                        sb_delta = agg["skillbook_improvement"]
 
                     per_repo_rows.append({
                         "ID": parent_tag,
                         "Dataset": _shorten_dataset(r["benchmark"]),
                         "Repo": f"{n_repos} repos",
-                        "Train": _fmt_phase(agg["train"], distil=is_distil),
-                        "ValBL": _fmt_phase(agg["val_baseline"]),
-                        "ValSB": _fmt_phase(agg["val_skillbook"]),
-                        "SB Δ": _fmt_delta_pp(agg["skillbook_improvement"]),
+                        "Train": _fmt_phase(agg_train, distil=is_distil, val_pass_k=vpk),
+                        "ValBL": _fmt_phase(agg_valbl, val_pass_k=vpk),
+                        "ValSB": _fmt_phase(agg_valsb, val_pass_k=vpk),
+                        "SB Δ (avg)": _fmt_sb_delta(sb_delta, agg_valbl.get("total", 0)),
                         "New/Lost": f"{len(agg_nr)}/{len(agg_lost)}",
                         "LLM": llm_col(r),
-                        "Learn": _fmt_learn(r),
+                        "Learn\n(Ret)": _fmt_learn(r),
                     })
                     row_es_data.append(r["exit_statuses"])
                     all_details.append((parent_tag, agg))
@@ -685,6 +1007,19 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                                 "lost": per_repo_data.get("summary", {}).get("lost_by_skillbook", []),
                             }
 
+                            # Backfill per_attempt_rate for this repo from result files
+                            # (instance ids are namespaced by repo, so filter by prefix).
+                            if full_path:
+                                _results_root = _phase_results_dir(full_path)
+                                if _results_root is not None:
+                                    _prefix = repo.replace("/", "__") + "-"
+                                    _backfill_per_attempt_rate(s["val_baseline"], _results_root / "val_baseline", repo_prefix=_prefix)
+                                    _backfill_per_attempt_rate(s["val_skillbook"], _results_root / "val", repo_prefix=_prefix)
+
+                            # Override per-repo ValBL avg with aggregated reference (qwen3 split025)
+                            if _is_qwen3_split025(r):
+                                _apply_aggregated_val_baseline(s["val_baseline"], repo=repo)
+
                             # Compute per-repo exit status from trajectory files
                             repo_ids: set[str] = set()
                             for pk in ["train_phase", "val_baseline_phase", "val_skillbook_phase"]:
@@ -704,34 +1039,48 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                             }
                             repo_exit_statuses = {}
 
+                        # SB Δ from per-attempt avg (falls back to skillbook_improvement
+                        # when avg is unavailable, e.g. vpk=1).
+                        _bl = _compute_avg_rate(s["val_baseline"])
+                        _sb = _compute_avg_rate(s["val_skillbook"])
+                        _repo_delta = (_sb - _bl) if (_bl is not None and _sb is not None) else s["skillbook_improvement"]
+
                         per_repo_rows.append({
                             "ID": "",
                             "Dataset": "",
                             "Repo": repo,
-                            "Train": _fmt_phase(s["train"], distil=repo_distil),
-                            "ValBL": _fmt_phase(s["val_baseline"]),
-                            "ValSB": _fmt_phase(s["val_skillbook"]),
-                            "SB Δ": _fmt_delta_pp(s["skillbook_improvement"]),
+                            "Train": _fmt_phase(s["train"], distil=repo_distil, val_pass_k=r.get("val_pass_k", 1)),
+                            "ValBL": _fmt_phase(s["val_baseline"], val_pass_k=r.get("val_pass_k", 1)),
+                            "ValSB": _fmt_phase(s["val_skillbook"], val_pass_k=r.get("val_pass_k", 1)),
+                            "SB Δ (avg)": _fmt_sb_delta(_repo_delta, s["val_baseline"].get("total", 0)),
                             "New/Lost": f"{len(s['newly_resolved'])}/{len(s['lost'])}",
                             "LLM": "",
-                            "Learn": "",
+                            "Learn\n(Ret)": "",
                         })
                         row_es_data.append(repo_exit_statuses)
                         all_details.append(("", s))
                 else:
                     # Single-repo split run (filter_repos set but not iterate_repos)
                     repo = r["filter_repos"][0] if r.get("filter_repos") else "all"
+                    # Override ValBL avg with aggregated reference for this repo (qwen3 split025)
+                    if _is_qwen3_split025(r):
+                        _apply_aggregated_val_baseline(agg["val_baseline"], repo=repo if repo != "all" else None)
+                    # SB Δ from per-attempt avg (falls back to skillbook_improvement when
+                    # avg is unavailable, e.g. vpk=1).
+                    _bl = _compute_avg_rate(agg["val_baseline"])
+                    _sb = _compute_avg_rate(agg["val_skillbook"])
+                    _sr_delta = (_sb - _bl) if (_bl is not None and _sb is not None) else agg["skillbook_improvement"]
                     per_repo_rows.append({
                         "ID": parent_tag,
                         "Dataset": _shorten_dataset(r["benchmark"]),
                         "Repo": repo,
-                        "Train": _fmt_phase(agg["train"], distil=is_distil),
-                        "ValBL": _fmt_phase(agg["val_baseline"]),
-                        "ValSB": _fmt_phase(agg["val_skillbook"]),
-                        "SB Δ": _fmt_delta_pp(agg["skillbook_improvement"]),
+                        "Train": _fmt_phase(agg["train"], distil=is_distil, val_pass_k=r.get("val_pass_k", 1)),
+                        "ValBL": _fmt_phase(agg["val_baseline"], val_pass_k=r.get("val_pass_k", 1)),
+                        "ValSB": _fmt_phase(agg["val_skillbook"], val_pass_k=r.get("val_pass_k", 1)),
+                        "SB Δ (avg)": _fmt_sb_delta(_sr_delta, agg["val_baseline"].get("total", 0)),
                         "New/Lost": f"{len(agg['newly_resolved'])}/{len(agg['lost'])}",
                         "LLM": llm_col(r),
-                        "Learn": _fmt_learn(r),
+                        "Learn\n(Ret)": _fmt_learn(r),
                     })
                     row_es_data.append(r["exit_statuses"])
                     all_details.append((parent_tag, agg))
@@ -741,7 +1090,7 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
             es_header = _fmt_exit_status_header(pr_statuses)
             for row, es in zip(per_repo_rows, row_es_data):
                 row[es_header] = _fmt_exit_status_row(es, pr_statuses)
-            per_repo_headers = ["ID", "Dataset", "Repo", "Train", "ValBL", "ValSB", "SB Δ", "New/Lost", "LLM", "Learn", es_header]
+            per_repo_headers = ["ID", "Dataset", "Repo", "Train", "ValBL", "ValSB", "SB Δ (avg)", "New/Lost", "LLM", "Learn\n(Ret)", es_header]
 
             _print_table_rows(per_repo_headers, per_repo_rows)
             print()
@@ -751,22 +1100,37 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
             print("Split-mode runs (global):")
             global_statuses = _collect_all_statuses(global_runs)
             es_header = _fmt_exit_status_header(global_statuses)
-            global_headers = ["ID", "Dataset", "Train", "ValBL", "ValSB", "SB Δ", "New/Lost", "LLM", "Learn", es_header]
+            global_headers = ["ID", "Dataset", "Train", "ValBL", "ValSB", "SB Δ (avg)", "New/Lost", "LLM", "Learn\n(Ret)", es_header]
             global_rows = []
             for r in global_runs:
                 parent_tag = run_id_map[r["run_dir"]]
                 s = r["split"]
                 is_distil = bool(r.get("train_trajs_dir"))
+                vpk = r.get("val_pass_k", 1)
+                # Override ValBL avg with the aggregated reference baseline (qwen3
+                # split025) so SB Δ compares against a low-noise 60-attempt baseline.
+                if _is_qwen3_split025(r):
+                    _apply_aggregated_val_baseline(s["val_baseline"], repo=None)
+                # Compute SB Δ from avg rates when vpk > 1
+                if vpk > 1:
+                    avg_bl = _compute_avg_rate(s["val_baseline"])
+                    avg_sb = _compute_avg_rate(s["val_skillbook"])
+                    if avg_bl is not None and avg_sb is not None:
+                        sb_delta = avg_sb - avg_bl
+                    else:
+                        sb_delta = s["skillbook_improvement"]
+                else:
+                    sb_delta = s["skillbook_improvement"]
                 global_rows.append({
                     "ID": parent_tag,
                     "Dataset": _shorten_dataset(r["benchmark"]),
-                    "Train": _fmt_phase(s["train"], distil=is_distil),
-                    "ValBL": _fmt_phase(s["val_baseline"]),
-                    "ValSB": _fmt_phase(s["val_skillbook"]),
-                    "SB Δ": _fmt_delta_pp(s["skillbook_improvement"]),
+                    "Train": _fmt_phase(s["train"], distil=is_distil, val_pass_k=vpk),
+                    "ValBL": _fmt_phase(s["val_baseline"], val_pass_k=vpk),
+                    "ValSB": _fmt_phase(s["val_skillbook"], val_pass_k=vpk),
+                    "SB Δ (avg)": _fmt_sb_delta(sb_delta, s["val_baseline"].get("total", 0)),
                     "New/Lost": f"{len(s['newly_resolved'])}/{len(s['lost'])}",
                     "LLM": llm_col(r),
-                    "Learn": _fmt_learn(r),
+                    "Learn\n(Ret)": _fmt_learn(r),
                     es_header: _fmt_exit_status_row(r["exit_statuses"], global_statuses),
                 })
                 all_details.append((parent_tag, s))
