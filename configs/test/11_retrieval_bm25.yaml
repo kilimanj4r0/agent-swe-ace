@@ -1,0 +1,46 @@
+# Smoke test: BM25 (lexical Okapi BM25 via bm25s) skill retrieval (per_instance)
+# Exercises: predict -> evaluate -> (force) learn loop with retrieval.type=bm25
+# Retrieval fires on iter_1 once the skillbook has > skip_threshold skills.
+# Verify: statistics.json["retrieval"].type == "BM25Retriever" and retrieve() ran.
+experiment:
+  name: "test: retrieval bm25"
+  max_attempts: 2
+  force_learn: true
+  concurrency: 1
+  skillbook:
+    mode: "per_instance"
+    custom_swe_learn: false
+    deduplication:
+      enabled: false
+    retrieval:
+      enabled: true
+      type: "bm25"                # Lexical Okapi BM25 via bm25s
+      top_k: 1                    # Retrieve 1 skill (forces a real filter)
+      skip_threshold: 0           # Fire as soon as ≥1 skill exists on iter_1
+      k1: 1.5                     # BM25 term-frequency saturation
+      b: 0.75                     # BM25 length-normalization
+      include_section: false
+
+benchmark:
+  dataset: "princeton-nlp/SWE-bench_Verified"
+  split: "test"
+
+agent:
+  step_limit: 1
+  cost_limit: 0.0
+
+llm:
+  agent:
+    provider: "hosted_vllm"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://localhost:8800/v1"
+  ace:
+    provider: "hosted_vllm"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://localhost:8800/v1"
+
+output:
+  dir: "_data"
+  log_level: "DEBUG"

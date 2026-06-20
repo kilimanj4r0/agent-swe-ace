@@ -206,6 +206,30 @@ def verify(run_dir: Path, checks: dict) -> tuple[bool, list[str]]:
                 passed = False
                 details.append(f"stats[{dotkey}] = {val}, expected >= {expected}")
 
+        # stats_sum_gte: sum of several nested numeric keys must be >= threshold.
+        # The check key is a comma-separated list of dot-paths, e.g.
+        #   {"retrieval.instances_retrieved,retrieval.instances_no_change": 1}
+        # Used to prove a retriever's retrieve() was actually invoked (either it
+        # filtered some skills or selected all unchanged) rather than silently skipped.
+        for dotkeys, threshold in checks.get("stats_sum_gte", {}).items():
+            total = 0
+            missing = False
+            for dk in dotkeys.split(","):
+                val = stats
+                for part in dk.strip().split("."):
+                    val = val.get(part) if isinstance(val, dict) else None
+                    if val is None:
+                        break
+                if val is None:
+                    missing = True
+                    passed = False
+                    details.append(f"MISSING nested stats for sum: {dk.strip()}")
+                    break
+                total += val
+            if not missing and total < threshold:
+                passed = False
+                details.append(f"stats sum[{dotkeys}] = {total}, expected >= {threshold}")
+
     elif checks.get("stats_keys") or checks.get("stats_values"):
         passed = False
         details.append("MISSING statistics.json")
@@ -452,19 +476,49 @@ class SmokeTest:
 
     # ── Standalone tests (continued) ──
 
+    # Retrieval types exercised end-to-end: (config, expected retriever class name).
+    # "SkillRetriever" is the LLM two-stage filter+rank retriever.
+    RETRIEVAL_TYPES = [
+        ("11_retrieval_llm.yaml", "SkillRetriever"),
+        ("11_retrieval_bm25.yaml", "BM25Retriever"),
+        ("11_retrieval_embedding.yaml", "EmbeddingRetriever"),
+        ("11_retrieval_random.yaml", "RandomRetriever"),
+    ]
+
     def test_11_retrieval(self) -> bool:
-        passed, rd = self._run(
-            11, "11_retrieval.yaml",
-            extra_args=["--instance", INSTANCE_UNRESOLVED],
-            checks={
-                "files_exist": ["statistics.json", "config.json"],
-                "stats_keys": ["total_instances", "resolved_count", "unresolved_count"],
-                "stats_keys": ["total_instances", "retrieval"],
-                "stats_nested": {"retrieval.enabled": True, "retrieval.top_k": 3},
-            },
-        )
+        """Run each retrieval type end-to-end and verify retrieve() actually ran.
+
+        Per type we assert:
+          - statistics.json has a ``retrieval`` block with the expected ``type``
+          - ``instances_retrieved + instances_no_change >= 1``: the retriever object
+            was built AND its retrieve() ran against a real skillbook (filtered or
+            unchanged), not silently skipped — the bug the old single-config test missed.
+        Types run sequentially to avoid GPU/LLM contention (embedding model load vs.
+        concurrent vLLM calls). Each config targets the never-resolved instance so
+        force_learn adds skills on iter_0 and retrieval fires on iter_1.
+        """
+        all_passed = True
+        rd = None
+        for config_name, expected_type in self.RETRIEVAL_TYPES:
+            passed, rd = self._run(
+                11, config_name,
+                extra_args=["--instance", INSTANCE_UNRESOLVED],
+                checks={
+                    "files_exist": ["statistics.json", "config.json"],
+                    "stats_keys": ["total_instances", "retrieval"],
+                    "stats_nested": {
+                        "retrieval.enabled": True,
+                        "retrieval.type": expected_type,
+                        "retrieval.top_k": 1,
+                    },
+                    "stats_sum_gte": {
+                        "retrieval.instances_retrieved,retrieval.instances_no_change": 1,
+                    },
+                },
+            )
+            all_passed = all_passed and passed
         self.run_dirs[11] = rd
-        return passed
+        return all_passed
 
 
 # ── Main ────────────────────────────────────────────────────────────────

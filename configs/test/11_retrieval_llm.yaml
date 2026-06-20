@@ -1,0 +1,49 @@
+# Smoke test: LLM (two-stage filter+rank) skill retrieval (per_instance)
+# Exercises: predict -> evaluate -> (force) learn loop with retrieval.type=llm
+# Retrieval fires on iter_1 once the skillbook has > skip_threshold skills.
+# Unlike the old 11_retrieval.yaml, this supplies retrieval.model + api_base so the
+# retriever is actually constructed (otherwise _build_llm_retriever returns None and
+# retrieval is silently skipped).
+# Verify: statistics.json["retrieval"].type == "SkillRetriever" and retrieve() ran.
+experiment:
+  name: "test: retrieval llm"
+  max_attempts: 2
+  force_learn: true
+  concurrency: 1
+  skillbook:
+    mode: "per_instance"
+    custom_swe_learn: false
+    deduplication:
+      enabled: false
+    retrieval:
+      enabled: true
+      type: "llm"                 # Two-stage LLM filter + rank (default retriever)
+      model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      api_base: "http://localhost:8800/v1"
+      api_key_env: "HOSTED_VLLM_API_KEY"
+      top_k: 1                    # Retrieve 1 skill (forces a real filter)
+      skip_threshold: 0           # Fire as soon as ≥1 skill exists on iter_1
+
+benchmark:
+  dataset: "princeton-nlp/SWE-bench_Verified"
+  split: "test"
+
+agent:
+  step_limit: 1
+  cost_limit: 0.0
+
+llm:
+  agent:
+    provider: "hosted_vllm"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://localhost:8800/v1"
+  ace:
+    provider: "hosted_vllm"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://localhost:8800/v1"
+
+output:
+  dir: "_data"
+  log_level: "DEBUG"

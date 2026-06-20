@@ -1,9 +1,9 @@
-# Smoke test: Multi-attempt with learning + top-k skill retrieval (per_instance)
-# Exercises: predict -> evaluate -> learn loop with retrieval enabled
-# Retrieval kicks in on iter_1 when skillbook has skills > skip_threshold
-# Verify: trajectory has retrieval_stats, statistics.json has retrieval summary
+# Smoke test: Random (uniform sampling) skill retrieval (per_instance)
+# Exercises: predict -> evaluate -> (force) learn loop with retrieval.type=random
+# Retrieval fires on iter_1 once the skillbook has > skip_threshold skills.
+# Verify: statistics.json["retrieval"].type == "RandomRetriever" and retrieve() ran.
 experiment:
-  name: "test: retrieval"
+  name: "test: retrieval random"
   max_attempts: 2
   force_learn: true
   concurrency: 1
@@ -14,8 +14,10 @@ experiment:
       enabled: false
     retrieval:
       enabled: true
-      top_k: 3
-      skip_threshold: 1          # Very low so retrieval always triggers on iter_1
+      type: "random"              # Uniformly random k skills (baseline)
+      top_k: 1                    # Retrieve 1 skill (forces a real filter)
+      skip_threshold: 0           # Fire as soon as ≥1 skill exists on iter_1
+      seed: 42                    # Reproducible sampling
 
 benchmark:
   dataset: "princeton-nlp/SWE-bench_Verified"
