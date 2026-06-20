@@ -717,162 +717,48 @@ class ExperimentLoop:
                     else:
                         unresolved_ids.append(instance_id)
             else:
-                # Concurrent mode
+                # Concurrent mode — per_instance only (two-phase train is always
+                # sequential; see the branch above). Each per_instance instance gets
+                # its own ephemeral skillbook, so concurrent skillbook mutation is safe.
                 results_lock = threading.Lock()
 
-                if two_phase and self._train_trajs_dir is not None:
-                    # Concurrent teacher distillation
-                    _teacher_trajs_found = [0]
-                    _teacher_trajs_skipped = [0]
-                    _teacher_trajs_resolved = [0]
-
-                    def _teacher_worker(instance, idx):
-                        instance_id = instance.get("instance_id", f"unknown-{idx}")
-                        inst_start = datetime.now()
-                        try:
-                            with instance_context(instance_id):
-                                teacher_result = self._run_train_instance_from_teacher(
-                                    instance, self._train_trajs_dir, phase="train",
-                                )
-                            if teacher_result is not None:
-                                with results_lock:
-                                    _teacher_trajs_found[0] += 1
-                                    if teacher_result.final_resolved:
-                                        _teacher_trajs_resolved[0] += 1
-                                    all_results[instance_id] = teacher_result
-                                    instance_durations.append((datetime.now() - inst_start).total_seconds())
-                                    if teacher_result.final_resolved:
-                                        resolved_ids.append(instance_id)
-                                    else:
-                                        unresolved_ids.append(instance_id)
-                                return teacher_result
+                def _worker(instance):
+                    instance_id = instance.get("instance_id", "unknown")
+                    inst_start = datetime.now()
+                    try:
+                        result = self._run_instance_concurrent(instance)
+                        with results_lock:
+                            all_results[instance_id] = result
+                            instance_durations.append((datetime.now() - inst_start).total_seconds())
+                            if result.final_resolved:
+                                resolved_ids.append(instance_id)
                             else:
-                                with results_lock:
-                                    _teacher_trajs_skipped[0] += 1
-                                logger.warning(f"[TRAIN] {instance_id}: no teacher trajectory, skipping")
-                                return None
-                        except Exception as e:
-                            logger.error(f"[{instance_id}] Teacher worker failed: {e}")
-                            with results_lock:
-                                instance_durations.append((datetime.now() - inst_start).total_seconds())
                                 unresolved_ids.append(instance_id)
-                                all_results[instance_id] = InstanceResult(
-                                    instance_id=instance_id,
-                                    final_resolved=False,
-                                    total_attempts=0,
-                                )
-                            return None
+                        return result
+                    except Exception as e:
+                        logger.error(f"[{instance_id}] Worker failed: {e}")
+                        with results_lock:
+                            instance_durations.append((datetime.now() - inst_start).total_seconds())
+                            unresolved_ids.append(instance_id)
+                            all_results[instance_id] = InstanceResult(
+                                instance_id=instance_id,
+                                final_resolved=False,
+                                total_attempts=0,
+                            )
+                        return None
 
-                    logger.info(f"Launching {len(instances)} train instances with concurrency={self.concurrency} (teacher distillation)")
-                    with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-                        futures = {
-                            executor.submit(_teacher_worker, inst, i): inst
-                            for i, inst in enumerate(instances)
-                        }
-                        done_count = 0
-                        for future in as_completed(futures):
-                            done_count += 1
-                            inst = futures[future]
-                            instance_id = inst.get("instance_id", "unknown")
-                            logger.info(f"[{done_count}/{len(instances)}] Completed {instance_id}")
-                    teacher_trajs_found = _teacher_trajs_found[0]
-                    teacher_trajs_skipped = _teacher_trajs_skipped[0]
-                    teacher_trajs_resolved = _teacher_trajs_resolved[0]
-                elif two_phase and baseline_run_dir:
-                    # Concurrent two-phase train with baseline reuse
-                    _reused_from_baseline = [0]
-                    _baseline_resolved_count = [0]
-                    _baseline_unresolved_count = [0]
-
-                    def _two_phase_worker(instance, idx):
-                        instance_id = instance.get("instance_id", f"unknown-{idx}")
-                        inst_start = datetime.now()
-                        try:
-                            with instance_context(instance_id):
-                                result = self._run_train_instance_reusing_baseline(
-                                    instance, baseline_run_dir, phase="train",
-                                    allow_sb_merge=baseline_sb_compat is not False,
-                                )
-                            with results_lock:
-                                all_results[instance_id] = result
-                                instance_durations.append((datetime.now() - inst_start).total_seconds())
-                                if result.final_resolved:
-                                    resolved_ids.append(instance_id)
-                                else:
-                                    unresolved_ids.append(instance_id)
-                                if result.iterations and result.iterations[0].predict_result is None:
-                                    _reused_from_baseline[0] += 1
-                                    if result.final_resolved:
-                                        _baseline_resolved_count[0] += 1
-                                    else:
-                                        _baseline_unresolved_count[0] += 1
-                            return result
-                        except Exception as e:
-                            logger.error(f"[{instance_id}] Worker failed: {e}")
-                            with results_lock:
-                                instance_durations.append((datetime.now() - inst_start).total_seconds())
-                                unresolved_ids.append(instance_id)
-                                all_results[instance_id] = InstanceResult(
-                                    instance_id=instance_id,
-                                    final_resolved=False,
-                                    total_attempts=0,
-                                )
-                            return None
-
-                    logger.info(f"Launching {len(instances)} train instances with concurrency={self.concurrency} (baseline reuse)")
-                    with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-                        futures = {
-                            executor.submit(_two_phase_worker, inst, i): inst
-                            for i, inst in enumerate(instances)
-                        }
-                        done_count = 0
-                        for future in as_completed(futures):
-                            done_count += 1
-                            inst = futures[future]
-                            instance_id = inst.get("instance_id", "unknown")
-                            logger.info(f"[{done_count}/{len(instances)}] Completed {instance_id}")
-                    reused_from_baseline = _reused_from_baseline[0]
-                    baseline_resolved_count = _baseline_resolved_count[0]
-                    baseline_unresolved_count = _baseline_unresolved_count[0]
-                else:
-                    # Concurrent non-two-phase (single-phase per_instance mode)
-                    def _worker(instance):
-                        instance_id = instance.get("instance_id", "unknown")
-                        inst_start = datetime.now()
-                        try:
-                            result = self._run_instance_concurrent(instance)
-                            with results_lock:
-                                all_results[instance_id] = result
-                                instance_durations.append((datetime.now() - inst_start).total_seconds())
-                                if result.final_resolved:
-                                    resolved_ids.append(instance_id)
-                                else:
-                                    unresolved_ids.append(instance_id)
-                            return result
-                        except Exception as e:
-                            logger.error(f"[{instance_id}] Worker failed: {e}")
-                            with results_lock:
-                                instance_durations.append((datetime.now() - inst_start).total_seconds())
-                                unresolved_ids.append(instance_id)
-                                all_results[instance_id] = InstanceResult(
-                                    instance_id=instance_id,
-                                    final_resolved=False,
-                                    total_attempts=0,
-                                )
-                            return None
-
-                    logger.info(f"Launching {len(instances)} instances with concurrency={self.concurrency}")
-                    with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-                        futures = {
-                            executor.submit(_worker, inst): inst
-                            for inst in instances
-                        }
-                        done_count = 0
-                        for future in as_completed(futures):
-                            done_count += 1
-                            inst = futures[future]
-                            instance_id = inst.get("instance_id", "unknown")
-                            logger.info(f"[{done_count}/{len(instances)}] Completed {instance_id}")
+                logger.info(f"Launching {len(instances)} instances with concurrency={self.concurrency}")
+                with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
+                    futures = {
+                        executor.submit(_worker, inst): inst
+                        for inst in instances
+                    }
+                    done_count = 0
+                    for future in as_completed(futures):
+                        done_count += 1
+                        inst = futures[future]
+                        instance_id = inst.get("instance_id", "unknown")
+                        logger.info(f"[{done_count}/{len(instances)}] Completed {instance_id}")
 
             # === Two-phase: Val passes ===
 
