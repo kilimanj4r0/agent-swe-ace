@@ -5,7 +5,7 @@ experiment:
   name: "test: two-phase global"
   max_attempts: 1
   force_learn: true
-  concurrency: 1
+  concurrency: 2
   skillbook:
     mode: "global"
     custom_swe_learn: false
