@@ -1060,3 +1060,132 @@ class TestTrainSequentialInTwoPhase:
         assert max_active[0] == 1, (
             f"two-phase train must be sequential, max in-flight={max_active[0]}"
         )
+
+
+class TestWorkerPredictFactory:
+    """_make_worker_predict builds a fresh PredictPhase per call from agent_factory."""
+
+    def test_distinct_predict_per_call(self, tmp_path):
+        from phases.predict import PredictPhase
+        from runners.main_loop import ExperimentLoop
+
+        created = []
+
+        def factory():
+            a = Mock()
+            created.append(a)
+            return a
+
+        base = PredictPhase(
+            agent=Mock(), output_dir=tmp_path, run_name="t", benchmark="b",
+        )
+        loop = ExperimentLoop(
+            predict_phase=base, evaluate_phase=Mock(), learn_phase=Mock(),
+            output_dir=tmp_path, run_name="t", max_attempts=1, agent_factory=factory,
+        )
+        w1 = loop._make_worker_predict()
+        w2 = loop._make_worker_predict()
+
+        assert isinstance(w1, PredictPhase) and isinstance(w2, PredictPhase)
+        assert w1 is not w2
+        assert w1.agent is created[0]
+        assert w2.agent is created[1]
+        assert created[0] is not created[1]
+
+
+class TestConcurrentValPass:
+    """_run_val_pass with concurrency > 1 must match sequential results, handle
+    worker exceptions, and actually execute instances in parallel."""
+
+    def _make_loop(self, tmp_path):
+        from runners.main_loop import ExperimentLoop
+        loop = ExperimentLoop(
+            predict_phase=Mock(), evaluate_phase=Mock(), learn_phase=Mock(),
+            output_dir=tmp_path, run_name="t", max_attempts=1,
+            agent_factory=lambda: Mock(),
+        )
+        # Avoid real PredictPhase construction in the concurrency mechanics tests.
+        loop._make_worker_predict = lambda: Mock()
+        return loop
+
+    @staticmethod
+    def _instances(n):
+        return [{"instance_id": f"r__i-{i}", "problem_statement": "x"} for i in range(n)]
+
+    def test_concurrent_matches_sequential(self, tmp_path):
+        from ace import Skillbook
+        from runners.main_loop import InstanceResult
+
+        def fake_run_instance(inst, **kw):
+            iid = inst["instance_id"]
+            idx = int(iid.split("-")[-1])
+            return InstanceResult(
+                instance_id=iid, final_resolved=(idx % 2 == 0), total_attempts=1,
+            )
+
+        for conc in (1, 4):
+            loop = self._make_loop(tmp_path)
+            loop.concurrency = conc
+            loop.run_instance = Mock(side_effect=fake_run_instance)
+            stats = loop._run_val_pass(
+                [dict(i) for i in self._instances(6)],
+                Skillbook(), phase="val", max_attempts=1,
+            )
+            assert stats["resolved_count"] == 3, f"concurrency={conc}"
+            assert stats["unresolved_count"] == 3, f"concurrency={conc}"
+            assert set(stats["resolved_ids"]) == {f"r__i-{i}" for i in range(6) if i % 2 == 0}
+            assert loop.run_instance.call_count == 6
+
+    def test_worker_exception_recorded_unresolved(self, tmp_path):
+        from ace import Skillbook
+        from runners.main_loop import InstanceResult
+
+        def fake_run_instance(inst, **kw):
+            if inst["instance_id"] == "r__i-1":
+                raise RuntimeError("boom")
+            return InstanceResult(
+                instance_id=inst["instance_id"], final_resolved=True, total_attempts=1,
+            )
+
+        loop = self._make_loop(tmp_path)
+        loop.concurrency = 3
+        loop.run_instance = Mock(side_effect=fake_run_instance)
+        stats = loop._run_val_pass(
+            [dict(i) for i in self._instances(4)],
+            Skillbook(), phase="val", max_attempts=1,
+        )
+        assert set(stats["resolved_ids"]) == {"r__i-0", "r__i-2", "r__i-3"}
+        assert "r__i-1" in stats["unresolved_ids"]
+        assert stats["resolved_count"] == 3
+
+    def test_instances_actually_run_in_parallel(self, tmp_path):
+        import threading
+        import time
+        from ace import Skillbook
+        from runners.main_loop import InstanceResult
+
+        active = [0]
+        max_active = [0]
+        lock = threading.Lock()
+
+        def fake_run_instance(inst, **kw):
+            with lock:
+                active[0] += 1
+                max_active[0] = max(max_active[0], active[0])
+            time.sleep(0.05)
+            with lock:
+                active[0] -= 1
+            return InstanceResult(
+                instance_id=inst["instance_id"], final_resolved=True, total_attempts=1,
+            )
+
+        loop = self._make_loop(tmp_path)
+        loop.concurrency = 4
+        loop.run_instance = Mock(side_effect=fake_run_instance)
+        loop._run_val_pass(
+            [dict(i) for i in self._instances(4)],
+            Skillbook(), phase="val", max_attempts=1,
+        )
+        assert max_active[0] >= 2, (
+            f"expected concurrent val execution, max in-flight={max_active[0]}"
+        )

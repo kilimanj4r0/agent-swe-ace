@@ -153,6 +153,22 @@ class ExperimentLoop:
             self.repo_skillbooks[repo] = skillbook
         # per_instance: skillbook is not persisted
 
+    def _make_worker_predict(self):
+        """Build a fresh PredictPhase with its own agent for a concurrent worker.
+
+        Each worker needs its own agent (n_calls/cost counters are not thread-safe)
+        and its own PredictPhase (so _retrieval_run_stats is not shared). Mirrors the
+        construction previously open-coded in _run_instance_concurrent_inner.
+        """
+        from phases.predict import PredictPhase
+        return PredictPhase(
+            agent=self.agent_factory(),
+            output_dir=self.predict.output_dir,
+            run_name=self.predict.run_name,
+            benchmark=self.predict.benchmark,
+            model_name=self.predict.model_name,
+        )
+
     def _get_resume_start(self, instance_id: str) -> int:
         """Get the start iteration for an instance based on resume_state.
 
@@ -434,15 +450,7 @@ class ExperimentLoop:
         repo = instance.get("repo", "unknown")
 
         # Create a fresh agent + predict phase for this worker
-        agent = self.agent_factory()
-        from phases.predict import PredictPhase
-        worker_predict = PredictPhase(
-            agent=agent,
-            output_dir=self.predict.output_dir,
-            run_name=self.predict.run_name,
-            benchmark=self.predict.benchmark,
-            model_name=self.predict.model_name,
-        )
+        worker_predict = self._make_worker_predict()
 
         logger.info(f"\n{'='*60}")
         logger.info(f"[{instance_id}] Starting (concurrent)")
@@ -1411,25 +1419,77 @@ class ExperimentLoop:
                 f"{len(instances_to_run)} to run"
             )
 
-        # Run instances
-        for i, instance in enumerate(instances_to_run):
-            instance_id = instance.get("instance_id", f"unknown-{i}")
-            logger.info(f"\n[{phase.upper()} {i+1}/{len(instances_to_run)}] Processing {instance_id}")
+        # Run instances (concurrent when concurrency > 1; the skillbook is frozen/
+        # read-only, evaluation is serialized by the global _eval_lock, and each
+        # worker gets its own agent + PredictPhase, so this is safe).
+        if self.concurrency > 1 and len(instances_to_run) > 1:
+            results_lock = threading.Lock()
 
-            result = self.run_instance(
-                instance,
-                initial_skillbook=skillbook,
-                frozen_skillbook=True,
-                max_attempts_override=max_attempts,
-                phase=phase,
-                skip_baseline_reuse=True,
+            def _val_worker(instance, idx):
+                instance_id = instance.get("instance_id", f"unknown-{idx}")
+                try:
+                    with instance_context(instance_id):
+                        logger.info(f"\n[{phase.upper()}] Processing {instance_id}")
+                        worker_predict = self._make_worker_predict()
+                        result = self.run_instance(
+                            instance,
+                            initial_skillbook=skillbook,
+                            frozen_skillbook=True,
+                            max_attempts_override=max_attempts,
+                            phase=phase,
+                            skip_baseline_reuse=True,
+                            predict_phase=worker_predict,
+                        )
+                    with results_lock:
+                        results[instance_id] = result
+                        if result.final_resolved:
+                            resolved_ids.append(instance_id)
+                        else:
+                            unresolved_ids.append(instance_id)
+                    return result
+                except Exception as e:
+                    logger.error(f"[{phase.upper()}] {instance_id} worker failed: {e}")
+                    with results_lock:
+                        unresolved_ids.append(instance_id)
+                        results[instance_id] = InstanceResult(
+                            instance_id=instance_id,
+                            final_resolved=False,
+                            total_attempts=0,
+                        )
+                    return None
+
+            logger.info(
+                f"[{phase.upper()}] running {len(instances_to_run)} instances "
+                f"with concurrency={self.concurrency}"
             )
-            results[instance_id] = result
+            with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
+                futures = {
+                    executor.submit(_val_worker, inst, i)
+                    for i, inst in enumerate(instances_to_run)
+                }
+                done_count = 0
+                for future in as_completed(futures):
+                    done_count += 1
+                    logger.info(f"[{phase.upper()} {done_count}/{len(instances_to_run)}] completed")
+        else:
+            for i, instance in enumerate(instances_to_run):
+                instance_id = instance.get("instance_id", f"unknown-{i}")
+                logger.info(f"\n[{phase.upper()} {i+1}/{len(instances_to_run)}] Processing {instance_id}")
 
-            if result.final_resolved:
-                resolved_ids.append(instance_id)
-            else:
-                unresolved_ids.append(instance_id)
+                result = self.run_instance(
+                    instance,
+                    initial_skillbook=skillbook,
+                    frozen_skillbook=True,
+                    max_attempts_override=max_attempts,
+                    phase=phase,
+                    skip_baseline_reuse=True,
+                )
+                results[instance_id] = result
+
+                if result.final_resolved:
+                    resolved_ids.append(instance_id)
+                else:
+                    unresolved_ids.append(instance_id)
 
         # Merge loaded results
         for iid, was_resolved in loaded_ids.items():
