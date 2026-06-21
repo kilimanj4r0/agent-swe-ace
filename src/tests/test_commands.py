@@ -320,3 +320,30 @@ class TestSplitInstances:
         train, val = split_instances(instances, config)
         assert len(val) == 1
         assert len(train) == 0
+
+
+class TestResolveIterateReposConcurrency:
+    """Between-repo concurrency resolves from experiment.iterate_repos_concurrency,
+    falling back to the legacy top-level experiment.concurrency (>1) for migration."""
+
+    def test_default_is_one(self):
+        from cli.commands import _resolve_iterate_repos_concurrency
+        assert _resolve_iterate_repos_concurrency({}) == 1
+
+    def test_explicit_key_wins(self):
+        from cli.commands import _resolve_iterate_repos_concurrency
+        assert _resolve_iterate_repos_concurrency({"iterate_repos_concurrency": 4}) == 4
+        assert _resolve_iterate_repos_concurrency(
+            {"iterate_repos_concurrency": 4, "concurrency": 2}
+        ) == 4
+
+    def test_falls_back_to_legacy_concurrency(self):
+        from cli.commands import _resolve_iterate_repos_concurrency
+        assert _resolve_iterate_repos_concurrency({"concurrency": 3}) == 3
+
+    def test_legacy_concurrency_of_one_does_not_warn(self, caplog):
+        import logging
+        from cli.commands import _resolve_iterate_repos_concurrency
+        with caplog.at_level(logging.WARNING):
+            assert _resolve_iterate_repos_concurrency({"concurrency": 1}) == 1
+        assert not any("iterate_repos_concurrency" in r.message for r in caplog.records)

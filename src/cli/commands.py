@@ -705,7 +705,7 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
     # ── 8. Execution Plan ────────────────────────────────────────────────
     print(f"\nExecution Plan:")
     if iterate_repos_list:
-        concurrency = exp.get("concurrency", 1)
+        concurrency = _resolve_iterate_repos_concurrency(exp)
         if concurrency > 1:
             workers = min(concurrency, len(iterate_repos_list))
             print(f"  Mode:              iterate_repos ({workers} repos in parallel)")
@@ -757,7 +757,8 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
 
     concurrency = exp.get("concurrency", 1)
     if concurrency > 1:
-        print(f"  Concurrency:       {concurrency} workers (prediction parallel, evaluation serialized)")
+        print(f"  Concurrency:       {concurrency} (within-repo val parallel; "
+              f"train sequential; evaluation serialized)")
 
     # ── 9. Limits ────────────────────────────────────────────────────────
     ctx = agent_cfg.get("context", {})
@@ -873,11 +874,8 @@ def _run_single_repo_experiment(
         if not baseline_run_dir:
             baseline_run_dir = resume_dirs[0]
 
-    # Within-repo concurrency for train phase (only effective with baseline reuse)
-    repo_concurrency = config.get("experiment", {}).get("train_concurrency", 1)
-    if repo_concurrency > 1 and not baseline_run_dir:
-        logger.warning(f"[{repo}] train_concurrency={repo_concurrency} ignored without baseline_run_dir")
-        repo_concurrency = 1
+    # Within-repo concurrency: drives the val passes (train is always sequential).
+    repo_concurrency = config.get("experiment", {}).get("concurrency", 1)
 
     loop = ExperimentLoop(
         predict_phase=predict_phase,
@@ -1172,11 +1170,32 @@ def _aggregate_iterate_stats(repo_stats: dict[str, dict], config: dict, run_dir:
     return combined
 
 
+def _resolve_iterate_repos_concurrency(exp_cfg: dict) -> int:
+    """Between-repo concurrency for iterate_repos.
+
+    Reads experiment.iterate_repos_concurrency. When unset, falls back to the
+    legacy top-level experiment.concurrency (only if > 1) with a deprecation
+    warning, so existing configs keep working until migrated.
+    """
+    if "iterate_repos_concurrency" in exp_cfg:
+        return int(exp_cfg["iterate_repos_concurrency"])
+    legacy = exp_cfg.get("concurrency", 1)
+    if legacy and legacy > 1:
+        logger.warning(
+            "experiment.iterate_repos_concurrency is unset; falling back to "
+            "experiment.concurrency=%s (deprecated). Set "
+            "experiment.iterate_repos_concurrency explicitly.",
+            legacy,
+        )
+        return int(legacy)
+    return 1
+
+
 def _run_iterate_repos(config: dict, args, output_dir: Path):
     """Run independent per-repo two-phase experiments for each repo in iterate_repos."""
     iterate_repos_list = config["benchmark"]["iterate_repos"]
     run_name = config["experiment"].get("name", "experiment")
-    concurrency = config["experiment"].get("concurrency", 1)
+    concurrency = _resolve_iterate_repos_concurrency(config["experiment"])
 
     # Load all instances (with exclude_instances, but no filter_repos)
     instances = _get_instances_no_filter(config)
