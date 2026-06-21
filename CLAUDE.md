@@ -184,7 +184,7 @@ data/
 - `benchmark.iterate_repos`: run independent per-repo two-phase experiments for each repo listed
   - Each repo gets its own train/val split and skillbook
   - Per-repo skillbooks persisted to `skillbooks/per_repo/<repo>/final_skillbook.json`
-  - If `concurrency > 1`, repos run in parallel (ThreadPoolExecutor)
+  - If `experiment.iterate_repos_concurrency > 1`, repos run in parallel (ThreadPoolExecutor)
   - Per-repo stats in `statistics_per_repo/<repo>.json`, combined in `statistics.json`
   - Orchestration in `_run_iterate_repos()` / `_run_single_repo_experiment()` in commands.py
 - `experiment.val_pass_k`: number of attempts per val instance (default: 1). Works in both normal and validation-only mode.
@@ -211,7 +211,7 @@ data/
 - PydanticAI schema monkey-patch on import in `config/llm.py`: inlines `$ref`/`$defs` in tool schemas (Z.AI/GLM models can't handle JSON references)
 - Default ACE routing: when `api_base` is set, code sets `OPENAI_BASE_URL`/`OPENAI_API_KEY` env vars at runtime and prefixes model with `"openai:"` so PydanticAI uses OpenAIProvider
 - Model `n_calls`/`cost` counters reset to 0 before each agent run (accumulation would trigger immediate LimitsExceeded)
-- Concurrency (`experiment.concurrency > 1`): each worker gets its own agent via `agent_factory()`; evaluation still serialized via global lock
+- Concurrency: `experiment.concurrency` drives **within-repo val** parallelism (both val passes); two-phase train is always sequential. `experiment.iterate_repos_concurrency` drives **between-repo** parallelism in iterate_repos (peak prediction parallelism ~ M × N; evaluation still serialized via the global lock). Each worker gets its own agent via `agent_factory()`.
 - Context window: `max_input_tokens = context_window - max_tokens - 2000` (hardcoded safety buffer)
 
 ## Testing Strategy

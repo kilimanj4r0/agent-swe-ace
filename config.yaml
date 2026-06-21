@@ -27,7 +27,8 @@ experiment:
   max_attempts: 10                     # Max retry attempts per instance (train phase overrides to 1)
   force_learn: true                    # true = learn runs on unresolved even with max_attempts=1 (default)
                                        # false = skip learn when max_attempts=1 (saves API costs in per_instance mode)
-  concurrency: 1                       # Number of parallel instances (1 = sequential)
+  concurrency: 1                       # Within-repo val parallelism (1 = sequential). Train is always sequential in two-phase.
+  # iterate_repos_concurrency: 1       # Between-repo parallelism in iterate_repos (peak prediction parallelism ~ M x N)
   random_seed: 42                      # For reproducibility (used in train/val split)
 
   skillbook:
@@ -137,7 +138,7 @@ benchmark:
   # filter_repos: null                 # null = all repos, or list: ["django/django"]
   # iterate_repos:                     # Run independent per-repo two-phase experiments
   #   - "django/django"                # Each repo gets its own train/val split and skillbook
-  #   - "sympy/sympy"                  # If concurrency > 1, repos run in parallel
+  #   - "sympy/sympy"                  # If experiment.iterate_repos_concurrency > 1, repos run in parallel
 
   # --- General instances exclusion from any experiment ---
   exclude_instances:                   # Instances that fail to build Docker images
