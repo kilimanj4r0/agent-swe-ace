@@ -67,6 +67,8 @@ def test_parse_presented_skill_ids_ignores_non_user(sci):
     ("[skill-django_fixing-00002]", {"other-00002"}, ("unattributable", "[skill-django_fixing-00002]")),
     ("[skill-id: code-modification-00004]", {"code_modification-00004"}, ("unattributable", "[skill-id: code-modification-00004]")),
     ("[skill-00006]", set(), ("unattributable", "[skill-00006]")),
+    ("[skill: django_fixing-00002]", {"django_fixing-00002"}, ("clean", "django_fixing-00002")),
+    ("[skill code_modification-00005]", {"code_modification-00005"}, ("clean", "code_modification-00005")),
 ])
 def test_classify_citation(sci, token, presented, expected):
     assert sci.classify_citation(token, presented) == expected
@@ -222,6 +224,7 @@ def test_analyze_run_synthetic(sci, tmp_path):
     assert sk["presented_trajectories"] == 2
     assert sk["citing_instances"] == 1
     assert sk["resolve_rate_when_cited"] == 1.0
+    assert sk["resolve_rate_when_presented_not_cited"] == 0.0  # iter_1 presented-not-cited, unresolved
     assert sk["attrib_any_k"]["GAINED"] == 1
     assert res["unattributable"] == 0
     assert res["mcnemar_pass1"]["gained"] == 1
@@ -256,6 +259,7 @@ def test_render_markdown_contains_sections(sci):
         "skills": [{"skill_id": "a-00001", "citations": 9, "citing_instances": 3,
                     "presented_trajectories": 10, "cited_trajectories": 5,
                     "citation_rate": 0.5, "resolve_rate_when_cited": 0.4,
+                    "resolve_rate_when_presented_not_cited": 0.3,
                     "attrib_pass1": {"GAINED": 2, "LOST": 0, "STABLE_PASS": 1, "STABLE_FAIL": 0},
                     "attrib_any_k": {"GAINED": 2, "LOST": 0, "STABLE_PASS": 1, "STABLE_FAIL": 0}}],
         "instances": [],

@@ -13,6 +13,7 @@ import argparse
 import json
 import math
 import re
+import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -53,10 +54,14 @@ def parse_presented_skill_ids(messages):
 def _parse_skill_token_id(inner):
     """Extract the skill id from a token's inner text.
 
-    Recognizes 'skill-id: X', 'skill-id X', 'skill-X'. Returns None if no id.
+    Recognizes 'skill-id: X', 'skill-id X', 'skill: X', 'skill X', 'skill-X'.
+    Returns None if no id.
     """
     inner = inner.strip()
     m = re.match(r"skill-id\s*[:\s]\s*(.+)$", inner, re.IGNORECASE)
+    if m:
+        return m.group(1).strip()
+    m = re.match(r"skill\s*[:\s]\s*(.+)$", inner, re.IGNORECASE)
     if m:
         return m.group(1).strip()
     m = re.match(r"skill-(.+)$", inner, re.IGNORECASE)
@@ -116,7 +121,8 @@ def paired_verdict(val_resolved, bl_resolved):
     """Classify a paired instance outcome at pass@1 and any-of-K.
 
     val_resolved, bl_resolved: list[bool] per-attempt resolution for the val
-    (skillbook) and val_baseline (no skillbook) passes.
+    (skillbook) and val_baseline (no skillbook) passes, ordered by iter index.
+    pass1 uses the first available attempt (iter_0 in practice).
     Returns {'pass1': verdict, 'any_k': verdict}.
     """
     p1_v = bool(val_resolved[0]) if val_resolved else False
@@ -195,6 +201,7 @@ def _new_skill():
         "citing_instances": set(),
         "presented_trajectories": 0,
         "resolved_when_cited": 0,
+        "resolved_when_presented_not_cited": 0,
         "attrib_pass1": dict.fromkeys(VERDICTS, 0),
         "attrib_any_k": dict.fromkeys(VERDICTS, 0),
     }
@@ -241,6 +248,9 @@ def analyze_run(run_dir, min_citations=0):
                 if resolved:
                     per_skill[sid]["resolved_when_cited"] += 1
                 cited_sids_inst.add(sid)
+            if resolved:
+                for sid in presented - counts.keys():
+                    per_skill[sid]["resolved_when_presented_not_cited"] += 1
         for sid in cited_sids_inst:
             per_skill[sid]["citing_instances"].add(inst)
 
@@ -271,6 +281,7 @@ def analyze_run(run_dir, min_citations=0):
             continue
         cited_traj = s["cited_trajectories"]
         pres = s["presented_trajectories"]
+        pnc = pres - cited_traj
         skills.append({
             "skill_id": sid,
             "citations": s["citations"],
@@ -279,6 +290,7 @@ def analyze_run(run_dir, min_citations=0):
             "cited_trajectories": cited_traj,
             "citation_rate": (cited_traj / pres) if pres else 0.0,
             "resolve_rate_when_cited": (s["resolved_when_cited"] / cited_traj) if cited_traj else 0.0,
+            "resolve_rate_when_presented_not_cited": (s["resolved_when_presented_not_cited"] / pnc) if pnc else 0.0,
             "attrib_pass1": dict(s["attrib_pass1"]),
             "attrib_any_k": dict(s["attrib_any_k"]),
         })
@@ -338,13 +350,14 @@ def render_markdown(res):
 
     lines.append("## Per-skill citations")
     lines.append("")
-    lines.append("| skill_id | citations | citing_inst | presented_traj | cited_traj | cite_rate | resolve\\|cited | GAINED(any_k) | LOST(any_k) |")
-    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
+    lines.append("| skill_id | citations | citing_inst | presented_traj | cited_traj | cite_rate | res\\|cited | res\\|pres¬cited | GAINED(any_k) | LOST(any_k) |")
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
     for s in res["skills"]:
-        lines.append("| {sid} | {c} | {ci} | {pt} | {ct} | {cr} | {rr} | {g} | {l} |".format(
+        lines.append("| {sid} | {c} | {ci} | {pt} | {ct} | {cr} | {rr} | {rn} | {g} | {l} |".format(
             sid=s["skill_id"], c=s["citations"], ci=s["citing_instances"],
             pt=s["presented_trajectories"], ct=s["cited_trajectories"],
             cr=_pct(s["citation_rate"]), rr=_pct(s["resolve_rate_when_cited"]),
+            rn=_pct(s["resolve_rate_when_presented_not_cited"]),
             g=s["attrib_any_k"].get("GAINED", 0), l=s["attrib_any_k"].get("LOST", 0)))
     lines.append("")
     lines.append(f"**Unattributable citations (namespace-mismatched):** {res['unattributable']}")
@@ -383,5 +396,4 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    sys_exit = __import__("sys").exit
-    sys_exit(main())
+    sys.exit(main())
