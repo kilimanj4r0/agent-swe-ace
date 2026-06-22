@@ -109,3 +109,25 @@ def test_paired_verdict_empty_attempts(sci):
     v = sci.paired_verdict([], [])
     assert v["pass1"] == "STABLE_FAIL"
     assert v["any_k"] == "STABLE_FAIL"
+
+
+def test_mcnemar_no_discordant_is_one(sci):
+    assert sci.mcnemar_pvalue(0, 0) == 1.0
+
+
+def test_mcnemar_symmetric_high_p(sci):
+    # balanced discordants -> large p
+    p = sci.mcnemar_pvalue(10, 10)
+    assert p > 0.9
+
+
+def test_mcnemar_skewed_small_p(sci):
+    # large asymmetry, n>=25 -> chi-square path, very small p
+    p = sci.mcnemar_pvalue(30, 2)
+    assert p < 1e-4
+
+
+def test_mcnemar_exact_small_n(sci):
+    # n<25 -> exact binomial path; 8 vs 0 should be small
+    p = sci.mcnemar_pvalue(8, 0)
+    assert 0.0 < p < 0.02

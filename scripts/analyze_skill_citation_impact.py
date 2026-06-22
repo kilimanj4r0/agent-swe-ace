@@ -127,6 +127,25 @@ def paired_verdict(val_resolved, bl_resolved):
     }
 
 
+def mcnemar_pvalue(gained, lost):
+    """Two-sided McNemar p-value for the paired skillbook effect.
+
+    gained = # instances resolved WITH skillbook but not baseline (b).
+    lost   = # instances resolved in baseline but not with skillbook (c).
+    Exact binomial when discordant count < 25; else chi-square with continuity
+    correction (df=1) via the chi2(1) == Z^2 relation -> math.erfc.
+    """
+    n = gained + lost
+    if n == 0:
+        return 1.0
+    if n < 25:
+        k = min(gained, lost)
+        tail = sum(math.comb(n, i) for i in range(k + 1)) * (0.5 ** n)
+        return min(1.0, 2.0 * tail)
+    stat = (abs(gained - lost) - 1) ** 2 / n
+    return math.erfc(math.sqrt(stat / 2.0))
+
+
 def main(argv=None):
     """CLI entry point."""
     parser = argparse.ArgumentParser(description=__doc__)
