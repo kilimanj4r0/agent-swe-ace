@@ -70,3 +70,21 @@ def test_parse_presented_skill_ids_ignores_non_user(sci):
 ])
 def test_classify_citation(sci, token, presented, expected):
     assert sci.classify_citation(token, presented) == expected
+
+
+def test_extract_citations_separates_clean_and_unattrib(sci):
+    msgs = [
+        {"role": "assistant", "content": "I will use [skill-django_fixing-00002] and [skill-00001]."},
+        {"role": "user", "content": "ok"},
+        {"role": "assistant", "content": "Also [skill-django_fixing-00002] again, [skill-id: code_modification-00005]."},
+    ]
+    presented = {"django_fixing-00002", "code_modification-00005"}
+    counts, unattrib = sci.extract_citations(msgs, presented)
+    assert counts == {"django_fixing-00002": 2, "code_modification-00005": 1}
+    assert unattrib == 1  # [skill-00001]
+
+
+def test_extract_citations_empty(sci):
+    counts, unattrib = sci.extract_citations([{"role": "assistant", "content": "no cites"}], {"a-00001"})
+    assert counts == {}
+    assert unattrib == 0

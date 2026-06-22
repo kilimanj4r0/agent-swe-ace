@@ -79,6 +79,29 @@ def classify_citation(token, presented):
     return ("unattributable", token)
 
 
+def extract_citations(assistant_messages, presented):
+    """Extract and classify citations from messages.
+
+    Returns (counts, unattributable): counts maps skill_id -> clean citation
+    count; unattributable is the count of tokens not mappable to a presented id.
+    """
+    counts = defaultdict(int)
+    unattributable = 0
+    for m in assistant_messages:
+        if m.get("role") != "assistant":
+            continue
+        content = m.get("content", "")
+        if not isinstance(content, str):
+            continue
+        for tok in TOKEN_RE.findall(content):
+            kind, val = classify_citation(tok, presented)
+            if kind == "clean":
+                counts[val] += 1
+            else:
+                unattributable += 1
+    return dict(counts), unattributable
+
+
 def main(argv=None):
     """CLI entry point."""
     parser = argparse.ArgumentParser(description=__doc__)
