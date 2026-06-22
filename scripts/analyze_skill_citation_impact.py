@@ -355,7 +355,7 @@ def to_json(res):
 
 
 def main(argv=None):
-    """CLI entry point."""
+    """CLI entry point. Analyze each run dir and write citations.{md,json}."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("run_dirs", nargs="+", help="Run directory(ies) to analyze.")
     parser.add_argument("--bench", default="auto", help="Benchmark subdir (default: auto).")
@@ -363,7 +363,18 @@ def main(argv=None):
     parser.add_argument("--json", dest="json_out", default=None, help="JSON output path (default: <run>/citations.json).")
     parser.add_argument("--min-citations", type=int, default=0, help="Drop skills with fewer citations (default: 0).")
     args = parser.parse_args(argv)
-    # wired in Task 10
+
+    for run_dir in args.run_dirs:
+        res = analyze_run(run_dir, min_citations=args.min_citations)
+        md_path = Path(args.md) if args.md else Path(run_dir) / "citations.md"
+        json_path = Path(args.json_out) if args.json_out else Path(run_dir) / "citations.json"
+        md_path.write_text(render_markdown(res))
+        json_path.write_text(to_json(res))
+        nd = res["net_delta"]
+        print(f"{run_dir}: {res['instance_count']} instances, "
+              f"Δ pass@1={nd['pass1']:+d} any_k={nd['any_k']:+d}, "
+              f"{len(res['skills'])} cited skills, {res['unattributable']} unattributable -> "
+              f"{md_path}")
     return 0
 
 

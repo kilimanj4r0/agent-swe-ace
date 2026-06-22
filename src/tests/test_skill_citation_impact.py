@@ -277,3 +277,20 @@ def test_to_json_roundtrips(sci):
            "unattributable": 0, "skills": [], "instances": []}
     s = sci.to_json(res)
     assert __import__("json").loads(s)["run_dir"] == "/x"
+
+
+def test_main_writes_outputs_into_run_dir(sci, tmp_path):
+    # minimal synthetic run: one val instance (resolves) + matching baseline (does not)
+    bench = tmp_path / "princeton-nlp__SWE-bench_Verified"
+    for ph in ("val", "val_baseline"):
+        (bench / "trajectories" / ph / "instA").mkdir(parents=True)
+        (bench / "results" / ph / "instA").mkdir(parents=True)
+    _write_traj(bench / "trajectories/val/instA/iter_0.json", [], [])
+    _write_result(bench / "results/val/instA/iter_0.json", True)
+    _write_traj(bench / "trajectories/val_baseline/instA/iter_0.json", [], [])
+    _write_result(bench / "results/val_baseline/instA/iter_0.json", False)
+
+    rc = sci.main([str(tmp_path)])
+    assert rc == 0
+    assert (tmp_path / "citations.md").is_file()
+    assert (tmp_path / "citations.json").is_file()
