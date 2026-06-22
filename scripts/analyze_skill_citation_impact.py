@@ -313,6 +313,9 @@ def render_markdown(res):
     lines.append(f"**Run:** `{res['run_dir']}`")
     lines.append(f"**Instances (paired):** {res['instance_count']}  "
                  f"**Baseline:** {'yes' if res['has_baseline'] else 'no (counts-only mode)'}")
+    cited = sum(1 for s in res["skills"] if s["citations"] > 0)
+    lines.append(f"**Skills:** {cited} cited / {len(res['skills'])} presented  "
+                 f"**Unattributable citations:** {res['unattributable']}")
     if res["val_only_instances"]:
         lines.append(f"**Val-only (no baseline):** {len(res['val_only_instances'])} excluded from verdicts")
     lines.append("")
@@ -371,10 +374,11 @@ def main(argv=None):
         md_path.write_text(render_markdown(res))
         json_path.write_text(to_json(res))
         nd = res["net_delta"]
+        cited = sum(1 for s in res["skills"] if s["citations"] > 0)
         print(f"{run_dir}: {res['instance_count']} instances, "
               f"Δ pass@1={nd['pass1']:+d} any_k={nd['any_k']:+d}, "
-              f"{len(res['skills'])} cited skills, {res['unattributable']} unattributable -> "
-              f"{md_path}")
+              f"{cited} cited / {len(res['skills'])} presented skills, "
+              f"{res['unattributable']} unattributable -> {md_path}")
     return 0
 
 
