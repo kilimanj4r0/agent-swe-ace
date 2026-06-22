@@ -211,7 +211,10 @@ def analyze_run(run_dir, min_citations=0):
     """Analyze one run dir; return a JSON-serializable results dict.
 
     Counts clean-mapped citations, per-skill resolution lift, and the paired
-    GAINED/LOST/STABLE verdict (pass@1 + any-of-K) with a McNemar p-value.
+    GAINED/LOST/STABLE verdict at three granularities — pass@1 (first attempt),
+    any-of-K (>=1 of K), and avg (per-attempt, classifying each aligned
+    (val[i], bl[i]) pair) — each with a McNemar p-value. Also reports total
+    direct (by-id) citations and their breakdown by instance outcome.
     Degrades to counts-only when val_baseline is absent.
     """
     run_dir = Path(run_dir)
@@ -224,17 +227,21 @@ def analyze_run(run_dir, min_citations=0):
 
     per_skill = defaultdict(_new_skill)
     unattributable = 0
+    total_clean_citations = 0
     inst_rows = []
-    verdict_counts = {"pass1": Counter(), "any_k": Counter()}
+    verdict_counts = {"pass1": Counter(), "any_k": Counter(), "avg": Counter()}
+    citations_by_verdict = {"any_k": Counter(), "pass1": Counter()}
 
     for inst in paired_insts:
         val_res = []
+        inst_clean_cites = 0
         cited_sids_inst = set()
         for it in _iter_ids(bench, "val", inst):
             msgs = load_trajectory(bench / "trajectories" / "val" / inst / f"iter_{it}.json")
             presented = parse_presented_skill_ids(msgs)
             counts, unattrib = extract_citations(msgs, presented)
             unattributable += unattrib
+            inst_clean_cites += sum(counts.values())
             try:
                 resolved = load_resolved(bench / "results" / "val" / inst / f"iter_{it}.json")
             except FileNotFoundError:
@@ -267,12 +274,18 @@ def analyze_run(run_dir, min_citations=0):
             pv = paired_verdict(val_res, bl_res)
             verdict_counts["pass1"][pv["pass1"]] += 1
             verdict_counts["any_k"][pv["any_k"]] += 1
+            # per-attempt average: classify each aligned (val[i], bl[i]) pair
+            for i in range(min(len(val_res), len(bl_res))):
+                verdict_counts["avg"][_outcome(val_res[i], bl_res[i])] += 1
+            citations_by_verdict["any_k"][pv["any_k"]] += inst_clean_cites
+            citations_by_verdict["pass1"][pv["pass1"]] += inst_clean_cites
             row["verdict"] = pv
             for sid in cited_sids_inst:
                 per_skill[sid]["attrib_pass1"][pv["pass1"]] += 1
                 per_skill[sid]["attrib_any_k"][pv["any_k"]] += 1
         else:
             row["verdict"] = None
+        total_clean_citations += inst_clean_cites
         inst_rows.append(row)
 
     skills = []
@@ -298,6 +311,7 @@ def analyze_run(run_dir, min_citations=0):
 
     g1, l1 = verdict_counts["pass1"]["GAINED"], verdict_counts["pass1"]["LOST"]
     gk, lk = verdict_counts["any_k"]["GAINED"], verdict_counts["any_k"]["LOST"]
+    ga, la = verdict_counts["avg"]["GAINED"], verdict_counts["avg"]["LOST"]
     return {
         "run_dir": str(run_dir),
         "has_baseline": has_baseline,
@@ -306,9 +320,16 @@ def analyze_run(run_dir, min_citations=0):
         "verdict_counts": {
             "pass1": {k: verdict_counts["pass1"][k] for k in VERDICTS},
             "any_k": {k: verdict_counts["any_k"][k] for k in VERDICTS},
+            "avg": {k: verdict_counts["avg"][k] for k in VERDICTS},
         },
-        "net_delta": {"pass1": g1 - l1, "any_k": gk - lk},
+        "net_delta": {"pass1": g1 - l1, "any_k": gk - lk, "avg": ga - la},
         "mcnemar_pass1": {"gained": g1, "lost": l1, "p_value": mcnemar_pvalue(g1, l1)},
+        "mcnemar_avg": {"gained": ga, "lost": la, "p_value": mcnemar_pvalue(ga, la)},
+        "total_clean_citations": total_clean_citations,
+        "citations_by_verdict": {
+            "any_k": {k: citations_by_verdict["any_k"][k] for k in VERDICTS},
+            "pass1": {k: citations_by_verdict["pass1"][k] for k in VERDICTS},
+        },
         "unattributable": unattributable,
         "skills": skills,
         "instances": inst_rows,
@@ -336,17 +357,34 @@ def render_markdown(res):
     if res["has_baseline"]:
         lines.append("## Paired outcome (val vs val_baseline)")
         lines.append("")
-        lines.append("| Verdict | pass@1 | any-of-K |")
-        lines.append("|---|---:|---:|")
+        lines.append("| Verdict | pass@1 | any-of-K | avg (per-att) |")
+        lines.append("|---|---:|---:|---:|")
         for k in VERDICTS:
-            lines.append(f"| {k} | {vc['pass1'].get(k, 0)} | {vc['any_k'].get(k, 0)} |")
+            lines.append(f"| {k} | {vc['pass1'].get(k, 0)} | {vc['any_k'].get(k, 0)} | {vc['avg'].get(k, 0)} |")
         nd = res["net_delta"]
-        lines.append(f"| **net Δ** | **{nd['pass1']:+d}** | **{nd['any_k']:+d}** |")
+        lines.append(f"| **net Δ** | **{nd['pass1']:+d}** | **{nd['any_k']:+d}** | **{nd['avg']:+d}** |")
         lines.append("")
         mc = res["mcnemar_pass1"]
-        lines.append(f"**McNemar (pass@1):** gained={mc['gained']} lost={mc['lost']} "
-                     f"p={mc['p_value']:.4g}")
+        mca = res["mcnemar_avg"]
+        lines.append(f"**McNemar:** pass@1 gained={mc['gained']} lost={mc['lost']} p={mc['p_value']:.4g}  "
+                     f"| avg gained={mca['gained']} lost={mca['lost']} p={mca['p_value']:.4g}")
         lines.append("")
+
+    tot = res["total_clean_citations"]
+    lines.append("## Direct citations (val skillbook phase)")
+    lines.append("")
+    lines.append(f"**Total direct (by-id) citations:** {tot}  "
+                 f"**Unattributable (bare-numeric):** {res['unattributable']}")
+    lines.append("")
+    lines.append("Direct citations by instance outcome (any-of-K):")
+    lines.append("")
+    lines.append("| Outcome | direct citations | % of total |")
+    lines.append("|---|---:|---:|")
+    cbv = res["citations_by_verdict"]["any_k"]
+    for k in VERDICTS:
+        n = cbv.get(k, 0)
+        lines.append(f"| {k} | {n} | {_pct((n / tot) if tot else 0.0)} |")
+    lines.append("")
 
     lines.append("## Per-skill citations")
     lines.append("")
@@ -389,9 +427,9 @@ def main(argv=None):
         nd = res["net_delta"]
         cited = sum(1 for s in res["skills"] if s["citations"] > 0)
         print(f"{run_dir}: {res['instance_count']} instances, "
-              f"Δ pass@1={nd['pass1']:+d} any_k={nd['any_k']:+d}, "
+              f"Δ p1={nd['pass1']:+d} k={nd['any_k']:+d} avg={nd['avg']:+d}, "
               f"{cited} cited / {len(res['skills'])} presented skills, "
-              f"{res['unattributable']} unattributable -> {md_path}")
+              f"{res['total_clean_citations']} direct / {res['unattributable']} unattrib -> {md_path}")
     return 0
 
 

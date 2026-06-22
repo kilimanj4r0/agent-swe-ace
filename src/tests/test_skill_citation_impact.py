@@ -228,6 +228,10 @@ def test_analyze_run_synthetic(sci, tmp_path):
     assert sk["attrib_any_k"]["GAINED"] == 1
     assert res["unattributable"] == 0
     assert res["mcnemar_pass1"]["gained"] == 1
+    assert res["verdict_counts"]["avg"] == {"GAINED": 1, "LOST": 0, "STABLE_PASS": 0, "STABLE_FAIL": 1}
+    assert res["net_delta"]["avg"] == 1
+    assert res["total_clean_citations"] == 1
+    assert res["citations_by_verdict"]["any_k"]["GAINED"] == 1
 
 
 def test_analyze_run_no_baseline_counts_only(sci, tmp_path):
@@ -252,9 +256,14 @@ def test_render_markdown_contains_sections(sci):
         "run_dir": "/tmp/runX", "has_baseline": True, "instance_count": 5,
         "val_only_instances": [],
         "verdict_counts": {"pass1": {"GAINED": 2, "LOST": 1, "STABLE_PASS": 1, "STABLE_FAIL": 1},
-                           "any_k": {"GAINED": 3, "LOST": 0, "STABLE_PASS": 1, "STABLE_FAIL": 1}},
-        "net_delta": {"pass1": 1, "any_k": 3},
+                           "any_k": {"GAINED": 3, "LOST": 0, "STABLE_PASS": 1, "STABLE_FAIL": 1},
+                           "avg": {"GAINED": 9, "LOST": 3, "STABLE_PASS": 4, "STABLE_FAIL": 8}},
+        "net_delta": {"pass1": 1, "any_k": 3, "avg": 6},
         "mcnemar_pass1": {"gained": 2, "lost": 1, "p_value": 0.123},
+        "mcnemar_avg": {"gained": 9, "lost": 3, "p_value": 0.089},
+        "total_clean_citations": 9,
+        "citations_by_verdict": {"any_k": {"GAINED": 4, "LOST": 1, "STABLE_PASS": 2, "STABLE_FAIL": 2},
+                                 "pass1": {"GAINED": 3, "LOST": 0, "STABLE_PASS": 2, "STABLE_FAIL": 4}},
         "unattributable": 7,
         "skills": [{"skill_id": "a-00001", "citations": 9, "citing_instances": 3,
                     "presented_trajectories": 10, "cited_trajectories": 5,
@@ -268,7 +277,9 @@ def test_render_markdown_contains_sections(sci):
     assert "# Skill Citation Impact" in md
     assert "runX" in md
     assert "GAINED" in md and "LOST" in md
+    assert "avg (per-att)" in md
     assert "McNemar" in md
+    assert "Direct citations" in md
     assert "a-00001" in md
     assert "7" in md  # unattributable
 
