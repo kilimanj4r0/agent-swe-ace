@@ -335,7 +335,7 @@ def render_markdown(res):
 
     lines.append("## Per-skill citations")
     lines.append("")
-    lines.append("| skill_id | citations | citing_inst | presented_traj | cited_traj | cite_rate | resolve|cited | GAINED(any_k) | LOST(any_k) |")
+    lines.append("| skill_id | citations | citing_inst | presented_traj | cited_traj | cite_rate | resolve\\|cited | GAINED(any_k) | LOST(any_k) |")
     lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
     for s in res["skills"]:
         lines.append("| {sid} | {c} | {ci} | {pt} | {ct} | {cr} | {rr} | {g} | {l} |".format(
