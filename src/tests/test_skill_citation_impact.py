@@ -88,3 +88,24 @@ def test_extract_citations_empty(sci):
     counts, unattrib = sci.extract_citations([{"role": "assistant", "content": "no cites"}], {"a-00001"})
     assert counts == {}
     assert unattrib == 0
+
+
+def test_paired_verdict_pass1_and_any_k(sci):
+    # val: fail@0, pass@1 ; baseline: pass@0, fail@1
+    val = [False, True, False]
+    bl = [True, False, False]
+    v = sci.paired_verdict(val, bl)
+    assert v["pass1"] == "LOST"        # iter0: val F, bl T
+    assert v["any_k"] == "STABLE_PASS" # both resolve somewhere
+
+
+def test_paired_verdict_gained(sci):
+    v = sci.paired_verdict([False, True], [False, False])
+    assert v["pass1"] == "STABLE_FAIL"
+    assert v["any_k"] == "GAINED"
+
+
+def test_paired_verdict_empty_attempts(sci):
+    v = sci.paired_verdict([], [])
+    assert v["pass1"] == "STABLE_FAIL"
+    assert v["any_k"] == "STABLE_FAIL"

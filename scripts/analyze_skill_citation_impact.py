@@ -102,6 +102,31 @@ def extract_citations(assistant_messages, presented):
     return dict(counts), unattributable
 
 
+def _outcome(skill_resolved, base_resolved):
+    if skill_resolved and not base_resolved:
+        return "GAINED"
+    if base_resolved and not skill_resolved:
+        return "LOST"
+    if skill_resolved and base_resolved:
+        return "STABLE_PASS"
+    return "STABLE_FAIL"
+
+
+def paired_verdict(val_resolved, bl_resolved):
+    """Classify a paired instance outcome at pass@1 and any-of-K.
+
+    val_resolved, bl_resolved: list[bool] per-attempt resolution for the val
+    (skillbook) and val_baseline (no skillbook) passes.
+    Returns {'pass1': verdict, 'any_k': verdict}.
+    """
+    p1_v = bool(val_resolved[0]) if val_resolved else False
+    p1_b = bool(bl_resolved[0]) if bl_resolved else False
+    return {
+        "pass1": _outcome(p1_v, p1_b),
+        "any_k": _outcome(any(val_resolved), any(bl_resolved)),
+    }
+
+
 def main(argv=None):
     """CLI entry point."""
     parser = argparse.ArgumentParser(description=__doc__)
