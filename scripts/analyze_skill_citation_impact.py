@@ -26,6 +26,30 @@ SKILL_HEADER_RE = re.compile(r"^### ([a-zA-Z_][\w]*-\d+)\s*$", re.MULTILINE)
 VERDICTS = ("GAINED", "LOST", "STABLE_PASS", "STABLE_FAIL")
 
 
+def parse_presented_skill_ids(messages):
+    """Return the set of skill IDs presented in the skillbook injection block.
+
+    Scans user messages for the '## Learned Strategies (Skillbook)' block and
+    collects '### <id>' headers within it (stops at the next h2 section).
+    """
+    ids = set()
+    for m in messages:
+        if m.get("role") != "user":
+            continue
+        content = m.get("content", "")
+        if not isinstance(content, str):
+            continue
+        idx = content.find(SKILLBOOK_MARKER)
+        if idx < 0:
+            continue
+        block = content[idx:]
+        nxt = block.find("\n## ", len(SKILLBOOK_MARKER))
+        if nxt > 0:
+            block = block[:nxt]
+        ids.update(SKILL_HEADER_RE.findall(block))
+    return ids
+
+
 def main(argv=None):
     """CLI entry point."""
     parser = argparse.ArgumentParser(description=__doc__)
