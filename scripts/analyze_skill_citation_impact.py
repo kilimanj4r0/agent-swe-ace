@@ -303,6 +303,57 @@ def analyze_run(run_dir, min_citations=0):
     }
 
 
+def _pct(x):
+    return f"{100.0 * x:.1f}%"
+
+
+def render_markdown(res):
+    """Render a results dict as a human-readable Markdown report."""
+    lines = ["# Skill Citation Impact", ""]
+    lines.append(f"**Run:** `{res['run_dir']}`")
+    lines.append(f"**Instances (paired):** {res['instance_count']}  "
+                 f"**Baseline:** {'yes' if res['has_baseline'] else 'no (counts-only mode)'}")
+    if res["val_only_instances"]:
+        lines.append(f"**Val-only (no baseline):** {len(res['val_only_instances'])} excluded from verdicts")
+    lines.append("")
+
+    vc = res["verdict_counts"]
+    if res["has_baseline"]:
+        lines.append("## Paired outcome (val vs val_baseline)")
+        lines.append("")
+        lines.append("| Verdict | pass@1 | any-of-K |")
+        lines.append("|---|---:|---:|")
+        for k in VERDICTS:
+            lines.append(f"| {k} | {vc['pass1'].get(k, 0)} | {vc['any_k'].get(k, 0)} |")
+        nd = res["net_delta"]
+        lines.append(f"| **net Δ** | **{nd['pass1']:+d}** | **{nd['any_k']:+d}** |")
+        lines.append("")
+        mc = res["mcnemar_pass1"]
+        lines.append(f"**McNemar (pass@1):** gained={mc['gained']} lost={mc['lost']} "
+                     f"p={mc['p_value']:.4g}")
+        lines.append("")
+
+    lines.append("## Per-skill citations")
+    lines.append("")
+    lines.append("| skill_id | citations | citing_inst | presented_traj | cited_traj | cite_rate | resolve|cited | GAINED(any_k) | LOST(any_k) |")
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
+    for s in res["skills"]:
+        lines.append("| {sid} | {c} | {ci} | {pt} | {ct} | {cr} | {rr} | {g} | {l} |".format(
+            sid=s["skill_id"], c=s["citations"], ci=s["citing_instances"],
+            pt=s["presented_trajectories"], ct=s["cited_trajectories"],
+            cr=_pct(s["citation_rate"]), rr=_pct(s["resolve_rate_when_cited"]),
+            g=s["attrib_any_k"].get("GAINED", 0), l=s["attrib_any_k"].get("LOST", 0)))
+    lines.append("")
+    lines.append(f"**Unattributable citations (namespace-mismatched):** {res['unattributable']}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def to_json(res):
+    """Serialize a results dict to a JSON string."""
+    return json.dumps(res, indent=2)
+
+
 def main(argv=None):
     """CLI entry point."""
     parser = argparse.ArgumentParser(description=__doc__)

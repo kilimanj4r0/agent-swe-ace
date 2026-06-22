@@ -242,3 +242,38 @@ def test_analyze_run_no_baseline_counts_only(sci, tmp_path):
     assert sk["skill_id"] == "django_fixing-00001"
     assert sk["citations"] == 1
     assert sk["resolve_rate_when_cited"] == 1.0
+
+
+def test_render_markdown_contains_sections(sci):
+    res = {
+        "run_dir": "/tmp/runX", "has_baseline": True, "instance_count": 5,
+        "val_only_instances": [],
+        "verdict_counts": {"pass1": {"GAINED": 2, "LOST": 1, "STABLE_PASS": 1, "STABLE_FAIL": 1},
+                           "any_k": {"GAINED": 3, "LOST": 0, "STABLE_PASS": 1, "STABLE_FAIL": 1}},
+        "net_delta": {"pass1": 1, "any_k": 3},
+        "mcnemar_pass1": {"gained": 2, "lost": 1, "p_value": 0.123},
+        "unattributable": 7,
+        "skills": [{"skill_id": "a-00001", "citations": 9, "citing_instances": 3,
+                    "presented_trajectories": 10, "cited_trajectories": 5,
+                    "citation_rate": 0.5, "resolve_rate_when_cited": 0.4,
+                    "attrib_pass1": {"GAINED": 2, "LOST": 0, "STABLE_PASS": 1, "STABLE_FAIL": 0},
+                    "attrib_any_k": {"GAINED": 2, "LOST": 0, "STABLE_PASS": 1, "STABLE_FAIL": 0}}],
+        "instances": [],
+    }
+    md = sci.render_markdown(res)
+    assert "# Skill Citation Impact" in md
+    assert "runX" in md
+    assert "GAINED" in md and "LOST" in md
+    assert "McNemar" in md
+    assert "a-00001" in md
+    assert "7" in md  # unattributable
+
+
+def test_to_json_roundtrips(sci):
+    res = {"run_dir": "/x", "has_baseline": False, "instance_count": 0,
+           "val_only_instances": [], "verdict_counts": {"pass1": {}, "any_k": {}},
+           "net_delta": {"pass1": 0, "any_k": 0},
+           "mcnemar_pass1": {"gained": 0, "lost": 0, "p_value": 1.0},
+           "unattributable": 0, "skills": [], "instances": []}
+    s = sci.to_json(res)
+    assert __import__("json").loads(s)["run_dir"] == "/x"
