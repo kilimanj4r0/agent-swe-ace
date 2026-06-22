@@ -57,3 +57,16 @@ def test_parse_presented_skill_ids_ignores_non_user(sci):
         {"role": "user", "content": "hello"},
     ]
     assert sci.parse_presented_skill_ids(msgs) == set()
+
+
+@pytest.mark.parametrize("token,presented,expected", [
+    ("[skill-django_fixing-00002]", {"django_fixing-00002"}, ("clean", "django_fixing-00002")),
+    ("[skill-id: code_modification-00004]", {"code_modification-00004"}, ("clean", "code_modification-00004")),
+    ("[skill-id code_modification-00004]", {"code_modification-00004"}, ("clean", "code_modification-00004")),
+    ("[skill-00001]", {"django_fixing-00001"}, ("unattributable", "[skill-00001]")),
+    ("[skill-django_fixing-00002]", {"other-00002"}, ("unattributable", "[skill-django_fixing-00002]")),
+    ("[skill-id: code-modification-00004]", {"code_modification-00004"}, ("unattributable", "[skill-id: code-modification-00004]")),
+    ("[skill-00006]", set(), ("unattributable", "[skill-00006]")),
+])
+def test_classify_citation(sci, token, presented, expected):
+    assert sci.classify_citation(token, presented) == expected

@@ -50,6 +50,35 @@ def parse_presented_skill_ids(messages):
     return ids
 
 
+def _parse_skill_token_id(inner):
+    """Extract the skill id from a token's inner text.
+
+    Recognizes 'skill-id: X', 'skill-id X', 'skill-X'. Returns None if no id.
+    """
+    inner = inner.strip()
+    m = re.match(r"skill-id\s*[:\s]\s*(.+)$", inner, re.IGNORECASE)
+    if m:
+        return m.group(1).strip()
+    m = re.match(r"skill-(.+)$", inner, re.IGNORECASE)
+    if m:
+        return m.group(1).strip()
+    return None
+
+
+def classify_citation(token, presented):
+    """Classify a citation token as clean-mapped or unattributable.
+
+    Returns ('clean', skill_id) if the token maps to an id in `presented`,
+    else ('unattributable', token).
+    """
+    if not (token.startswith("[") and token.endswith("]")):
+        return ("unattributable", token)
+    sid = _parse_skill_token_id(token[1:-1])
+    if sid is not None and sid in presented:
+        return ("clean", sid)
+    return ("unattributable", token)
+
+
 def main(argv=None):
     """CLI entry point."""
     parser = argparse.ArgumentParser(description=__doc__)
