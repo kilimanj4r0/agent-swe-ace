@@ -228,6 +228,7 @@ def analyze_run(run_dir, min_citations=0):
     per_skill = defaultdict(_new_skill)
     unattributable = 0
     total_clean_citations = 0
+    total_attempt_pairs = 0
     inst_rows = []
     verdict_counts = {"pass1": Counter(), "any_k": Counter(), "avg": Counter()}
     citations_by_verdict = {"any_k": Counter(), "pass1": Counter()}
@@ -277,6 +278,7 @@ def analyze_run(run_dir, min_citations=0):
             # per-attempt average: classify each aligned (val[i], bl[i]) pair
             for i in range(min(len(val_res), len(bl_res))):
                 verdict_counts["avg"][_outcome(val_res[i], bl_res[i])] += 1
+                total_attempt_pairs += 1
             citations_by_verdict["any_k"][pv["any_k"]] += inst_clean_cites
             citations_by_verdict["pass1"][pv["pass1"]] += inst_clean_cites
             row["verdict"] = pv
@@ -312,6 +314,9 @@ def analyze_run(run_dir, min_citations=0):
     g1, l1 = verdict_counts["pass1"]["GAINED"], verdict_counts["pass1"]["LOST"]
     gk, lk = verdict_counts["any_k"]["GAINED"], verdict_counts["any_k"]["LOST"]
     ga, la = verdict_counts["avg"]["GAINED"], verdict_counts["avg"]["LOST"]
+    # avg is pooled over all aligned attempt-pairs; divide by attempts-per-instance
+    # (K) so the column is a true per-attempt average, comparable to pass@1.
+    k_eff = (total_attempt_pairs / len(paired_insts)) if (paired_insts and total_attempt_pairs) else 1.0
     return {
         "run_dir": str(run_dir),
         "has_baseline": has_baseline,
@@ -320,11 +325,12 @@ def analyze_run(run_dir, min_citations=0):
         "verdict_counts": {
             "pass1": {k: verdict_counts["pass1"][k] for k in VERDICTS},
             "any_k": {k: verdict_counts["any_k"][k] for k in VERDICTS},
-            "avg": {k: verdict_counts["avg"][k] for k in VERDICTS},
+            "avg": {k: verdict_counts["avg"][k] / k_eff for k in VERDICTS},
         },
-        "net_delta": {"pass1": g1 - l1, "any_k": gk - lk, "avg": ga - la},
+        "net_delta": {"pass1": g1 - l1, "any_k": gk - lk, "avg": (ga - la) / k_eff},
         "mcnemar_pass1": {"gained": g1, "lost": l1, "p_value": mcnemar_pvalue(g1, l1)},
-        "mcnemar_avg": {"gained": ga, "lost": la, "p_value": mcnemar_pvalue(ga, la)},
+        "mcnemar_avg": {"gained": ga, "lost": la, "pairs": total_attempt_pairs,
+                        "p_value": mcnemar_pvalue(ga, la)},
         "total_clean_citations": total_clean_citations,
         "citations_by_verdict": {
             "any_k": {k: citations_by_verdict["any_k"][k] for k in VERDICTS},
@@ -357,17 +363,17 @@ def render_markdown(res):
     if res["has_baseline"]:
         lines.append("## Paired outcome (val vs val_baseline)")
         lines.append("")
-        lines.append("| Verdict | pass@1 | any-of-K | avg (per-att) |")
+        lines.append("| Verdict | pass@1 | any-of-K | avg/att |")
         lines.append("|---|---:|---:|---:|")
         for k in VERDICTS:
-            lines.append(f"| {k} | {vc['pass1'].get(k, 0)} | {vc['any_k'].get(k, 0)} | {vc['avg'].get(k, 0)} |")
+            lines.append(f"| {k} | {vc['pass1'].get(k, 0)} | {vc['any_k'].get(k, 0)} | {vc['avg'].get(k, 0):.1f} |")
         nd = res["net_delta"]
-        lines.append(f"| **net Δ** | **{nd['pass1']:+d}** | **{nd['any_k']:+d}** | **{nd['avg']:+d}** |")
+        lines.append(f"| **net Δ** | **{nd['pass1']:+d}** | **{nd['any_k']:+d}** | **{nd['avg']:+.1f}** |")
         lines.append("")
         mc = res["mcnemar_pass1"]
         mca = res["mcnemar_avg"]
         lines.append(f"**McNemar:** pass@1 gained={mc['gained']} lost={mc['lost']} p={mc['p_value']:.4g}  "
-                     f"| avg gained={mca['gained']} lost={mca['lost']} p={mca['p_value']:.4g}")
+                     f"| avg gained={mca['gained']} lost={mca['lost']} (over {mca['pairs']} pairs) p={mca['p_value']:.4g}")
         lines.append("")
 
     tot = res["total_clean_citations"]
@@ -427,7 +433,7 @@ def main(argv=None):
         nd = res["net_delta"]
         cited = sum(1 for s in res["skills"] if s["citations"] > 0)
         print(f"{run_dir}: {res['instance_count']} instances, "
-              f"Δ p1={nd['pass1']:+d} k={nd['any_k']:+d} avg={nd['avg']:+d}, "
+              f"Δ p1={nd['pass1']:+d} k={nd['any_k']:+d} avg={nd['avg']:+.1f}, "
               f"{cited} cited / {len(res['skills'])} presented skills, "
               f"{res['total_clean_citations']} direct / {res['unattributable']} unattrib -> {md_path}")
     return 0
