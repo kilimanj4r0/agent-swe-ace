@@ -176,3 +176,69 @@ def test_load_resolved_and_trajectory(sci, tmp_path):
     tp = tmp_path / "t.json"
     tp.write_text(json.dumps({"messages": [{"role": "user", "content": "hi"}]}))
     assert sci.load_trajectory(tp) == [{"role": "user", "content": "hi"}]
+
+
+def _write_traj(path, presented_ids, cite_tokens):
+    """Write a trajectory with a skillbook block (presented_ids) and citations."""
+    block = ""
+    if presented_ids:
+        block = "\n\n## Learned Strategies (Skillbook)\n\n" + "".join(f"### {s}\n\nx\n" for s in presented_ids)
+    cite = " ".join(cite_tokens)
+    msgs = [
+        {"role": "system", "content": "rules"},
+        {"role": "user", "content": "<pr_description>x</pr_description>" + block},
+        {"role": "assistant", "content": f"THOUGHT: {cite}\n```bash\ntrue\n```"},
+    ]
+    path.write_text(__import__("json").dumps({"messages": msgs}))
+
+
+def _write_result(path, resolved):
+    path.write_text(__import__("json").dumps({"resolved": resolved}))
+
+
+def test_analyze_run_synthetic(sci, tmp_path):
+    bench = tmp_path / "princeton-nlp__SWE-bench_Verified"
+    # instA: val cites django_fixing-00001, val resolves@0; baseline does not
+    for ph in ("val", "val_baseline"):
+        (bench / "trajectories" / ph / "instA").mkdir(parents=True)
+        (bench / "results" / ph / "instA").mkdir(parents=True)
+    _write_traj(bench / "trajectories/val/instA/iter_0.json", ["django_fixing-00001"], ["[skill-django_fixing-00001]"])
+    _write_traj(bench / "trajectories/val/instA/iter_1.json", ["django_fixing-00001"], [])
+    _write_result(bench / "results/val/instA/iter_0.json", True)
+    _write_result(bench / "results/val/instA/iter_1.json", False)
+    _write_traj(bench / "trajectories/val_baseline/instA/iter_0.json", [], [])
+    _write_traj(bench / "trajectories/val_baseline/instA/iter_1.json", [], [])
+    _write_result(bench / "results/val_baseline/instA/iter_0.json", False)
+    _write_result(bench / "results/val_baseline/instA/iter_1.json", False)
+
+    res = sci.analyze_run(tmp_path)
+    assert res["instance_count"] == 1
+    assert res["has_baseline"] is True
+    assert res["verdict_counts"]["pass1"] == {"GAINED": 1, "LOST": 0, "STABLE_PASS": 0, "STABLE_FAIL": 0}
+    assert res["verdict_counts"]["any_k"] == {"GAINED": 1, "LOST": 0, "STABLE_PASS": 0, "STABLE_FAIL": 0}
+    sk = next(s for s in res["skills"] if s["skill_id"] == "django_fixing-00001")
+    assert sk["citations"] == 1
+    assert sk["cited_trajectories"] == 1
+    assert sk["presented_trajectories"] == 2
+    assert sk["citing_instances"] == 1
+    assert sk["resolve_rate_when_cited"] == 1.0
+    assert sk["attrib_any_k"]["GAINED"] == 1
+    assert res["unattributable"] == 0
+    assert res["mcnemar_pass1"]["gained"] == 1
+
+
+def test_analyze_run_no_baseline_counts_only(sci, tmp_path):
+    bench = tmp_path / "princeton-nlp__SWE-bench_Verified"
+    (bench / "trajectories" / "val" / "instA").mkdir(parents=True)
+    (bench / "results" / "val" / "instA").mkdir(parents=True)
+    _write_traj(bench / "trajectories/val/instA/iter_0.json", ["django_fixing-00001"], ["[skill-django_fixing-00001]"])
+    _write_result(bench / "results/val/instA/iter_0.json", True)
+    res = sci.analyze_run(tmp_path)
+    assert res["has_baseline"] is False
+    assert res["instance_count"] == 1
+    assert res["verdict_counts"]["pass1"] == {"GAINED": 0, "LOST": 0, "STABLE_PASS": 0, "STABLE_FAIL": 0}
+    assert res["mcnemar_pass1"]["p_value"] == 1.0
+    sk = res["skills"][0]
+    assert sk["skill_id"] == "django_fixing-00001"
+    assert sk["citations"] == 1
+    assert sk["resolve_rate_when_cited"] == 1.0

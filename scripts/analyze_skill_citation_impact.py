@@ -188,6 +188,121 @@ def load_resolved(path):
         return bool(json.load(f).get("resolved", False))
 
 
+def _new_skill():
+    return {
+        "citations": 0,
+        "cited_trajectories": 0,
+        "citing_instances": set(),
+        "presented_trajectories": 0,
+        "resolved_when_cited": 0,
+        "attrib_pass1": dict.fromkeys(VERDICTS, 0),
+        "attrib_any_k": dict.fromkeys(VERDICTS, 0),
+    }
+
+
+def analyze_run(run_dir, min_citations=0):
+    """Analyze one run dir; return a JSON-serializable results dict.
+
+    Counts clean-mapped citations, per-skill resolution lift, and the paired
+    GAINED/LOST/STABLE verdict (pass@1 + any-of-K) with a McNemar p-value.
+    Degrades to counts-only when val_baseline is absent.
+    """
+    run_dir = Path(run_dir)
+    bench = find_benchmark_dir(run_dir)
+    val_insts = set(discover_instances(bench, "val"))
+    bl_insts = set(discover_instances(bench, "val_baseline"))
+    has_baseline = bool(bl_insts)
+    paired_insts = sorted(val_insts & bl_insts) if has_baseline else sorted(val_insts)
+    val_only = sorted(val_insts - bl_insts) if has_baseline else []
+
+    per_skill = defaultdict(_new_skill)
+    unattributable = 0
+    inst_rows = []
+    verdict_counts = {"pass1": Counter(), "any_k": Counter()}
+
+    for inst in paired_insts:
+        val_res = []
+        cited_sids_inst = set()
+        for it in _iter_ids(bench, "val", inst):
+            msgs = load_trajectory(bench / "trajectories" / "val" / inst / f"iter_{it}.json")
+            presented = parse_presented_skill_ids(msgs)
+            counts, unattrib = extract_citations(msgs, presented)
+            unattributable += unattrib
+            try:
+                resolved = load_resolved(bench / "results" / "val" / inst / f"iter_{it}.json")
+            except FileNotFoundError:
+                resolved = False
+            val_res.append(resolved)
+            for sid in presented:
+                per_skill[sid]["presented_trajectories"] += 1
+            for sid, c in counts.items():
+                per_skill[sid]["citations"] += c
+                per_skill[sid]["cited_trajectories"] += 1
+                if resolved:
+                    per_skill[sid]["resolved_when_cited"] += 1
+                cited_sids_inst.add(sid)
+        for sid in cited_sids_inst:
+            per_skill[sid]["citing_instances"].add(inst)
+
+        bl_res = []
+        if has_baseline:
+            for it in _iter_ids(bench, "val_baseline", inst):
+                try:
+                    bl_res.append(load_resolved(bench / "results" / "val_baseline" / inst / f"iter_{it}.json"))
+                except FileNotFoundError:
+                    bl_res.append(False)
+
+        row = {"instance": inst, "val_resolved_attempts": val_res, "bl_resolved_attempts": bl_res}
+        if has_baseline:
+            pv = paired_verdict(val_res, bl_res)
+            verdict_counts["pass1"][pv["pass1"]] += 1
+            verdict_counts["any_k"][pv["any_k"]] += 1
+            row["verdict"] = pv
+            for sid in cited_sids_inst:
+                per_skill[sid]["attrib_pass1"][pv["pass1"]] += 1
+                per_skill[sid]["attrib_any_k"][pv["any_k"]] += 1
+        else:
+            row["verdict"] = None
+        inst_rows.append(row)
+
+    skills = []
+    for sid, s in per_skill.items():
+        if s["citations"] < min_citations:
+            continue
+        cited_traj = s["cited_trajectories"]
+        pres = s["presented_trajectories"]
+        skills.append({
+            "skill_id": sid,
+            "citations": s["citations"],
+            "citing_instances": len(s["citing_instances"]),
+            "presented_trajectories": pres,
+            "cited_trajectories": cited_traj,
+            "citation_rate": (cited_traj / pres) if pres else 0.0,
+            "resolve_rate_when_cited": (s["resolved_when_cited"] / cited_traj) if cited_traj else 0.0,
+            "attrib_pass1": dict(s["attrib_pass1"]),
+            "attrib_any_k": dict(s["attrib_any_k"]),
+        })
+    skills.sort(key=lambda r: r["citations"], reverse=True)
+
+    g1, l1 = verdict_counts["pass1"]["GAINED"], verdict_counts["pass1"]["LOST"]
+    gk, lk = verdict_counts["any_k"]["GAINED"], verdict_counts["any_k"]["LOST"]
+    return {
+        "run_dir": str(run_dir),
+        "has_baseline": has_baseline,
+        "instance_count": len(paired_insts),
+        "val_only_instances": val_only,
+        "verdict_counts": {
+            "pass1": {k: verdict_counts["pass1"][k] for k in VERDICTS},
+            "any_k": {k: verdict_counts["any_k"][k] for k in VERDICTS},
+        },
+        "net_delta": {"pass1": g1 - l1, "any_k": gk - lk},
+        "mcnemar_pass1": {"gained": g1, "lost": l1, "p_value": mcnemar_pvalue(g1, l1)},
+        "unattributable": unattributable,
+        "skills": skills,
+        "instances": inst_rows,
+    }
+
+
 def main(argv=None):
     """CLI entry point."""
     parser = argparse.ArgumentParser(description=__doc__)
