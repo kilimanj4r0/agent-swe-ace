@@ -131,3 +131,48 @@ def test_mcnemar_exact_small_n(sci):
     # n<25 -> exact binomial path; 8 vs 0 should be small
     p = sci.mcnemar_pvalue(8, 0)
     assert 0.0 < p < 0.02
+
+
+def _make_run(tmp_path, with_baseline=True):
+    bench = tmp_path / "princeton-nlp__SWE-bench_Verified"
+    (bench / "trajectories" / "val" / "instA").mkdir(parents=True)
+    (bench / "trajectories" / "val" / "instB").mkdir(parents=True)
+    if with_baseline:
+        (bench / "trajectories" / "val_baseline" / "instA").mkdir(parents=True)
+    return tmp_path, bench
+
+
+def test_find_benchmark_dir_resolves_subdir(sci, tmp_path):
+    _, bench = _make_run(tmp_path)
+    assert sci.find_benchmark_dir(tmp_path) == bench
+
+
+def test_find_benchmark_dir_falls_back_to_run(sci, tmp_path):
+    # no benchmark subdir -> run dir itself
+    (tmp_path / "trajectories").mkdir()
+    assert sci.find_benchmark_dir(tmp_path) == tmp_path
+
+
+def test_discover_instances(sci, tmp_path):
+    _, bench = _make_run(tmp_path)
+    assert sci.discover_instances(bench, "val") == ["instA", "instB"]
+    assert sci.discover_instances(bench, "val_baseline") == ["instA"]
+
+
+def test_iter_ids_parses(sci, tmp_path):
+    _, bench = _make_run(tmp_path)
+    d = bench / "trajectories" / "val" / "instA"
+    (d / "iter_0.json").write_text("{}")
+    (d / "iter_10.json").write_text("{}")
+    (d / "notiter.json").write_text("{}")
+    assert sci._iter_ids(bench, "val", "instA") == [0, 10]
+
+
+def test_load_resolved_and_trajectory(sci, tmp_path):
+    import json
+    p = tmp_path / "r.json"
+    p.write_text(json.dumps({"resolved": True}))
+    assert sci.load_resolved(p) is True
+    tp = tmp_path / "t.json"
+    tp.write_text(json.dumps({"messages": [{"role": "user", "content": "hi"}]}))
+    assert sci.load_trajectory(tp) == [{"role": "user", "content": "hi"}]

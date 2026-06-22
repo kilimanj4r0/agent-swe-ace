@@ -146,6 +146,48 @@ def mcnemar_pvalue(gained, lost):
     return math.erfc(math.sqrt(stat / 2.0))
 
 
+def find_benchmark_dir(run_dir):
+    """Locate the benchmark-scoped subdir, else return run_dir."""
+    run_dir = Path(run_dir)
+    for child in run_dir.iterdir():
+        if child.is_dir() and child.name.startswith("princeton-nlp__SWE-bench"):
+            return child
+    return run_dir
+
+
+def discover_instances(bench_dir, phase):
+    """Sorted list of instance dirs for a phase under trajectories/."""
+    d = Path(bench_dir) / "trajectories" / phase
+    if not d.is_dir():
+        return []
+    return sorted(p.name for p in d.iterdir() if p.is_dir())
+
+
+def _iter_ids(bench_dir, phase, inst):
+    """Sorted iter numbers present for an instance's phase."""
+    d = Path(bench_dir) / "trajectories" / phase / inst
+    if not d.is_dir():
+        return []
+    ids = []
+    for p in d.glob("iter_*.json"):
+        m = re.search(r"iter_(\d+)\.json$", p.name)
+        if m:
+            ids.append(int(m.group(1)))
+    return sorted(ids)
+
+
+def load_trajectory(path):
+    """Return the messages list from a trajectory JSON file."""
+    with open(path) as f:
+        return json.load(f).get("messages", [])
+
+
+def load_resolved(path):
+    """Return the resolved bool from a result JSON file."""
+    with open(path) as f:
+        return bool(json.load(f).get("resolved", False))
+
+
 def main(argv=None):
     """CLI entry point."""
     parser = argparse.ArgumentParser(description=__doc__)
