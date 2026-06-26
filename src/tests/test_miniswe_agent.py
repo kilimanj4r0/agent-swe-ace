@@ -84,6 +84,7 @@ class TestMiniSWEAgentRun:
              patch("agents.miniswe_agent.build_system_template", return_value="sys template"), \
              patch("agents.miniswe_agent.build_instance_template", return_value="instance template"), \
              patch("agents.miniswe_agent.build_action_observation_template", return_value="action template"), \
+             patch("agents.miniswe_agent.build_format_error_template", return_value="format error template"), \
              patch("agents.miniswe_agent.get_platform_info", return_value={"system": "Linux"}):
 
             agent = MiniSWEAgent(llm_model=model, use_docker=False, context_management=False)
@@ -91,6 +92,29 @@ class TestMiniSWEAgentRun:
 
         assert model.n_calls == 0
         assert model.cost == 0.0
+
+    def test_format_error_template_passed_to_agent_config(self):
+        """AgentConfig must receive the richer format_error_template, not the bare default."""
+        model = Mock()
+        mock_agent = _make_mock_agent()
+        mock_default_cls = Mock(return_value=mock_agent)
+        mock_config_cls = Mock(return_value="config-instance")
+
+        miniswe_patches = _install_minisweagent_mocks(mock_default_cls, mock_config_cls)
+
+        with patch.dict("sys.modules", miniswe_patches), \
+             patch("agents.miniswe_agent.create_local_environment", return_value=Mock()), \
+             patch("agents.miniswe_agent.create_docker_environment", return_value=Mock()), \
+             patch("agents.miniswe_agent.build_system_template", return_value="sys template"), \
+             patch("agents.miniswe_agent.build_instance_template", return_value="instance template"), \
+             patch("agents.miniswe_agent.build_action_observation_template", return_value="action template"), \
+             patch("agents.miniswe_agent.build_format_error_template", return_value="format error template"), \
+             patch("agents.miniswe_agent.get_platform_info", return_value={"system": "Linux"}):
+
+            agent = MiniSWEAgent(llm_model=model, use_docker=False, context_management=False)
+            agent.run(problem="Fix", instance={"instance_id": "test-1"})
+
+        assert mock_config_cls.call_args.kwargs["format_error_template"] == "format error template"
 
     def test_context_management_enabled(self):
         """When context_management=True, ContextAwareDefaultAgent should be used."""
@@ -114,6 +138,7 @@ class TestMiniSWEAgentRun:
              patch("agents.miniswe_agent.build_system_template", return_value="sys template"), \
              patch("agents.miniswe_agent.build_instance_template", return_value="instance template"), \
              patch("agents.miniswe_agent.build_action_observation_template", return_value="action template"), \
+             patch("agents.miniswe_agent.build_format_error_template", return_value="format error template"), \
              patch("agents.miniswe_agent.get_platform_info", return_value={"system": "Linux"}):
 
             agent = MiniSWEAgent(llm_model=model, use_docker=False, context_management=True)
@@ -140,6 +165,7 @@ class TestMiniSWEAgentRun:
              patch("agents.miniswe_agent.build_system_template", return_value="sys template"), \
              patch("agents.miniswe_agent.build_instance_template", return_value="instance template"), \
              patch("agents.miniswe_agent.build_action_observation_template", return_value="action template"), \
+             patch("agents.miniswe_agent.build_format_error_template", return_value="format error template"), \
              patch("agents.miniswe_agent.get_platform_info", return_value={"system": "Linux"}):
 
             agent = MiniSWEAgent(llm_model=model, use_docker=False, context_management=False)
@@ -170,6 +196,7 @@ class TestMiniSWEAgentRun:
              patch("agents.miniswe_agent.build_system_template", return_value="sys template"), \
              patch("agents.miniswe_agent.build_instance_template", return_value="instance template"), \
              patch("agents.miniswe_agent.build_action_observation_template", return_value="action template"), \
+             patch("agents.miniswe_agent.build_format_error_template", return_value="format error template"), \
              patch("agents.miniswe_agent.get_platform_info", return_value={"system": "Linux"}):
 
             agent = MiniSWEAgent(llm_model=model, use_docker=False, context_management=False)
@@ -205,6 +232,7 @@ class TestMiniSWEAgentRun:
              patch("agents.miniswe_agent.build_system_template", return_value="sys template"), \
              patch("agents.miniswe_agent.build_instance_template", return_value="instance template"), \
              patch("agents.miniswe_agent.build_action_observation_template", return_value="action template"), \
+             patch("agents.miniswe_agent.build_format_error_template", return_value="format error template"), \
              patch("agents.miniswe_agent.get_platform_info", return_value={"system": "Linux"}):
 
             agent = MiniSWEAgent(llm_model=model, use_docker=False, context_management=False)
@@ -232,6 +260,7 @@ class TestMiniSWEAgentRun:
              patch("agents.miniswe_agent.build_system_template", return_value="sys template"), \
              patch("agents.miniswe_agent.build_instance_template", return_value="instance template"), \
              patch("agents.miniswe_agent.build_action_observation_template", return_value="action template"), \
+             patch("agents.miniswe_agent.build_format_error_template", return_value="format error template"), \
              patch("agents.miniswe_agent.get_platform_info", return_value={"system": "Linux"}):
 
             agent = MiniSWEAgent(llm_model=model, use_docker=False, context_management=False)
@@ -259,6 +288,7 @@ class TestMiniSWEAgentRun:
              patch("agents.miniswe_agent.build_system_template", return_value="sys template"), \
              patch("agents.miniswe_agent.build_instance_template", return_value="instance template"), \
              patch("agents.miniswe_agent.build_action_observation_template", return_value="action template"), \
+             patch("agents.miniswe_agent.build_format_error_template", return_value="format error template"), \
              patch("agents.miniswe_agent.get_platform_info", return_value={"system": "Linux"}):
 
             agent = MiniSWEAgent(llm_model=model, use_docker=False, context_management=False)
