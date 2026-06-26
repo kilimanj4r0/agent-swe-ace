@@ -1,0 +1,11076 @@
+{
+  "astropy__astropy-13236": {
+    "repo": "astropy__astropy",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "astropy__astropy-14309": {
+    "repo": "astropy__astropy",
+    "n_attempts": 60,
+    "successes": 59,
+    "failed": 1,
+    "resolved_any": true,
+    "rate": 0.9833333333333333,
+    "ci95": [
+      0.9114487027240993,
+      0.9970518402052136
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r01": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r02": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r03": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r04": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r05": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "r07": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r08": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r09": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r10": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r11": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    }
+  },
+  "astropy__astropy-14365": {
+    "repo": "astropy__astropy",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "astropy__astropy-14508": {
+    "repo": "astropy__astropy",
+    "n_attempts": 60,
+    "successes": 3,
+    "failed": 57,
+    "resolved_any": true,
+    "rate": 0.05,
+    "ci95": [
+      0.01714950216439568,
+      0.1370051647634852
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        true,
+        false,
+        false,
+        true,
+        true
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-10914": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 23,
+    "failed": 37,
+    "resolved_any": true,
+    "rate": 0.38333333333333336,
+    "ci95": [
+      0.27088272374082023,
+      0.5098240417590008
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "r01": [
+        true,
+        true,
+        true,
+        false,
+        true
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        true,
+        true,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r08": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r09": [
+        false,
+        true,
+        false,
+        false,
+        true
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        true,
+        false,
+        true,
+        true,
+        true
+      ]
+    }
+  },
+  "django__django-10999": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-11095": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 11,
+    "failed": 49,
+    "resolved_any": true,
+    "rate": 0.18333333333333332,
+    "ci95": [
+      0.10557796889197638,
+      0.2991975374646805
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        true,
+        true,
+        true
+      ],
+      "r10": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-11133": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 8,
+    "failed": 52,
+    "resolved_any": true,
+    "rate": 0.13333333333333333,
+    "ci95": [
+      0.06914109480586972,
+      0.24165159676499615
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        true,
+        false,
+        true
+      ],
+      "r03": [
+        false,
+        false,
+        true,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        true,
+        false,
+        true,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        true,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        true,
+        true,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-11138": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-11141": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-11163": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 39,
+    "failed": 21,
+    "resolved_any": true,
+    "rate": 0.65,
+    "ci95": [
+      0.5236261884175486,
+      0.7583222559398244
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r01": [
+        false,
+        true,
+        true,
+        true,
+        false
+      ],
+      "r02": [
+        true,
+        true,
+        false,
+        true,
+        true
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        true,
+        false
+      ],
+      "r04": [
+        true,
+        false,
+        false,
+        true,
+        false
+      ],
+      "r05": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "r07": [
+        true,
+        true,
+        true,
+        false,
+        false
+      ],
+      "r08": [
+        true,
+        true,
+        true,
+        false,
+        true
+      ],
+      "r09": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        true,
+        false,
+        true
+      ],
+      "r11": [
+        true,
+        false,
+        true,
+        false,
+        true
+      ]
+    }
+  },
+  "django__django-11239": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-11292": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-11400": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-11433": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-11749": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-11815": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-11820": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-11880": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 32,
+    "failed": 28,
+    "resolved_any": true,
+    "rate": 0.5333333333333333,
+    "ci95": [
+      0.4089342702715789,
+      0.6537209395856151
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        true,
+        false,
+        true,
+        false
+      ],
+      "r03": [
+        true,
+        true,
+        false,
+        true,
+        true
+      ],
+      "r04": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r05": [
+        true,
+        true,
+        true,
+        false,
+        true
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r07": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        true,
+        false,
+        true,
+        true,
+        false
+      ],
+      "r11": [
+        true,
+        true,
+        false,
+        true,
+        true
+      ]
+    }
+  },
+  "django__django-11951": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 2,
+    "failed": 58,
+    "resolved_any": true,
+    "rate": 0.03333333333333333,
+    "ci95": [
+      0.009189319256197877,
+      0.113637742743086
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        true,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        true,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-12039": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-12262": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-12419": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 51,
+    "failed": 9,
+    "resolved_any": true,
+    "rate": 0.85,
+    "ci95": [
+      0.7388541093022145,
+      0.9190255941983225
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        true,
+        false,
+        true,
+        false
+      ],
+      "r01": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r02": [
+        true,
+        false,
+        true,
+        true,
+        false
+      ],
+      "r03": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r04": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r05": [
+        true,
+        true,
+        true,
+        false,
+        true
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r07": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r08": [
+        true,
+        true,
+        true,
+        false,
+        true
+      ],
+      "r09": [
+        true,
+        true,
+        false,
+        true,
+        true
+      ],
+      "r10": [
+        true,
+        true,
+        true,
+        false,
+        true
+      ],
+      "r11": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ]
+    }
+  },
+  "django__django-12713": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 17,
+    "failed": 43,
+    "resolved_any": true,
+    "rate": 0.2833333333333333,
+    "ci95": [
+      0.18506828428432714,
+      0.4076728516439118
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        true,
+        true,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-12774": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-13109": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 35,
+    "failed": 25,
+    "resolved_any": true,
+    "rate": 0.5833333333333334,
+    "ci95": [
+      0.45728081022640116,
+      0.6993572144165838
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        true,
+        true,
+        false,
+        false
+      ],
+      "r01": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r04": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r05": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        true,
+        true,
+        false,
+        true,
+        true
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    }
+  },
+  "django__django-13128": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-13195": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-13297": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-13346": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-13410": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 34,
+    "failed": 26,
+    "resolved_any": true,
+    "rate": 0.5666666666666667,
+    "ci95": [
+      0.44103438776125564,
+      0.6842760319531324
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r05": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r08": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r09": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r10": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r11": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    }
+  },
+  "django__django-13417": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 8,
+    "failed": 52,
+    "resolved_any": true,
+    "rate": 0.13333333333333333,
+    "ci95": [
+      0.06914109480586972,
+      0.24165159676499615
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        true,
+        false,
+        true,
+        true,
+        true
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        true,
+        true,
+        true
+      ]
+    }
+  },
+  "django__django-13513": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-13568": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-13590": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-13658": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 47,
+    "failed": 13,
+    "resolved_any": true,
+    "rate": 0.7833333333333333,
+    "ci95": [
+      0.6637997242680521,
+      0.868769559518097
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        false,
+        true,
+        true,
+        true
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r03": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        true,
+        true
+      ],
+      "r05": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r07": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r08": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "r09": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r10": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r11": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    }
+  },
+  "django__django-13786": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 6,
+    "failed": 54,
+    "resolved_any": true,
+    "rate": 0.1,
+    "ci95": [
+      0.04664283447388416,
+      0.20149464723978772
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        true,
+        true,
+        false,
+        true
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        true,
+        true
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-13794": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-13810": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 11,
+    "failed": 49,
+    "resolved_any": true,
+    "rate": 0.18333333333333332,
+    "ci95": [
+      0.10557796889197638,
+      0.2991975374646805
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r02": [
+        false,
+        true,
+        true,
+        true,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        true,
+        true,
+        true
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-13933": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-14034": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-14155": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-14170": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-14238": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 21,
+    "failed": 39,
+    "resolved_any": true,
+    "rate": 0.35,
+    "ci95": [
+      0.24167774406017556,
+      0.47637381158245135
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        false,
+        true,
+        false,
+        true
+      ],
+      "r01": [
+        true,
+        true,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        true,
+        false
+      ],
+      "r03": [
+        true,
+        true,
+        true,
+        false,
+        false
+      ],
+      "r04": [
+        true,
+        true,
+        true,
+        false,
+        false
+      ],
+      "r05": [
+        true,
+        true,
+        true,
+        false,
+        false
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        true,
+        true,
+        false,
+        false,
+        true
+      ]
+    }
+  },
+  "django__django-14534": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-14631": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-14999": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 8,
+    "failed": 52,
+    "resolved_any": true,
+    "rate": 0.13333333333333333,
+    "ci95": [
+      0.06914109480586972,
+      0.24165159676499615
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        true,
+        true,
+        true,
+        false,
+        true
+      ]
+    }
+  },
+  "django__django-15103": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-15128": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 3,
+    "failed": 57,
+    "resolved_any": true,
+    "rate": 0.05,
+    "ci95": [
+      0.01714950216439568,
+      0.1370051647634852
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        true,
+        false,
+        true,
+        true
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-15252": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-15731": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 31,
+    "failed": 29,
+    "resolved_any": true,
+    "rate": 0.5166666666666667,
+    "ci95": [
+      0.39307810032592494,
+      0.6382495046026722
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        false,
+        true,
+        true,
+        true
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        true,
+        true,
+        true,
+        false,
+        true
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r11": [
+        true,
+        true,
+        false,
+        false,
+        true
+      ]
+    }
+  },
+  "django__django-15987": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-16145": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 38,
+    "failed": 22,
+    "resolved_any": true,
+    "rate": 0.6333333333333333,
+    "ci95": [
+      0.5068300063010303,
+      0.7437908331277456
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r01": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r05": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "r08": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r09": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    }
+  },
+  "django__django-16263": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-16315": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-16569": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 46,
+    "failed": 14,
+    "resolved_any": true,
+    "rate": 0.7666666666666667,
+    "ci95": [
+      0.6456372962239805,
+      0.8556043826335717
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r01": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "r02": [
+        true,
+        true,
+        false,
+        true,
+        true
+      ],
+      "r03": [
+        true,
+        false,
+        true,
+        true,
+        true
+      ],
+      "r04": [
+        true,
+        true,
+        false,
+        false,
+        true
+      ],
+      "r05": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "r06": [
+        true,
+        false,
+        true,
+        false,
+        false
+      ],
+      "r07": [
+        true,
+        false,
+        true,
+        true,
+        true
+      ],
+      "r08": [
+        true,
+        true,
+        false,
+        true,
+        true
+      ],
+      "r09": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r10": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r11": [
+        true,
+        false,
+        true,
+        false,
+        true
+      ]
+    }
+  },
+  "django__django-16642": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-16661": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 8,
+    "failed": 52,
+    "resolved_any": true,
+    "rate": 0.13333333333333333,
+    "ci95": [
+      0.06914109480586972,
+      0.24165159676499615
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-16662": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 19,
+    "failed": 41,
+    "resolved_any": true,
+    "rate": 0.31666666666666665,
+    "ci95": [
+      0.21305867552366523,
+      0.44233767026176773
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        true,
+        false,
+        false,
+        true
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        true,
+        false,
+        true,
+        false,
+        false
+      ],
+      "r03": [
+        true,
+        false,
+        true,
+        true,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        true,
+        false,
+        true,
+        true,
+        false
+      ],
+      "r06": [
+        true,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        true,
+        true,
+        true,
+        false,
+        true
+      ],
+      "r08": [
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        true,
+        true
+      ]
+    }
+  },
+  "django__django-16801": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 23,
+    "failed": 37,
+    "resolved_any": true,
+    "rate": 0.38333333333333336,
+    "ci95": [
+      0.27088272374082023,
+      0.5098240417590008
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        true,
+        true,
+        false,
+        true
+      ],
+      "r01": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r02": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "r06": [
+        false,
+        true,
+        true,
+        false,
+        true
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "django__django-9296": {
+    "repo": "django__django",
+    "n_attempts": 60,
+    "successes": 33,
+    "failed": 27,
+    "resolved_any": true,
+    "rate": 0.55,
+    "ci95": [
+      0.4249193588533434,
+      0.6690634559324476
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r07": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r08": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r09": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r10": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r11": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ]
+    }
+  },
+  "matplotlib__matplotlib-22865": {
+    "repo": "matplotlib__matplotlib",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "matplotlib__matplotlib-23412": {
+    "repo": "matplotlib__matplotlib",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "matplotlib__matplotlib-24177": {
+    "repo": "matplotlib__matplotlib",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "matplotlib__matplotlib-25122": {
+    "repo": "matplotlib__matplotlib",
+    "n_attempts": 60,
+    "successes": 33,
+    "failed": 27,
+    "resolved_any": true,
+    "rate": 0.55,
+    "ci95": [
+      0.4249193588533434,
+      0.6690634559324476
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        true,
+        false,
+        false,
+        true
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        true,
+        true
+      ],
+      "r02": [
+        true,
+        true,
+        false,
+        true,
+        false
+      ],
+      "r03": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        true,
+        true,
+        false,
+        true,
+        true
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r07": [
+        true,
+        false,
+        false,
+        true,
+        true
+      ],
+      "r08": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r09": [
+        false,
+        false,
+        true,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        true,
+        true,
+        false,
+        true,
+        false
+      ]
+    }
+  },
+  "matplotlib__matplotlib-25287": {
+    "repo": "matplotlib__matplotlib",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "matplotlib__matplotlib-25311": {
+    "repo": "matplotlib__matplotlib",
+    "n_attempts": 60,
+    "successes": 22,
+    "failed": 38,
+    "resolved_any": true,
+    "rate": 0.36666666666666664,
+    "ci95": [
+      0.25620916687225426,
+      0.49316999369896963
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "r05": [
+        true,
+        false,
+        true,
+        true,
+        true
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "matplotlib__matplotlib-25479": {
+    "repo": "matplotlib__matplotlib",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "matplotlib__matplotlib-25960": {
+    "repo": "matplotlib__matplotlib",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "pydata__xarray-3677": {
+    "repo": "pydata__xarray",
+    "n_attempts": 60,
+    "successes": 35,
+    "failed": 25,
+    "resolved_any": true,
+    "rate": 0.5833333333333334,
+    "ci95": [
+      0.45728081022640116,
+      0.6993572144165838
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r02": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r03": [
+        true,
+        false,
+        true,
+        true,
+        true
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        true,
+        true
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r08": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r11": [
+        true,
+        true,
+        true,
+        false,
+        true
+      ]
+    }
+  },
+  "pydata__xarray-4094": {
+    "repo": "pydata__xarray",
+    "n_attempts": 60,
+    "successes": 5,
+    "failed": 55,
+    "resolved_any": true,
+    "rate": 0.08333333333333333,
+    "ci95": [
+      0.03612045660173077,
+      0.1806894201833441
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "pydata__xarray-4687": {
+    "repo": "pydata__xarray",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "pydata__xarray-6461": {
+    "repo": "pydata__xarray",
+    "n_attempts": 60,
+    "successes": 53,
+    "failed": 7,
+    "resolved_any": true,
+    "rate": 0.8833333333333333,
+    "ci95": [
+      0.7782121197582914,
+      0.9423227935994396
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r01": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r04": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r05": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r07": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r08": [
+        true,
+        true,
+        true,
+        false,
+        true
+      ],
+      "r09": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r10": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "r11": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    }
+  },
+  "pydata__xarray-6721": {
+    "repo": "pydata__xarray",
+    "n_attempts": 60,
+    "successes": 32,
+    "failed": 28,
+    "resolved_any": true,
+    "rate": 0.5333333333333333,
+    "ci95": [
+      0.4089342702715789,
+      0.6537209395856151
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r02": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r03": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        true,
+        true,
+        true,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r10": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r11": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    }
+  },
+  "pytest-dev__pytest-5631": {
+    "repo": "pytest-dev__pytest",
+    "n_attempts": 60,
+    "successes": 16,
+    "failed": 44,
+    "resolved_any": true,
+    "rate": 0.26666666666666666,
+    "ci95": [
+      0.17132640003280553,
+      0.39008713096683645
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        true,
+        false,
+        true,
+        false,
+        true
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        true,
+        true,
+        true,
+        false,
+        true
+      ],
+      "r09": [
+        true,
+        true,
+        true,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        true,
+        true
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "pytest-dev__pytest-5787": {
+    "repo": "pytest-dev__pytest",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "pytest-dev__pytest-6197": {
+    "repo": "pytest-dev__pytest",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "pytest-dev__pytest-6202": {
+    "repo": "pytest-dev__pytest",
+    "n_attempts": 60,
+    "successes": 42,
+    "failed": 18,
+    "resolved_any": true,
+    "rate": 0.7,
+    "ci95": [
+      0.5749129205308552,
+      0.8010183386123089
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        true,
+        true,
+        false,
+        false,
+        true
+      ],
+      "r02": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r03": [
+        true,
+        true,
+        true,
+        false,
+        true
+      ],
+      "r04": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r05": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r07": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r10": [
+        false,
+        false,
+        true,
+        true,
+        true
+      ],
+      "r11": [
+        false,
+        false,
+        true,
+        false,
+        true
+      ]
+    }
+  },
+  "scikit-learn__scikit-learn-10297": {
+    "repo": "scikit-learn__scikit-learn",
+    "n_attempts": 60,
+    "successes": 2,
+    "failed": 58,
+    "resolved_any": true,
+    "rate": 0.03333333333333333,
+    "ci95": [
+      0.009189319256197877,
+      0.113637742743086
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        true,
+        false,
+        false,
+        true,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "scikit-learn__scikit-learn-10908": {
+    "repo": "scikit-learn__scikit-learn",
+    "n_attempts": 60,
+    "successes": 2,
+    "failed": 58,
+    "resolved_any": true,
+    "rate": 0.03333333333333333,
+    "ci95": [
+      0.009189319256197877,
+      0.113637742743086
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        true,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "scikit-learn__scikit-learn-13135": {
+    "repo": "scikit-learn__scikit-learn",
+    "n_attempts": 60,
+    "successes": 45,
+    "failed": 15,
+    "resolved_any": true,
+    "rate": 0.75,
+    "ci95": [
+      0.6276792992295218,
+      0.8422347746994333
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r01": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r02": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r03": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r07": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r10": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "scikit-learn__scikit-learn-13439": {
+    "repo": "scikit-learn__scikit-learn",
+    "n_attempts": 60,
+    "successes": 26,
+    "failed": 34,
+    "resolved_any": true,
+    "rate": 0.43333333333333335,
+    "ci95": [
+      0.3157239680468677,
+      0.5589656122387444
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        true,
+        true,
+        false,
+        false,
+        true
+      ],
+      "r02": [
+        true,
+        false,
+        true,
+        true,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r05": [
+        true,
+        true,
+        true,
+        false,
+        true
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        true,
+        true,
+        false,
+        true,
+        true
+      ],
+      "r10": [
+        true,
+        true,
+        false,
+        false,
+        true
+      ],
+      "r11": [
+        true,
+        true,
+        false,
+        true,
+        true
+      ]
+    }
+  },
+  "scikit-learn__scikit-learn-15100": {
+    "repo": "scikit-learn__scikit-learn",
+    "n_attempts": 60,
+    "successes": 19,
+    "failed": 41,
+    "resolved_any": true,
+    "rate": 0.31666666666666665,
+    "ci95": [
+      0.21305867552366523,
+      0.44233767026176773
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "scikit-learn__scikit-learn-9288": {
+    "repo": "scikit-learn__scikit-learn",
+    "n_attempts": 60,
+    "successes": 20,
+    "failed": 40,
+    "resolved_any": true,
+    "rate": 0.3333333333333333,
+    "ci95": [
+      0.2272926152352268,
+      0.4594313354788031
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        true,
+        true,
+        true,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        true,
+        true,
+        false,
+        true,
+        true
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r09": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        true,
+        true,
+        false,
+        false,
+        true
+      ]
+    }
+  },
+  "sphinx-doc__sphinx-10466": {
+    "repo": "sphinx-doc__sphinx",
+    "n_attempts": 60,
+    "successes": 19,
+    "failed": 41,
+    "resolved_any": true,
+    "rate": 0.31666666666666665,
+    "ci95": [
+      0.21305867552366523,
+      0.44233767026176773
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        true,
+        false,
+        true,
+        true,
+        true
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    }
+  },
+  "sphinx-doc__sphinx-11510": {
+    "repo": "sphinx-doc__sphinx",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sphinx-doc__sphinx-7462": {
+    "repo": "sphinx-doc__sphinx",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sphinx-doc__sphinx-7985": {
+    "repo": "sphinx-doc__sphinx",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sphinx-doc__sphinx-8475": {
+    "repo": "sphinx-doc__sphinx",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sphinx-doc__sphinx-8551": {
+    "repo": "sphinx-doc__sphinx",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sphinx-doc__sphinx-8595": {
+    "repo": "sphinx-doc__sphinx",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sphinx-doc__sphinx-9230": {
+    "repo": "sphinx-doc__sphinx",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sphinx-doc__sphinx-9258": {
+    "repo": "sphinx-doc__sphinx",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sphinx-doc__sphinx-9673": {
+    "repo": "sphinx-doc__sphinx",
+    "n_attempts": 60,
+    "successes": 33,
+    "failed": 27,
+    "resolved_any": true,
+    "rate": 0.55,
+    "ci95": [
+      0.4249193588533434,
+      0.6690634559324476
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        true,
+        false,
+        true,
+        true,
+        true
+      ],
+      "r02": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r03": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r04": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r07": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sphinx-doc__sphinx-9698": {
+    "repo": "sphinx-doc__sphinx",
+    "n_attempts": 60,
+    "successes": 35,
+    "failed": 25,
+    "resolved_any": true,
+    "rate": 0.5833333333333334,
+    "ci95": [
+      0.45728081022640116,
+      0.6993572144165838
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r01": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r04": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r05": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r06": [
+        true,
+        false,
+        true,
+        true,
+        true
+      ],
+      "r07": [
+        true,
+        true,
+        false,
+        true,
+        true
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "r11": [
+        false,
+        false,
+        true,
+        false,
+        false
+      ]
+    }
+  },
+  "sympy__sympy-13372": {
+    "repo": "sympy__sympy",
+    "n_attempts": 60,
+    "successes": 27,
+    "failed": 33,
+    "resolved_any": true,
+    "rate": 0.45,
+    "ci95": [
+      0.3309365440675524,
+      0.5750806411466566
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        true,
+        false,
+        true,
+        true,
+        true
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r07": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        true,
+        true,
+        false,
+        true
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sympy__sympy-13757": {
+    "repo": "sympy__sympy",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sympy__sympy-13798": {
+    "repo": "sympy__sympy",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sympy__sympy-13877": {
+    "repo": "sympy__sympy",
+    "n_attempts": 60,
+    "successes": 4,
+    "failed": 56,
+    "resolved_any": true,
+    "rate": 0.06666666666666667,
+    "ci95": [
+      0.026228698724506214,
+      0.1592535731319717
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        true,
+        false,
+        true,
+        true,
+        true
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sympy__sympy-13878": {
+    "repo": "sympy__sympy",
+    "n_attempts": 60,
+    "successes": 10,
+    "failed": 50,
+    "resolved_any": true,
+    "rate": 0.16666666666666666,
+    "ci95": [
+      0.0931317697919145,
+      0.2803161316361453
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sympy__sympy-15599": {
+    "repo": "sympy__sympy",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sympy__sympy-16766": {
+    "repo": "sympy__sympy",
+    "n_attempts": 60,
+    "successes": 28,
+    "failed": 32,
+    "resolved_any": true,
+    "rate": 0.4666666666666667,
+    "ci95": [
+      0.34627906041438494,
+      0.5910657297284211
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r01": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        true,
+        false,
+        true,
+        false,
+        true
+      ]
+    }
+  },
+  "sympy__sympy-16886": {
+    "repo": "sympy__sympy",
+    "n_attempts": 60,
+    "successes": 60,
+    "failed": 0,
+    "resolved_any": true,
+    "rate": 1.0,
+    "ci95": [
+      0.93982814785791,
+      0.9999999999999998
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r01": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r02": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r03": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r04": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r05": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r07": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r08": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r09": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r10": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r11": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    }
+  },
+  "sympy__sympy-17655": {
+    "repo": "sympy__sympy",
+    "n_attempts": 60,
+    "successes": 0,
+    "failed": 60,
+    "resolved_any": false,
+    "rate": 0.0,
+    "ci95": [
+      0.0,
+      0.06017185214208986
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sympy__sympy-18763": {
+    "repo": "sympy__sympy",
+    "n_attempts": 60,
+    "successes": 16,
+    "failed": 44,
+    "resolved_any": true,
+    "rate": 0.26666666666666666,
+    "ci95": [
+      0.17132640003280553,
+      0.39008713096683645
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "r03": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        true,
+        true,
+        false,
+        false,
+        true
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sympy__sympy-20801": {
+    "repo": "sympy__sympy",
+    "n_attempts": 60,
+    "successes": 8,
+    "failed": 52,
+    "resolved_any": true,
+    "rate": 0.13333333333333333,
+    "ci95": [
+      0.06914109480586972,
+      0.24165159676499615
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        true,
+        false,
+        true,
+        false,
+        true
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        true,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        true,
+        true,
+        true
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        true,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sympy__sympy-22714": {
+    "repo": "sympy__sympy",
+    "n_attempts": 60,
+    "successes": 39,
+    "failed": 21,
+    "resolved_any": true,
+    "rate": 0.65,
+    "ci95": [
+      0.5236261884175486,
+      0.7583222559398244
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r02": [
+        true,
+        true,
+        false,
+        true,
+        true
+      ],
+      "r03": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r04": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r05": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r07": [
+        true,
+        true,
+        false,
+        true,
+        true
+      ],
+      "r08": [
+        true,
+        false,
+        true,
+        true,
+        true
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sympy__sympy-23262": {
+    "repo": "sympy__sympy",
+    "n_attempts": 60,
+    "successes": 8,
+    "failed": 52,
+    "resolved_any": true,
+    "rate": 0.13333333333333333,
+    "ci95": [
+      0.06914109480586972,
+      0.24165159676499615
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        true,
+        false,
+        false,
+        true
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        true,
+        true,
+        false,
+        true
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        true,
+        true,
+        true
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sympy__sympy-24066": {
+    "repo": "sympy__sympy",
+    "n_attempts": 60,
+    "successes": 40,
+    "failed": 20,
+    "resolved_any": true,
+    "rate": 0.6666666666666666,
+    "ci95": [
+      0.5405686645211968,
+      0.7727073847647731
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r01": [
+        false,
+        false,
+        true,
+        true,
+        true
+      ],
+      "r02": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r03": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r04": [
+        true,
+        true,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        true,
+        true,
+        false,
+        true,
+        false
+      ],
+      "r06": [
+        true,
+        true,
+        false,
+        true,
+        true
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        true,
+        true,
+        false,
+        true
+      ],
+      "r09": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r10": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sympy__sympy-24213": {
+    "repo": "sympy__sympy",
+    "n_attempts": 60,
+    "successes": 38,
+    "failed": 22,
+    "resolved_any": true,
+    "rate": 0.6333333333333333,
+    "ci95": [
+      0.5068300063010303,
+      0.7437908331277456
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        false,
+        true,
+        false,
+        true
+      ],
+      "r01": [
+        true,
+        false,
+        true,
+        true,
+        true
+      ],
+      "r02": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r07": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r08": [
+        true,
+        true,
+        true,
+        false,
+        true
+      ],
+      "r09": [
+        true,
+        true,
+        true,
+        false,
+        true
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        true,
+        false,
+        true,
+        true,
+        true
+      ]
+    }
+  },
+  "sympy__sympy-24443": {
+    "repo": "sympy__sympy",
+    "n_attempts": 60,
+    "successes": 46,
+    "failed": 14,
+    "resolved_any": true,
+    "rate": 0.7666666666666667,
+    "ci95": [
+      0.6456372962239805,
+      0.8556043826335717
+    ],
+    "per_run": {
+      "r00": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r01": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r04": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r07": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r08": [
+        true,
+        true,
+        false,
+        true,
+        true
+      ],
+      "r09": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r10": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "r11": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    }
+  },
+  "sympy__sympy-24562": {
+    "repo": "sympy__sympy",
+    "n_attempts": 60,
+    "successes": 3,
+    "failed": 57,
+    "resolved_any": true,
+    "rate": 0.05,
+    "ci95": [
+      0.01714950216439568,
+      0.1370051647634852
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        true,
+        true,
+        true,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "sympy__sympy-24661": {
+    "repo": "sympy__sympy",
+    "n_attempts": 60,
+    "successes": 2,
+    "failed": 58,
+    "resolved_any": true,
+    "rate": 0.03333333333333333,
+    "ci95": [
+      0.009189319256197877,
+      0.113637742743086
+    ],
+    "per_run": {
+      "r00": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r01": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r02": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r03": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r04": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r05": [
+        false,
+        true,
+        false,
+        false,
+        false
+      ],
+      "r06": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r07": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r08": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r09": [
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "r10": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "r11": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  }
+}

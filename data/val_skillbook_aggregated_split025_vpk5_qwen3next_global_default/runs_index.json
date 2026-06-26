@@ -1,0 +1,18 @@
+{
+  "r00": {
+    "run_dir": "run_20260622_072016_failed_qwen3next_global_split025_retk5bm25_default_verified_vpk5",
+    "retrieval": "bm25"
+  },
+  "r01": {
+    "run_dir": "run_20260622_072026_failed_qwen3next_global_split025_retk5_default_verified_vpk5",
+    "retrieval": "llm"
+  },
+  "r02": {
+    "run_dir": "run_20260622_072041_failed_qwen3next_global_split025_retk5random_default_verified_vpk5",
+    "retrieval": "random"
+  },
+  "r03": {
+    "run_dir": "run_20260623_203752_failed_qwen3next_global_split025_retk5emb_default_verified_vpk5",
+    "retrieval": "embedding"
+  }
+}

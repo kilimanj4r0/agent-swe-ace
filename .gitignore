@@ -12,6 +12,17 @@ data/**
 !data/run_*/config.json
 !data/run_*/statistics.json
 
+# Aggregated val analysis runs — track stats/ + runs_index.json only
+# (must re-include each ancestor dir so git descends past data/**)
+!data/val_baseline_aggregated_split025_vpk5_qwen3/
+!data/val_baseline_aggregated_split025_vpk5_qwen3/stats/
+!data/val_baseline_aggregated_split025_vpk5_qwen3/stats/**
+!data/val_baseline_aggregated_split025_vpk5_qwen3/runs_index.json
+!data/val_skillbook_aggregated_split025_vpk5_qwen3next_global_default/
+!data/val_skillbook_aggregated_split025_vpk5_qwen3next_global_default/stats/
+!data/val_skillbook_aggregated_split025_vpk5_qwen3next_global_default/stats/**
+!data/val_skillbook_aggregated_split025_vpk5_qwen3next_global_default/runs_index.json
+
 # Secrets
 .env
 

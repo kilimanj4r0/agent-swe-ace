@@ -1,0 +1,38 @@
+{
+  "r00": {
+    "run_dir": "run_20260605_111658_completed_qwen3_repos_split025_swe_verified_vpk5"
+  },
+  "r01": {
+    "run_dir": "run_20260605_111708_completed_qwen3_repos_split025_default_verified_vpk5"
+  },
+  "r02": {
+    "run_dir": "run_20260605_111718_completed_qwen3_global_split025_swe_verified_vpk5"
+  },
+  "r03": {
+    "run_dir": "run_20260605_111733_completed_qwen3_global_split025_default_verified_vpk5"
+  },
+  "r04": {
+    "run_dir": "run_20260605_190212_completed_qwen3_global_split025_retk5_defalut_verified_vpk5"
+  },
+  "r05": {
+    "run_dir": "run_20260605_190229_completed_qwen3_global_split025_retk5_swe_verified_vpk5"
+  },
+  "r06": {
+    "run_dir": "run_20260608_085351_completed_qwen3_global_split025_retk20_defalut_verified_vpk5"
+  },
+  "r07": {
+    "run_dir": "run_20260608_085407_completed_qwen3_global_split025_retk20_swe_verified_vpk5"
+  },
+  "r08": {
+    "run_dir": "run_20260609_155815_completed_qwen3_repos_split025_retk5_default_verified_vpk5"
+  },
+  "r09": {
+    "run_dir": "run_20260609_155832_completed_qwen3_repos_split025_retk5_swe_verified_vpk5"
+  },
+  "r10": {
+    "run_dir": "run_20260609_155956_completed_qwen3_repos_split025_retk20_default_verified_vpk5"
+  },
+  "r11": {
+    "run_dir": "run_20260609_160011_completed_qwen3_repos_split025_retk20_swe_verified_vpk5"
+  }
+}
