@@ -79,3 +79,39 @@ class TestRetrievalOncePerInstance:
         assert len(used) == 5
         assert all(sb is used[0] for sb in used), "attempts used different skillbooks"
         assert len(used[0].skills()) == 2, "skillbook not narrowed to retrieved subset"
+
+
+class TestWorkerPredictForwardsRetriever:
+    """Regression for the concurrency-gated retrieval no-op (commit b77f430).
+
+    _make_worker_predict() rebuilds a fresh PredictPhase per concurrent worker.
+    It used to omit skill_retriever, so every run with concurrency>1 executed the
+    val/run pass with skill_retriever=None. prepare_skillbook then bailed on its
+    first guard and the FULL skillbook was fed to the agent (instances_retrieved=0).
+    The retriever is designed to be shared across worker threads, so it must be
+    forwarded to each worker.
+    """
+
+    def test_make_worker_predict_forwards_skill_retriever(self, tmp_path):
+        from runners.main_loop import ExperimentLoop
+        from phases.predict import PredictPhase
+
+        retriever = Mock()
+        retriever.skip_threshold = 0
+        agent = Mock()
+
+        predict = PredictPhase(
+            agent=agent, output_dir=tmp_path, run_name="t",
+            benchmark="princeton-nlp__SWE-bench_Verified", skill_retriever=retriever,
+        )
+        loop = ExperimentLoop(
+            predict_phase=predict, evaluate_phase=Mock(), learn_phase=Mock(),
+            output_dir=tmp_path, run_name="t", max_attempts=1,
+            agent_factory=lambda: Mock(),
+        )
+
+        worker = loop._make_worker_predict()
+        assert worker.skill_retriever is retriever, (
+            "_make_worker_predict dropped skill_retriever -> concurrent (concurrency>1) "
+            "runs silently skip retrieval and feed the full skillbook"
+        )

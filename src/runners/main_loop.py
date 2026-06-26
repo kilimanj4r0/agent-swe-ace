@@ -167,6 +167,11 @@ class ExperimentLoop:
             run_name=self.predict.run_name,
             benchmark=self.predict.benchmark,
             model_name=self.predict.model_name,
+            # Forward the shared retriever. Retrievers are designed to be shared
+            # across worker threads (BM25/embedding guard state with locks). Omitting
+            # it made every concurrency>1 run silently skip retrieval, feeding the
+            # full skillbook (instances_retrieved=0). Regression from b77f430.
+            skill_retriever=self.predict.skill_retriever,
         )
 
     def _get_resume_start(self, instance_id: str) -> int:

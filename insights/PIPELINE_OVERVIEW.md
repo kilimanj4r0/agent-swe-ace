@@ -680,6 +680,12 @@ rather than re-retrieving per attempt (which would also re-randomize the random
 retriever each time). In single-phase per_instance mode there is no pre-retrieve, so
 retrieval runs per predict call (the skillbook grows across iterations).
 
+> **Concurrency:** the shared retriever is forwarded to every concurrent worker's
+> rebuilt `PredictPhase` (`_make_worker_predict()` in `main_loop.py`). A regression
+> once omitted this, so any run with `concurrency > 1` silently fed the *full*
+> skillbook (`instances_retrieved=0`) — now fixed. The retriever is designed to be
+> shared across threads (BM25/embedding guard their state with locks, §14).
+
 ### Retriever Types
 
 Built by `_build_skill_retriever()` in `commands.py`, dispatched on `retrieval.type`:
