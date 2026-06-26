@@ -162,6 +162,7 @@ Instance → [Retrieve top-k skills] → Agent reads issue + narrowed skillbook 
 | **Validation-only** | `skillbook_source_dir` | skipped | empty SB | preloaded SB | loaded from disk |
 | **Distillation** | `train_trajs_dir` | learn from teacher | empty SB | distilled SB | per_repo or global |
 | **Skip-learn** | `skip_learn: true` | all instances | — | — | none (no skillbooks) |
+| **Learn-replay** | `--phase learn --replay-run-dir` | re-learn saved trajs | — | — | per_repo (regen. + `sources`) |
 
 ### Mode 1: Single-Phase (default)
 
@@ -245,6 +246,29 @@ Instances → [Predict → Evaluate] × max_attempts → statistics.json
              (no learning, no skillbooks)
 ```
 
+### Mode 7: Learn-Replay (`--phase learn --replay-run-dir <run>`)
+
+```
+source run's saved train artifacts (results/train + trajectories/train)
+        │
+        │  for each repo (sequential or parallel via --replay-concurrency):
+        │    reload each train instance's iter_0 trajectory+result
+        │    re-run LEARN (Reflector → SkillManager → dedup) over it
+        │    post-train dedup sweep (mirrors the full two-phase run)
+        ▼
+regenerated per_repo/<repo>/final_skillbook.json — now carrying `sources`
+```
+
+- Re-derives skills from a prior run's saved train artifacts — **no predict, no eval, no Docker**.
+- **Purpose:** back-fill `sources` provenance on older per-repo skillbooks written
+  before the unified serializer (they dropped `sources` on disk, §9).
+- ⚠️ Skills are re-derived, so LLM nondeterminism means skill *identities* are NOT
+  reproduced — only the provenance shape. Not a faithful re-run of training.
+- Output: new `run_<ts>_learnreplay/` by default; `--in-place` overwrites the source
+  run's `per_repo/` (originals backed up to `per_repo.orig/`).
+- Settings: `--replay-run-dir / --replay-repos / --replay-concurrency / --in-place`,
+  or `experiment.learn_replay.{run_dir, repos, concurrency, in_place}` (CLI > config).
+
 ---
 
 ## 4. Orchestration Dispatch Tree
@@ -255,6 +279,8 @@ main()  [src/cli/commands.py]
   ├── --phase predict  → run_predict_cmd()
   ├── --phase evaluate → run_evaluate_cmd()
   ├── --phase learn    → run_learn_cmd()
+  │     ├── --replay-run-dir → run_learn_replay_cmd()   # re-learn saved trajs (Mode 7)
+  │     └── --instance + --trajectory → single-instance learn
   │
   └── --phase all (default) → run_full_experiment()
         │

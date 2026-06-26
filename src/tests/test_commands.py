@@ -2,6 +2,7 @@
 
 import json
 import sys
+import types
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -410,3 +411,59 @@ class TestPersistPerRepoSkillbook:
         data = json.loads(out_path.read_text())
         assert data["skill_count"] == 3
         assert all("sources" in s for s in data["skills"].values())
+
+
+# ---------------------------------------------------------------------------
+# _resolve_learn_replay_settings (CLI > config priority)
+# ---------------------------------------------------------------------------
+
+
+class TestResolveLearnReplaySettings:
+    """Learn-replay settings resolve with CLI > config priority."""
+
+    def _args(self, **kw):
+        defaults = {
+            "replay_run_dir": None,
+            "replay_repos": None,
+            "replay_concurrency": None,
+            "in_place": False,
+        }
+        defaults.update(kw)
+        return types.SimpleNamespace(**defaults)
+
+    def test_no_request_returns_none_run_dir(self):
+        from cli.commands import _resolve_learn_replay_settings
+        lr = _resolve_learn_replay_settings({}, self._args())
+        assert lr["run_dir"] is None
+        assert lr["concurrency"] == 1
+        assert lr["in_place"] is False
+
+    def test_cli_overrides_config(self):
+        from cli.commands import _resolve_learn_replay_settings
+        config = {"experiment": {"learn_replay": {
+            "run_dir": "data/cfg_run",
+            "concurrency": 4,
+            "in_place": True,
+            "repos": ["a/b"],
+        }}}
+        lr = _resolve_learn_replay_settings(
+            config, self._args(replay_run_dir="data/cli_run", replay_concurrency=2)
+        )
+        assert lr["run_dir"] == "data/cli_run"   # CLI wins
+        assert lr["concurrency"] == 2             # CLI wins
+        assert lr["in_place"] is True             # config (CLI flag not set)
+        assert lr["repos"] == ["a/b"]             # config (CLI not set)
+
+    def test_config_only(self):
+        from cli.commands import _resolve_learn_replay_settings
+        config = {"experiment": {"learn_replay": {"run_dir": "data/cfg_run", "concurrency": 8}}}
+        lr = _resolve_learn_replay_settings(config, self._args())
+        assert lr["run_dir"] == "data/cfg_run"
+        assert lr["concurrency"] == 8
+        assert lr["in_place"] is False
+        assert lr["repos"] is None
+
+    def test_concurrency_defaults_to_one(self):
+        from cli.commands import _resolve_learn_replay_settings
+        lr = _resolve_learn_replay_settings({}, self._args(replay_run_dir="x"))
+        assert lr["concurrency"] == 1

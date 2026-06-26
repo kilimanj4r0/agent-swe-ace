@@ -387,6 +387,32 @@ def main():
         action="store_true",
         help="Show execution plan without running anything (no LLM calls, no Docker, no files written)",
     )
+    parser.add_argument(
+        "--replay-run-dir",
+        type=Path,
+        help="Learn-replay mode (use with --phase learn): re-learn a source run's "
+        "saved train trajectories to regenerate per-repo skillbooks with `sources`. "
+        "Replaces --instance/--trajectory. Skills are re-derived (nondeterministic).",
+    )
+    parser.add_argument(
+        "--replay-repos",
+        nargs="+",
+        help="Learn-replay: subset of repos to replay (default: all iterate_repos "
+        "from the source run's config).",
+    )
+    parser.add_argument(
+        "--replay-concurrency",
+        type=int,
+        default=None,
+        help="Learn-replay: number of repos to replay in parallel (default 1). "
+        "CLI overrides experiment.learn_replay.concurrency.",
+    )
+    parser.add_argument(
+        "--in-place",
+        action="store_true",
+        help="Learn-replay: write regenerated per-repo skillbooks into the source "
+        "run dir (originals backed up to per_repo.orig/). Default writes a new dir.",
+    )
 
     args = parser.parse_args()
 
@@ -455,6 +481,44 @@ def _make_agent_factory(config: dict, agent_config: LLMConfig, output_dir: Path)
     return factory
 
 
+def _build_ace_components(config: dict):
+    """Build the ACE Reflector + SkillManager from the config's ace llm section.
+
+    Centralises the custom_swe_learn branching (SWE-optimized vs default ACE) so
+    run_learn_cmd and the learn-replay path stay in sync.
+
+    Returns:
+        (reflector, skill_manager)
+    """
+    ace_config = LLMConfig.from_dict(config["llm"]["ace"])
+    ace_client = create_ace_client(ace_config.to_dict())
+    ace_settings = create_model_settings(ace_config.to_dict())
+
+    from ace import SkillManager, Reflector as DefaultReflector
+    from pydantic_ai.settings import ModelSettings
+
+    custom_swe_learn = config.get("experiment", {}).get("skillbook", {}).get("custom_swe_learn", False)
+    if custom_swe_learn:
+        from prompts import SWEReflector, SWESkillManager
+        reflector = SWEReflector(ace_client, api_base=ace_config.api_base, api_key=ace_config.api_key, model_settings=ace_settings)
+        skill_manager = SWESkillManager(ace_client, api_base=ace_config.api_base, api_key=ace_config.api_key, model_settings=ace_settings)
+        logger.info("Using SWE-optimized Reflector and SkillManager")
+    else:
+        # For any provider with api_base, set OPENAI_BASE_URL/OPENAI_API_KEY and
+        # prefix model with "openai:" so PydanticAI routes through OpenAIProvider.
+        if ace_config.api_base:
+            os.environ["OPENAI_BASE_URL"] = ace_config.api_base
+            os.environ["OPENAI_API_KEY"] = ace_config.api_key
+            os.environ["OPENAI_MAX_RETRIES"] = os.getenv("ACE_LEARN_MAX_RETRIES", "50")
+            default_model = f"openai:{ace_config.model}"
+        else:
+            default_model = ace_client
+        ace_model_settings = ModelSettings(**ace_settings)
+        reflector = DefaultReflector(default_model, model_settings=ace_model_settings)
+        skill_manager = SkillManager(default_model, model_settings=ace_model_settings)
+        logger.info("Using default ACE Reflector")
+
+    return reflector, skill_manager
 
 
 def _persist_per_repo_skillbook(skillbook, out_dir: Path, benchmark: str, repo: str) -> Path:
@@ -471,6 +535,38 @@ def _persist_per_repo_skillbook(skillbook, out_dir: Path, benchmark: str, repo: 
     with open(out_path, "w") as f:
         json.dump({"skill_count": len(skills), "skills": skills}, f, indent=2)
     return out_path
+
+
+def _resolve_learn_replay_settings(config: dict, args) -> dict:
+    """Resolve learn-replay settings with CLI > config priority.
+
+    Config home: ``experiment.learn_replay.{run_dir, repos, concurrency, in_place}``.
+    A CLI flag wins when set; otherwise the config value (config.yaml or a
+    ``--config`` override file) is used.
+
+    Returns:
+        dict with run_dir (None if replay not requested), repos, concurrency, in_place.
+    """
+    cfg_lr = (config.get("experiment", {}) or {}).get("learn_replay", {}) or {}
+
+    run_dir = str(args.replay_run_dir) if getattr(args, "replay_run_dir", None) else cfg_lr.get("run_dir")
+    repos = list(args.replay_repos) if getattr(args, "replay_repos", None) else cfg_lr.get("repos")
+
+    if getattr(args, "replay_concurrency", None) is not None:
+        concurrency = args.replay_concurrency
+    else:
+        concurrency = cfg_lr.get("concurrency", 1)
+
+    in_place = bool(args.in_place) if getattr(args, "in_place", None) else bool(cfg_lr.get("in_place", False))
+
+    return {
+        "run_dir": run_dir,
+        "repos": repos,
+        "concurrency": max(1, int(concurrency or 1)),
+        "in_place": in_place,
+    }
+
+
 def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
     """Print execution plan without running anything."""
     benchmark = config["benchmark"]["dataset"].replace("/", "__")
@@ -1719,7 +1815,17 @@ def run_evaluate_cmd(config: dict, args):
 
 
 def run_learn_cmd(config: dict, args):
-    """Run learn phase only."""
+    """Run learn phase only.
+
+    Two modes:
+      - Replay (--replay-run-dir): re-learn a source run's saved train
+        trajectories to regenerate per-repo skillbooks with `sources`.
+      - Single-instance (--instance + --trajectory): learn on one instance.
+    """
+    lr = _resolve_learn_replay_settings(config, args)
+    if lr["run_dir"]:
+        return run_learn_replay_cmd(config, args, lr)
+
     if not args.instance or not args.trajectory:
         logger.error("--instance and --trajectory required for learn phase")
         sys.exit(1)
@@ -1745,35 +1851,9 @@ def run_learn_cmd(config: dict, args):
     # Load trajectory
     trajectory = load_trajectory(args.trajectory)
 
-    # Create ACE client
-    ace_config = LLMConfig.from_dict(config["llm"]["ace"])
-    ace_client = create_ace_client(ace_config.to_dict())
-    ace_settings = create_model_settings(ace_config.to_dict())
-
-    from ace import SkillManager, Skillbook, Reflector as DefaultReflector
-    from pydantic_ai.settings import ModelSettings
-
-    # Check config for custom SWE learning (reflector + skill manager)
-    custom_swe_learn = config.get("experiment", {}).get("skillbook", {}).get("custom_swe_learn", False)
-    if custom_swe_learn:
-        from prompts import SWEReflector, SWESkillManager
-        reflector = SWEReflector(ace_client, api_base=ace_config.api_base, api_key=ace_config.api_key, model_settings=ace_settings)
-        skill_manager = SWESkillManager(ace_client, api_base=ace_config.api_base, api_key=ace_config.api_key, model_settings=ace_settings)
-        logger.info("Using SWE-optimized Reflector and SkillManager")
-    else:
-        # Same as run_full_experiment: use "openai:" prefix for any provider
-        # with api_base so PydanticAI uses OpenAIProvider (reads env vars).
-        if ace_config.api_base:
-            os.environ["OPENAI_BASE_URL"] = ace_config.api_base
-            os.environ["OPENAI_API_KEY"] = ace_config.api_key
-            os.environ["OPENAI_MAX_RETRIES"] = os.getenv("ACE_LEARN_MAX_RETRIES", "50")
-            default_model = f"openai:{ace_config.model}"
-        else:
-            default_model = ace_client
-        ace_model_settings = ModelSettings(**ace_settings)
-        reflector = DefaultReflector(default_model, model_settings=ace_model_settings)
-        skill_manager = SkillManager(default_model, model_settings=ace_model_settings)
-        logger.info("Using default ACE Reflector")
+    # Create ACE components (reflector + skill manager)
+    from ace import Skillbook
+    reflector, skill_manager = _build_ace_components(config)
 
     # Run learn
     benchmark = config["benchmark"]["dataset"].replace("/", "__")
@@ -1798,6 +1878,253 @@ def run_learn_cmd(config: dict, args):
     print(f"  Skills added: {result.skills_added}")
     print(f"  Skills updated: {result.skills_updated}")
     print(f"  Skillbook: {result.skillbook_path}")
+
+
+def run_learn_replay_cmd(config: dict, args, lr: dict):
+    """Replay the Learn phase over a source run's saved train trajectories.
+
+    For each repo, re-learn every train instance's saved trajectory+result to
+    rebuild a per-repo skillbook carrying real instance-level ``sources``
+    provenance. Skills are re-derived (the LLM is nondeterministic), so this
+    does NOT reproduce the original skill identities — only their provenance
+    shape. Triggered by ``--phase learn`` with ``--replay-run-dir`` or
+    ``experiment.learn_replay.run_dir`` in config. ``lr`` holds the resolved
+    (CLI > config) replay settings from _resolve_learn_replay_settings.
+    """
+    import copy
+    import shutil
+
+    src = Path(lr["run_dir"])
+    if not src.exists():
+        logger.error(f"--replay-run-dir not found: {src}")
+        sys.exit(1)
+
+    src_config_path = src / "config.json"
+    if not src_config_path.exists():
+        logger.error(f"Source run has no config.json: {src_config_path}")
+        sys.exit(1)
+    with open(src_config_path) as f:
+        src_cfg = json.load(f)
+
+    # Targeted overlay: inherit ONLY what's needed to faithfully re-learn.
+    src_bench = src_cfg.get("benchmark", {})
+    src_exp = src_cfg.get("experiment", {})
+    src_llm = src_cfg.get("llm", {})
+    overlay = {}
+    bench_overlay = {
+        k: src_bench[k] for k in ("dataset", "split", "exclude_instances", "iterate_repos")
+        if k in src_bench
+    }
+    if bench_overlay:
+        overlay["benchmark"] = bench_overlay
+    if src_exp.get("skillbook"):
+        overlay["experiment"] = {"skillbook": src_exp["skillbook"]}
+    if src_llm.get("ace"):
+        overlay["llm"] = {"ace": src_llm["ace"]}
+    config = deep_merge(config, overlay)
+    # Deny-list: never let the source run trigger baseline reuse / val-only /
+    # distillation / resume during a pure learn replay.
+    for bad in ("baseline_run_dir", "skillbook_source_dir", "resume_dirs", "train_trajs_dir"):
+        config.get("experiment", {}).pop(bad, None)
+
+    benchmark = config["benchmark"]["dataset"].replace("/", "__")
+    dedup_cfg = config.get("experiment", {}).get("skillbook", {}).get("deduplication")
+
+    # Output dir (new run dir by default; --in-place writes into the source run)
+    if lr["in_place"]:
+        out_dir = src
+    else:
+        base_dir = Path(config.get("output", {}).get("dir", "data"))
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        out_dir = base_dir / f"run_{ts}_learnreplay"
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Back up originals before overwriting in place
+    if lr["in_place"]:
+        per_repo_dir = src / benchmark / "skillbooks" / "per_repo"
+        backup_dir = src / benchmark / "skillbooks" / "per_repo.orig"
+        if per_repo_dir.exists() and not backup_dir.exists():
+            shutil.copytree(per_repo_dir, backup_dir)
+            logger.info(f"Backed up existing per-repo skillbooks to {backup_dir}")
+
+    # Discover repos
+    repos = lr["repos"] or config["benchmark"].get("iterate_repos")
+    if not repos:
+        logger.error("No repos to replay (set benchmark.iterate_repos or --replay-repos)")
+        sys.exit(1)
+    repos = list(repos)
+
+    # Load dataset -> instance map (repo / problem_statement / test lists)
+    logger.info("Loading dataset for instance metadata...")
+    instances = _get_instances_no_filter(config)
+    inst_map = {i["instance_id"]: i for i in instances}
+
+    # Resolve train instances per repo from results/train/ (post-exclusion truth)
+    results_train_dir = src / benchmark / "results" / "train"
+    trajs_train_dir = src / benchmark / "trajectories" / "train"
+    repo_train: dict = {repo: [] for repo in repos}
+    if results_train_dir.exists():
+        for inst_dir in sorted(results_train_dir.iterdir()):
+            rp = inst_dir / "iter_0.json"
+            if not rp.exists():
+                continue
+            try:
+                with open(rp) as f:
+                    res = json.load(f)
+            except Exception:
+                continue
+            iid = res.get("instance_id") or inst_dir.name
+            inst = inst_map.get(iid)
+            if not inst:
+                continue
+            repo = inst.get("repo")
+            if repo in repo_train:
+                repo_train[repo].append((res.get("timestamp", ""), iid, res))
+    else:
+        logger.warning(f"No results/train/ in {src}; cannot resolve train instances")
+
+    # Sort each repo by (timestamp, instance_id) to recover processing order
+    for repo in repo_train:
+        repo_train[repo].sort(key=lambda x: (x[0], x[1]))
+
+    # DRY-RUN
+    if args.dry_run:
+        print("\n=== DRY RUN: learn-replay ===")
+        print(f"  Source run:   {src}")
+        print(f"  Benchmark:    {config['benchmark']['dataset']}")
+        print(f"  Custom SWE:   {config.get('experiment', {}).get('skillbook', {}).get('custom_swe_learn', False)}")
+        print(f"  Dedup:        {'enabled' if dedup_cfg else 'disabled'}")
+        print(f"  Output:       {out_dir}{'  (in-place)' if lr['in_place'] else ''}")
+        print(f"  Concurrency:  {lr['concurrency']}")
+        print(f"\n  Repos ({len(repos)}):")
+        for repo in repos:
+            n = len(repo_train.get(repo, []))
+            missing = sum(
+                1 for _, iid, _ in repo_train.get(repo, [])
+                if not (trajs_train_dir / iid / "iter_0.json").exists()
+            )
+            extra = f"  ({missing} missing trajectory)" if missing else ""
+            print(f"    {repo}: {n} train instances{extra}")
+        print("\n=== END DRY RUN ===")
+        return
+
+    # Build ACE components
+    reflector, skill_manager = _build_ace_components(config)
+
+    # Throwaway dir for learn.run's internal per-iteration snapshots
+    scratch_dir = out_dir / "_learn_scratch"
+    scratch_dir.mkdir(parents=True, exist_ok=True)
+
+    from ace import Skillbook
+    from runners.main_loop import _build_ground_truth
+
+    def _replay_one_repo(repo):
+        train = repo_train.get(repo, [])
+        if not train:
+            logger.warning(f"[{repo}] no train results found, skipping")
+            return repo, {"train_instances": 0, "skill_count": 0, "sources_populated": 0}
+
+        sb = Skillbook()
+        # deepcopy dedup_config: LearnPhase.__init__ pops embedding_device, which
+        # would mutate a shared dict under concurrency. Per-repo scratch subdir
+        # avoids concurrent snapshot writes to the same iter_N.json path.
+        learn_phase = LearnPhase(
+            reflector=reflector,
+            skill_manager=skill_manager,
+            output_dir=scratch_dir / repo.replace("/", "__"),
+            run_name="replay",
+            benchmark=benchmark,
+            skillbook_mode="per_repo",
+            dedup_config=copy.deepcopy(dedup_cfg) if dedup_cfg else None,
+        )
+
+        processed = 0
+        for _ts, iid, res in train:
+            traj_path = trajs_train_dir / iid / "iter_0.json"
+            if not traj_path.exists():
+                logger.warning(f"[{repo}] missing trajectory for {iid}, skipping")
+                continue
+            traj = load_trajectory(traj_path)
+            inst = inst_map[iid]
+            try:
+                learn_phase.run(
+                    skillbook=sb,
+                    instance=inst,
+                    trajectory=traj,
+                    patch="",
+                    iteration=0,
+                    feedback=res.get("feedback"),
+                    ground_truth=_build_ground_truth(inst),
+                    phase="train",
+                    resolved=bool(res.get("resolved")),
+                )
+                processed += 1
+            except Exception as e:
+                logger.error(f"[{repo}] learn failed for {iid}: {e}")
+
+        # Post-train dedup sweep — mirrors the full two-phase run
+        # (main_loop.py:798-803) so consolidation matches the original runs.
+        if learn_phase.dedup_manager is not None:
+            dedup_ops = learn_phase._consolidate(sb)
+            if isinstance(dedup_ops, int) and dedup_ops > 0:
+                logger.info(f"[{repo}] post-train dedup: {dedup_ops} ops, "
+                            f"{len(sb.skills())} skills remain")
+
+        out_path = _persist_per_repo_skillbook(sb, out_dir, benchmark, repo)
+        skills = sb.skills()
+        populated = sum(1 for s in skills if getattr(s, "sources", None))
+        logger.info(
+            f"[{repo}] replayed {processed}/{len(train)} instances -> "
+            f"{len(skills)} skills ({populated} with sources) -> {out_path}"
+        )
+        return repo, {
+            "train_instances": len(train),
+            "processed": processed,
+            "skill_count": len(skills),
+            "sources_populated": populated,
+        }
+
+    concurrency = max(1, int(lr["concurrency"] or 1))
+    results: dict = {}
+    if concurrency > 1 and len(repos) > 1:
+        workers = min(concurrency, len(repos))
+        logger.info(f"Replaying {len(repos)} repos in parallel (workers={workers})")
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = {executor.submit(_replay_one_repo, repo): repo for repo in repos}
+            for fut in as_completed(futures):
+                repo = futures[fut]
+                try:
+                    rname, stats = fut.result()
+                    results[rname] = stats
+                except Exception as e:
+                    logger.error(f"[{repo}] replay failed: {e}")
+                    results[repo] = {"error": str(e)}
+    else:
+        for i, repo in enumerate(repos, 1):
+            logger.info(f"\n{'='*60}\nReplay {i}/{len(repos)}: {repo}\n{'='*60}")
+            rname, stats = _replay_one_repo(repo)
+            results[rname] = stats
+
+    # Summary
+    print("\n=== learn-replay complete ===")
+    print(f"{'Repo':<32} {'train':>6} {'skills':>7} {'w/src':>7} {'%src':>6}")
+    print("-" * 62)
+    tot_skills = tot_src = 0
+    for repo in repos:
+        s = results.get(repo, {})
+        n = s.get("skill_count", 0)
+        p = s.get("sources_populated", 0)
+        tot_skills += n
+        tot_src += p
+        pct = f"{p / n * 100:.0f}%" if n else "-"
+        print(f"{repo:<32} {s.get('train_instances', 0):>6} {n:>7} {p:>7} {pct:>6}")
+    pct_all = f"{tot_src / tot_skills * 100:.0f}%" if tot_skills else "-"
+    print("-" * 62)
+    print(f"{'TOTAL':<32} {'':>6} {tot_skills:>7} {tot_src:>7} {pct_all:>6}")
+    print(f"\nOutput: {out_dir}")
+    if not lr["in_place"]:
+        print("Review the regenerated skillbooks, then re-run with --in-place to "
+              "replace the source run's per_repo/ files (originals backed up to per_repo.orig/).")
 
 
 if __name__ == "__main__":
