@@ -140,10 +140,34 @@ def _detect_retrieval(config: dict) -> dict:
     if ret.get("enabled", False):
         return {
             "enabled": True,
+            "type": ret.get("type", "llm"),  # llm | bm25 | embedding | random
             "top_k": ret.get("top_k", 5),
             "skip_threshold": ret.get("skip_threshold", 10),
         }
     return {"enabled": False}
+
+
+def _retrieval_type(run: dict) -> str:
+    """Retrieval type label: 'bm25', 'llm', 'embedding', 'random', or 'off'.
+
+    Used as a grouping/stratification key in aggregated tables — type only,
+    no top_k (top_k is constant within a comparison).
+    """
+    retrieval = run.get("retrieval", {})
+    if not retrieval.get("enabled", False):
+        return "off"
+    return retrieval.get("type", "llm")
+
+
+def _retrieval_label(run: dict) -> str:
+    """Retrieval column label: '{type} k={top_k}' when retrieval ran, else 'off'.
+
+    Compact per-run label shown in tables (type + how many skills were presented).
+    """
+    retrieval = run.get("retrieval", {})
+    if not retrieval.get("enabled", False):
+        return "off"
+    return f"{retrieval.get('type', 'llm')} k={retrieval.get('top_k', 5)}"
 
 
 def _extract_skills(sb: dict) -> list[dict]:
@@ -290,6 +314,56 @@ def load_trajectories(run_dir: Path) -> dict[str, dict[int, dict]]:
                         result[name] = result[prefixed]
     else:
         for inst_dir in sorted(d for d in traj_dir.iterdir() if d.is_dir()):
+            iters = _load_inst_dir(inst_dir)
+            if iters:
+                result[inst_dir.name] = iters
+    return result
+
+
+def load_results(run_dir: Path) -> dict[str, dict[int, bool]]:
+    """Load evaluation results. Returns {instance_id: {iter_N: resolved_bool}}.
+
+    Same phase keying as load_trajectories: unprefixed keys point to val first,
+    then val_baseline, then train — so they line up with trajectory keys.
+    """
+    bench_dir = _find_benchmark_dir(run_dir)
+    if bench_dir is None:
+        return {}
+    res_dir = bench_dir / "results"
+    if not res_dir.exists():
+        return {}
+
+    known_phases = {"train", "val_baseline", "val"}
+
+    def _load_inst_dir(inst_dir: Path) -> dict[int, bool] | None:
+        iters = {}
+        for f in sorted(inst_dir.glob("iter_*.json")):
+            r = _load_json(f)
+            if r is not None:
+                it_num = int(re.search(r"iter_(\d+)", f.name).group(1))
+                iters[it_num] = bool(r.get("resolved", False))
+        return iters if iters else None
+
+    result: dict[str, dict[int, bool]] = {}
+    phase_dirs = sorted(d for d in res_dir.iterdir() if d.is_dir() and d.name in known_phases)
+    if phase_dirs:
+        for pd in phase_dirs:
+            for inst_dir in sorted(d for d in pd.iterdir() if d.is_dir()):
+                iters = _load_inst_dir(inst_dir)
+                if iters:
+                    result[f"{pd.name}/{inst_dir.name}"] = iters
+        for phase_name in ["val", "val_baseline", "train"]:
+            phase_dir = res_dir / phase_name
+            if not phase_dir.exists():
+                continue
+            for inst_dir in phase_dir.iterdir():
+                if not inst_dir.is_dir():
+                    continue
+                name = inst_dir.name
+                if name not in result and f"{phase_name}/{name}" in result:
+                    result[name] = result[f"{phase_name}/{name}"]
+    else:
+        for inst_dir in sorted(d for d in res_dir.iterdir() if d.is_dir()):
             iters = _load_inst_dir(inst_dir)
             if iters:
                 result[inst_dir.name] = iters
@@ -731,6 +805,7 @@ def _compute_presented_skill_refs(run: dict) -> dict:
     cite_traj_iters = 0
     dump_traj_iters = 0
     dump_locations = []
+    traj_records = []
 
     for inst_id, iters in trajectories.items():
         for it, traj in iters.items():
@@ -744,6 +819,7 @@ def _compute_presented_skill_refs(run: dict) -> dict:
 
             presented_ids = [s["id"] for s in presented]
             explicit, dumped, dump_msgs = _find_explicit_refs(assistant_msgs, presented_ids)
+            traj_records.append((inst_id, it, bool(explicit)))
             if explicit:
                 cite_traj_iters += 1
             if dumped:
@@ -771,6 +847,7 @@ def _compute_presented_skill_refs(run: dict) -> dict:
     result = {
         "skill_refs": skill_refs,
         "dump_locations": dump_locations,
+        "traj_records": traj_records,
         "summary": {
             "total_skill_presentations": total_presentations,
             "explicit_refs": total_explicit,
@@ -794,6 +871,7 @@ def _compute_refs_per_instance(run: dict, trajectories: dict) -> dict:
     per_inst = run["per_instance_sbs"]
     skill_refs = {}  # skill_id -> {"explicit": int, "dumped": int, "specificity": str}
     dump_locations = []
+    traj_records = []
 
     total_skills = 0
     total_explicit = 0
@@ -820,6 +898,7 @@ def _compute_refs_per_instance(run: dict, trajectories: dict) -> dict:
             assistant_msgs = _extract_assistant_messages(trajs[it])
 
             explicit, dumped, dump_msgs = _find_explicit_refs(assistant_msgs, skill_ids)
+            traj_records.append((inst_id, it, bool(explicit)))
             for dm in dump_msgs:
                 dump_locations.append({**dm, "instance": inst_id, "iter": it})
 
@@ -844,6 +923,7 @@ def _compute_refs_per_instance(run: dict, trajectories: dict) -> dict:
     return {
         "skill_refs": skill_refs,
         "dump_locations": dump_locations,
+        "traj_records": traj_records,
         "summary": {
             "total_skill_presentations": total_skills,
             "explicit_refs": total_explicit,
@@ -864,6 +944,7 @@ def _compute_refs_for_skillbook(skills: list[dict], trajectories: dict, traj_pha
     """
     skill_refs = {}
     dump_locations = []
+    traj_records = []
 
     total_skills_seen = 0
     total_explicit = 0
@@ -884,6 +965,7 @@ def _compute_refs_for_skillbook(skills: list[dict], trajectories: dict, traj_pha
                 continue
 
             explicit, dumped, dump_msgs = _find_explicit_refs(assistant_msgs, skill_ids)
+            traj_records.append((inst_id, it, bool(explicit)))
             for dm in dump_msgs:
                 dump_locations.append({**dm, "instance": inst_id, "iter": it})
 
@@ -912,6 +994,7 @@ def _compute_refs_for_skillbook(skills: list[dict], trajectories: dict, traj_pha
     return {
         "skill_refs": skill_refs,
         "dump_locations": dump_locations,
+        "traj_records": traj_records,
         "summary": {
             "total_skill_presentations": total_skills_seen,
             "explicit_refs": total_explicit,
@@ -932,6 +1015,7 @@ def _compute_refs_per_repo(run: dict, trajectories: dict) -> dict:
 
     combined_refs = {}
     combined_dumps = []
+    combined_records = []
     combined_summary = {
         "total_skill_presentations": 0,
         "explicit_refs": 0,
@@ -954,10 +1038,12 @@ def _compute_refs_per_repo(run: dict, trajectories: dict) -> dict:
         result = _compute_refs_for_skillbook(skills, repo_trajs)
         combined_refs.update(result["skill_refs"])
         combined_dumps.extend(result.get("dump_locations", []))
+        combined_records.extend(result.get("traj_records", []))
         for k in combined_summary:
             combined_summary[k] += result["summary"].get(k, 0)
 
-    return {"skill_refs": combined_refs, "dump_locations": combined_dumps, "summary": combined_summary}
+    return {"skill_refs": combined_refs, "dump_locations": combined_dumps,
+            "traj_records": combined_records, "summary": combined_summary}
 
 
 def _compute_refs_global(run: dict, trajectories: dict) -> dict:
@@ -1118,7 +1204,7 @@ def print_summary_tables(runs: list[dict]):
     if pi_runs:
         print("=== Per-instance skillbooks: summary ===")
         print()
-        headers = ["Run", "LLM", "Learn", "Split", "Iters", "Res Rate", "SBs", "Skills/SB", "Tokens/SB", "Ctx%", "Skill tok"]
+        headers = ["Run", "LLM", "Learn", "Retrieval", "Split", "Iters", "Res Rate", "SBs", "Skills/SB", "Tokens/SB", "Ctx%", "Skill tok"]
         rows = []
         for r in pi_runs:
             final_sbs = _get_final_skillbooks_per_instance(r)
@@ -1129,6 +1215,7 @@ def print_summary_tables(runs: list[dict]):
                 "Run": _short_run(r["run_name"]),
                 "LLM": r["llm_short"],
                 "Learn": r["learn_mode"],
+                "Retrieval": _retrieval_label(r),
                 "Split": f"{r['val_ratio']:.2f}" if r["val_ratio"] else "-",
                 "Iters": str(r["max_attempts"]),
                 "Res Rate": f"{r['resolution_rate']*100:.1f}%",
@@ -1169,7 +1256,7 @@ def print_summary_tables(runs: list[dict]):
     if pr_runs or gl_runs:
         print("=== Per-repo / global skillbooks: summary ===")
         print()
-        headers = ["Run", "LLM", "Learn", "Split", "Res Rate", "Mode", "SBs", "Skills/SB", "Tokens/SB", "Ctx%", "Skill tok"]
+        headers = ["Run", "LLM", "Learn", "Retrieval", "Split", "Res Rate", "Mode", "SBs", "Skills/SB", "Tokens/SB", "Ctx%", "Skill tok"]
         rows = []
         for r in pr_runs + gl_runs:
             if r["sb_mode"] == "per_repo":
@@ -1191,6 +1278,7 @@ def print_summary_tables(runs: list[dict]):
                 "Run": _short_run(r["run_name"]),
                 "LLM": r["llm_short"],
                 "Learn": r["learn_mode"],
+                "Retrieval": _retrieval_label(r),
                 "Split": f"{r['val_ratio']:.2f}" if r["val_ratio"] else "-",
                 "Res Rate": f"{r['resolution_rate']*100:.1f}%",
                 "Mode": r["sb_mode"],
@@ -1259,7 +1347,8 @@ def print_growth_chart(runs: list[dict], run_filter: list[str] | None = None):
         chart_height = 15
         chart_width = max(50, len(iterations) * 8)
 
-        print(f"  {_short_run(r['run_name'], 50)} [{r['learn_mode']}]")
+        ret_tag = f" [{_retrieval_label(r)}]" if r.get("retrieval", {}).get("enabled") else ""
+        print(f"  {_short_run(r['run_name'], 50)} [{r['learn_mode']}]{ret_tag}")
         print()
 
         for row in range(chart_height, 0, -1):
@@ -1300,13 +1389,15 @@ def print_growth_chart(runs: list[dict], run_filter: list[str] | None = None):
 
 
 def print_reference_table(runs: list[dict]):
-    """Output 3: Reference rate in cross-tab of learn_mode × specificity."""
-    print("=== Reference rate by learn mode × skill type ===")
+    """Output 3: Reference rate in cross-tab of learn_mode × retrieval × specificity."""
+    print("=== Reference rate by learn mode × retrieval × skill type ===")
     print("  (Retrieval runs: stats based on top_k skills actually presented, not full skillbook)")
     print("  (Cited = explicit selective citation; Dumped counted separately and NOT included in Cited)")
     print()
 
-    # Aggregate across all runs, grouped by learn_mode
+    # Aggregate across all runs, grouped by (learn_mode, retrieval_type). Retrieval
+    # type is a visible dimension here because it changes the citation denominator
+    # (top_k presented vs the full skillbook), so mixing types in one bucket is muddy.
     # For each run, compute references and classify skills
     agg = defaultdict(lambda: {
         "general_total": 0, "specific_total": 0,
@@ -1320,7 +1411,8 @@ def print_reference_table(runs: list[dict]):
         ref_data = _compute_presented_skill_refs(r) if ret_enabled else compute_references(r)
         skill_refs = ref_data.get("skill_refs", {})
         learn = r["learn_mode"]
-        a = agg[learn]
+        rtype = _retrieval_type(r)
+        a = agg[(learn, rtype)]
 
         for sid, ref_info in skill_refs.items():
             spec = ref_info.get("specificity", "general")
@@ -1342,8 +1434,8 @@ def print_reference_table(runs: list[dict]):
     headers = ["Category", "Skills", "% SB", "Cited", "Ref Rate", "Explicit", "Dumped"]
     rows = []
 
-    for learn in sorted(agg.keys()):
-        a = agg[learn]
+    for learn, rtype in sorted(agg.keys()):
+        a = agg[(learn, rtype)]
         total_all = a["general_total"] + a["specific_total"]
 
         for category, prefix in [("General", "general"), ("Specific", "specific")]:
@@ -1354,7 +1446,7 @@ def print_reference_table(runs: list[dict]):
             cited = a[f"{prefix}_cited"]
             ref_rate = cited / n * 100 if n > 0 else 0
             rows.append({
-                "Category": f"{category} ({learn})",
+                "Category": f"{category} ({learn}/{rtype})",
                 "Skills": str(n),
                 "% SB": f"{pct_sb:.1f}%",
                 "Cited": str(cited),
@@ -1364,15 +1456,15 @@ def print_reference_table(runs: list[dict]):
             })
 
     # Totals
-    for learn in sorted(agg.keys()):
-        a = agg[learn]
+    for learn, rtype in sorted(agg.keys()):
+        a = agg[(learn, rtype)]
         total = a["general_total"] + a["specific_total"]
         total_cited = a["general_cited"] + a["specific_cited"]
         if total == 0:
             continue
         ref_rate = total_cited / total * 100
         rows.append({
-            "Category": f"TOTAL ({learn})",
+            "Category": f"TOTAL ({learn}/{rtype})",
             "Skills": str(total),
             "% SB": "100.0%",
             "Cited": str(total_cited),
@@ -1385,13 +1477,13 @@ def print_reference_table(runs: list[dict]):
     print()
 
     # Self-check
-    for learn in sorted(agg.keys()):
-        a = agg[learn]
+    for learn, rtype in sorted(agg.keys()):
+        a = agg[(learn, rtype)]
         total = a["general_total"] + a["specific_total"]
         gen_pct = a["general_total"] / total * 100 if total > 0 else 0
         spec_pct = a["specific_total"] / total * 100 if total > 0 else 0
         if abs(gen_pct + spec_pct - 100.0) > 0.1:
-            print(f"  WARNING: self-check failed for {learn}: Gen({gen_pct:.1f}%) + Spec({spec_pct:.1f}%) != 100%", file=sys.stderr)
+            print(f"  WARNING: self-check failed for {learn}/{rtype}: Gen({gen_pct:.1f}%) + Spec({spec_pct:.1f}%) != 100%", file=sys.stderr)
     print("  (Self-check: Gen + Spec = Total for each row — OK)")
     print()
 
@@ -1468,11 +1560,8 @@ def print_per_run_reference_table(runs: list[dict]):
         dump_trajs = summary.get("dump_traj_iters", 0)
         cite_trajs = summary.get("cite_traj_iters", 0)
 
-        # Retrieval label
-        if ret_enabled:
-            ret_label = f"top_k={top_k}"
-        else:
-            ret_label = "off"
+        # Retrieval label (type + top_k when retrieval ran, else 'off')
+        ret_label = _retrieval_label(r)
 
         # Count trajectory iterations where skillbook was present
         n_traj_iters = summary.get("traj_iters", 0)
@@ -1538,29 +1627,321 @@ def print_per_run_reference_table(runs: list[dict]):
 
 
 # ---------------------------------------------------------------------------
+# Output: Resolve rate vs citation (does using a skill associate with solving?)
+# ---------------------------------------------------------------------------
+
+
+def _fisher_2x2(a: int, b: int, c: int, d: int) -> float:
+    """Two-sided Fisher exact test p-value for a 2x2 table [[a,b],[c,d]]."""
+    import math
+    n = a + b + c + d
+    if n == 0:
+        return 1.0
+    r1 = a + b
+    c1 = a + c
+    lg = math.lgamma
+
+    def lhyp(k):
+        return (lg(r1 + 1) + lg(c + d + 1) + lg(c1 + 1) + lg(b + d + 1)
+                - lg(n + 1) - lg(k + 1) - lg(r1 - k + 1)
+                - lg(c1 - k + 1) - lg(n - r1 - c1 + k + 1))
+
+    p_obs = lhyp(a)
+    total = 0.0
+    for k in range(max(0, r1 + c1 - n), min(r1, c1) + 1):
+        lp = lhyp(k)
+        if lp <= p_obs + 1e-9:
+            total += math.exp(lp)
+    return min(1.0, total)
+
+
+def _mcnemar_exact(b: int, c: int) -> float:
+    """Two-sided exact McNemar p-value on discordant counts b, c (binomial)."""
+    import math
+    n = b + c
+    if n == 0:
+        return 1.0
+    k = min(b, c)
+    tail = sum(math.comb(n, i) for i in range(k + 1)) * 0.5 ** n
+    return min(1.0, 2 * tail)
+
+
+def _paired_resolve(results: dict) -> dict:
+    """Pair val (skillbook) vs val_baseline (empty) resolution per instance.
+
+    An instance counts as resolved in a phase if resolved in ANY of its
+    attempts (pass@k semantics). Returns the discordant 2x2:
+    n11 both, n10 skillbook-only (helped), n01 baseline-only (hurt), n00 neither.
+    """
+    val = {k[4:]: v for k, v in results.items() if k.startswith("val/")}
+    base = {k[13:]: v for k, v in results.items() if k.startswith("val_baseline/")}
+    insts = set(val) & set(base)
+    n11 = n10 = n01 = n00 = 0
+    for inst in insts:
+        sk = any(val[inst].values())
+        bs = any(base[inst].values())
+        if sk and bs:
+            n11 += 1
+        elif sk and not bs:
+            n10 += 1
+        elif bs and not sk:
+            n01 += 1
+        else:
+            n00 += 1
+    return {"n11": n11, "n10": n10, "n01": n01, "n00": n00, "n": len(insts)}
+
+
+def print_val_vs_baseline(runs: list[dict]):
+    """Paired resolve: same val instances WITH skillbook vs WITHOUT (baseline).
+
+    This is the within-run experimental contrast (not correlational): each
+    instance is run twice on the identical task, once with the learned
+    skillbook (val) and once with an empty one (val_baseline). McNemar tests
+    whether the skillbook flips outcomes, using only discordant pairs.
+    """
+    print("=== Resolve: same val instances WITH skillbook vs WITHOUT (paired) ===")
+    print()
+
+    headers = [
+        "Run", "Agent", "Learn", "Mode", "Retrieval", "N",
+        "Base res", "SB res", "Delta", "Helped", "Hurt", "McNemar p",
+    ]
+    rows = []
+    pool = {"n11": 0, "n10": 0, "n01": 0, "n00": 0, "n": 0}
+
+    for r in runs:
+        sp = _paired_resolve(load_results(r["run_dir"]))
+        if sp["n"] == 0:
+            continue
+        for k in pool:
+            pool[k] += sp[k]
+        n = sp["n"]
+        base_res = (sp["n11"] + sp["n01"]) / n * 100
+        sb_res = (sp["n11"] + sp["n10"]) / n * 100
+        rows.append({
+            "Run": _short_run(r["run_name"]),
+            "Agent": _model_short(r["agent_llm"], r["agent_llm"]),
+            "Learn": r["learn_mode"],
+            "Mode": r["sb_mode"],
+            "Retrieval": _retrieval_label(r),
+            "N": str(n),
+            "Base res": f"{base_res:.1f}%",
+            "SB res": f"{sb_res:.1f}%",
+            "Delta": f"{sb_res - base_res:+.1f}pp",
+            "Helped": str(sp["n10"]),
+            "Hurt": str(sp["n01"]),
+            "McNemar p": f"{_mcnemar_exact(sp['n10'], sp['n01']):.3f}",
+        })
+
+    if not rows:
+        print("  (No runs with paired val / val_baseline results)")
+        print()
+        return
+
+    n = pool["n"]
+    base_res = (pool["n11"] + pool["n01"]) / n * 100
+    sb_res = (pool["n11"] + pool["n10"]) / n * 100
+    rows.append({
+        "Run": "POOLED (all runs)", "Agent": "-", "Learn": "-", "Mode": "-", "Retrieval": "-",
+        "N": str(n),
+        "Base res": f"{base_res:.1f}%",
+        "SB res": f"{sb_res:.1f}%",
+        "Delta": f"{sb_res - base_res:+.1f}pp",
+        "Helped": str(pool["n10"]),
+        "Hurt": str(pool["n01"]),
+        "McNemar p": f"{_mcnemar_exact(pool['n10'], pool['n01']):.4f}",
+    })
+
+    _print_table_rows(headers, rows)
+    print()
+    print("  (Paired within-run: each instance run twice on the SAME task — "
+          "with learned skillbook (val) vs empty (val_baseline))")
+    print("  (Helped = resolved only WITH skillbook; Hurt = resolved only WITHOUT; "
+          "McNemar uses only these discordant pairs)")
+    print("  (resolved per phase = solved in ANY attempt; POOLED ignores run clustering)")
+    print()
+
+
+def _resolve_split(records: list, results: dict) -> dict:
+    """Cross-tab citation × resolution over scored trajectories.
+
+    records: list of (instance_id, iter, cited_bool).
+    results: {instance_id: {iter: resolved_bool}} (unprefixed keys).
+    Returns counts a=cited&resolved, b=cited&unresolved, c=notcited&resolved,
+    d=notcited&unresolved, plus n_matched/n_total.
+    """
+    a = b = c = d = 0
+    matched = 0
+    for inst_id, it, cited in records:
+        resolved = results.get(inst_id, {}).get(it)
+        if resolved is None:
+            continue
+        matched += 1
+        if cited:
+            if resolved:
+                a += 1
+            else:
+                b += 1
+        else:
+            if resolved:
+                c += 1
+            else:
+                d += 1
+    return {"a": a, "b": b, "c": c, "d": d, "matched": matched, "total": len(records)}
+
+
+def _resolve_split_by_instance(records: list, results: dict) -> dict:
+    """Instance-level cross-tab citation × resolution.
+
+    Aggregates the (instance, iter) records to one row per instance over the
+    skillbook-shown attempts: cited = a citation in ANY attempt, resolved =
+    solved in ANY of those attempts. Removes the per-attempt dilution (and the
+    per_instance iter_0 skew) by putting citation and resolution on the same
+    instance population.
+    """
+    groups: dict[str, dict] = {}
+    for inst_id, it, cited in records:
+        resolved = results.get(inst_id, {}).get(it)
+        if resolved is None:
+            continue
+        g = groups.setdefault(inst_id, {"cited": False, "resolved": False})
+        g["cited"] = g["cited"] or cited
+        g["resolved"] = g["resolved"] or resolved
+
+    a = b = c = d = 0
+    for g in groups.values():
+        if g["cited"]:
+            if g["resolved"]:
+                a += 1
+            else:
+                b += 1
+        else:
+            if g["resolved"]:
+                c += 1
+            else:
+                d += 1
+    inst_in_records = len({rec[0] for rec in records})
+    return {"a": a, "b": b, "c": c, "d": d, "matched": len(groups), "total": inst_in_records}
+
+
+def print_resolve_vs_citation(runs: list[dict], by_instance: bool = False):
+    """Resolve rate among trajectories/instances WITH a selective citation vs WITHOUT.
+
+    Correlational only: a trajectory citing a skill is not randomly assigned —
+    cited-vs-not differ in many ways besides the citation. Read as association,
+    not causal effect of the skillbook.
+
+    by_instance=False: unit is a trajectory (one agent attempt).
+    by_instance=True:  unit is an instance — cited/resolved if it happened in
+                       ANY skillbook-shown attempt (removes multi-attempt skew).
+    """
+    unit = "instances" if by_instance else "trajectories"
+    print(f"=== Resolve rate: {unit} WITH selective citation vs WITHOUT ===")
+    print()
+
+    headers = [
+        "Run", "Learn", "Mode", "Retrieval",
+        "Cited n", "Res|cited", "NoCite n", "Res|nocite", "Delta", "Fisher p",
+    ]
+    rows = []
+    pooled = {"a": 0, "b": 0, "c": 0, "d": 0}
+
+    for r in runs:
+        ret_enabled = r.get("retrieval", {}).get("enabled", False)
+        ref_data = _compute_presented_skill_refs(r) if ret_enabled else compute_references(r)
+        records = ref_data.get("traj_records", [])
+        results = load_results(r["run_dir"])
+        if not records or not results:
+            continue
+        sp = (_resolve_split_by_instance if by_instance else _resolve_split)(records, results)
+        if sp["matched"] == 0:
+            continue
+        for k in pooled:
+            pooled[k] += sp[k]
+
+        a, b, c, d = sp["a"], sp["b"], sp["c"], sp["d"]
+        n_cite, n_no = a + b, c + d
+        res_cite = a / n_cite * 100 if n_cite else None
+        res_no = c / n_no * 100 if n_no else None
+        delta = (res_cite - res_no) if (res_cite is not None and res_no is not None) else None
+        p = _fisher_2x2(a, b, c, d) if (n_cite and n_no) else None
+
+        ret_label = _retrieval_label(r)
+        rows.append({
+            "Run": _short_run(r["run_name"]),
+            "Learn": r["learn_mode"],
+            "Mode": r["sb_mode"],
+            "Retrieval": ret_label,
+            "Cited n": str(n_cite),
+            "Res|cited": f"{res_cite:.1f}%" if res_cite is not None else "-",
+            "NoCite n": str(n_no),
+            "Res|nocite": f"{res_no:.1f}%" if res_no is not None else "-",
+            "Delta": f"{delta:+.1f}pp" if delta is not None else "-",
+            "Fisher p": f"{p:.3f}" if p is not None else "-",
+        })
+
+    if not rows:
+        print("  (No runs with both citation records and results)")
+        print()
+        return
+
+    # Pooled row across all runs
+    a, b, c, d = pooled["a"], pooled["b"], pooled["c"], pooled["d"]
+    n_cite, n_no = a + b, c + d
+    if n_cite and n_no:
+        res_cite, res_no = a / n_cite * 100, c / n_no * 100
+        rows.append({
+            "Run": "POOLED (all runs)",
+            "Learn": "-", "Mode": "-", "Retrieval": "-",
+            "Cited n": str(n_cite),
+            "Res|cited": f"{res_cite:.1f}%",
+            "NoCite n": str(n_no),
+            "Res|nocite": f"{res_no:.1f}%",
+            "Delta": f"{res_cite - res_no:+.1f}pp",
+            "Fisher p": f"{_fisher_2x2(a, b, c, d):.4f}",
+        })
+
+    _print_table_rows(headers, rows)
+    print()
+    print(f"  (CORRELATIONAL: cited vs not-cited {unit} differ in many ways; "
+          "not the causal effect of the skillbook)")
+    if by_instance:
+        print("  (Unit = instance: cited/resolved if it happened in ANY skillbook-shown attempt)")
+    else:
+        print("  (Unit = trajectory = one attempt; multi-attempt runs count each attempt separately)")
+    print(f"  (Res|cited = resolve rate among {unit} with >=1 selective citation; dumps don't count as citations)")
+    print(f"  (POOLED merges all {unit} — ignores run clustering, so its p is anti-conservative)")
+    print()
+
+
+# ---------------------------------------------------------------------------
 # Output 5: General vs Specific classification by repo × learn mode
 # ---------------------------------------------------------------------------
 
 
 def print_classification_table(runs: list[dict]):
-    """Output 4: Classification by repository × learn mode."""
-    print("=== General vs Specific classification by repo × learn mode ===")
+    """Output 4: Classification by repository × learn mode × retrieval."""
+    print("=== General vs Specific classification by repo × learn mode × retrieval ===")
     print()
 
     # Collect data from per_repo and per_instance runs
     # For per_repo: each repo is a natural unit
     # For per_instance: group by repo (extracted from instance_id)
+    # Columns are keyed by (learn_mode, retrieval_type) — retrieval shapes which
+    # skills the reflector ends up learning, so it is a stratification dimension.
     data = defaultdict(lambda: defaultdict(lambda: {"general": 0, "specific": 0}))
 
     for r in runs:
         learn = r["learn_mode"]
+        rtype = _retrieval_type(r)
+        key = (learn, rtype)
 
         if r["sb_mode"] == "per_repo":
             for repo_name, sb in r["per_repo_sbs"].items():
                 skills = _extract_skills(sb)
                 for s in skills:
                     cls = classify_skill_specificity(s["content"], s["section"])
-                    data[learn][repo_name][cls] += 1
+                    data[key][repo_name][cls] += 1
 
         elif r["sb_mode"] == "per_instance":
             final_sbs = _get_final_skillbooks_per_instance(r)
@@ -1571,70 +1952,69 @@ def print_classification_table(runs: list[dict]):
                 for s in skills:
                     cls = classify_skill_specificity(s["content"], s["section"])
                     # Use "per_instance" as pseudo-repo since instances are mixed
-                    data[learn]["per_instance"][cls] += 1
+                    data[key]["per_instance"][cls] += 1
 
         elif r["sb_mode"] == "global":
             if r["global_sb"]:
                 skills = _extract_skills(r["global_sb"])
                 for s in skills:
                     cls = classify_skill_specificity(s["content"], s["section"])
-                    data[learn]["global"][cls] += 1
+                    data[key]["global"][cls] += 1
 
     if not data:
         print("  (No skillbook data for classification)")
         return
 
-    # Get all repos across learn modes
-    all_repos = sorted(set(repo for learn_data in data.values() for repo in learn_data.keys()))
-    all_learns = sorted(data.keys())
-
-    headers = ["Repo"] + [f"{learn}" for learn in all_learns for _ in range(3)]
-    # Sub-headers
-    sub_headers = [""] + [s for _ in all_learns for s in ["Total", "Gen%", "Spec%"]]
+    # Get all repos across (learn, retrieval) groups
+    all_repos = sorted(set(repo for gd in data.values() for repo in gd.keys()))
+    groups = sorted(data.keys())  # list of (learn_mode, retrieval_type)
 
     rows = []
     for repo in all_repos:
         row = {"Repo": repo.split("__")[-1][:20] if "__" in repo else repo[:20]}
-        for learn in all_learns:
-            gen = data[learn][repo].get("general", 0)
-            spec = data[learn][repo].get("specific", 0)
+        for learn, rtype in groups:
+            col = f"{learn}/{rtype}"
+            gen = data[(learn, rtype)][repo].get("general", 0)
+            spec = data[(learn, rtype)][repo].get("specific", 0)
             total = gen + spec
             gen_pct = gen / total * 100 if total > 0 else 0
             spec_pct = spec / total * 100 if total > 0 else 0
-            row[f"{learn}_total"] = str(total)
-            row[f"{learn}_gen_pct"] = f"{gen_pct:.0f}%"
-            row[f"{learn}_spec_pct"] = f"{spec_pct:.0f}%"
+            row[f"{col}_total"] = str(total)
+            row[f"{col}_gen_pct"] = f"{gen_pct:.0f}%"
+            row[f"{col}_spec_pct"] = f"{spec_pct:.0f}%"
         rows.append(row)
 
     # Total row
     total_row = {"Repo": "TOTAL"}
-    for learn in all_learns:
-        total_gen = sum(data[learn][repo].get("general", 0) for repo in all_repos)
-        total_spec = sum(data[learn][repo].get("specific", 0) for repo in all_repos)
+    for learn, rtype in groups:
+        col = f"{learn}/{rtype}"
+        total_gen = sum(data[(learn, rtype)][repo].get("general", 0) for repo in all_repos)
+        total_spec = sum(data[(learn, rtype)][repo].get("specific", 0) for repo in all_repos)
         total_all = total_gen + total_spec
         gen_pct = total_gen / total_all * 100 if total_all > 0 else 0
         spec_pct = total_spec / total_all * 100 if total_all > 0 else 0
-        total_row[f"{learn}_total"] = str(total_all)
-        total_row[f"{learn}_gen_pct"] = f"{gen_pct:.0f}%"
-        total_row[f"{learn}_spec_pct"] = f"{spec_pct:.0f}%"
+        total_row[f"{col}_total"] = str(total_all)
+        total_row[f"{col}_gen_pct"] = f"{gen_pct:.0f}%"
+        total_row[f"{col}_spec_pct"] = f"{spec_pct:.0f}%"
     rows.append(total_row)
 
-    # Remap headers to match row keys
+    # Headers must match row keys (col = "{learn}/{rtype}")
     flat_headers = ["Repo"]
-    for learn in all_learns:
-        flat_headers.extend([f"{learn}_total", f"{learn}_gen_pct", f"{learn}_spec_pct"])
+    for learn, rtype in groups:
+        col = f"{learn}/{rtype}"
+        flat_headers.extend([f"{col}_total", f"{col}_gen_pct", f"{col}_spec_pct"])
 
     _print_table_rows(flat_headers, rows)
     print()
 
     # Self-check: Gen + Spec = Total
-    for learn in all_learns:
+    for learn, rtype in groups:
         for repo in all_repos:
-            gen = data[learn][repo].get("general", 0)
-            spec = data[learn][repo].get("specific", 0)
+            gen = data[(learn, rtype)][repo].get("general", 0)
+            spec = data[(learn, rtype)][repo].get("specific", 0)
             total = gen + spec
             if total > 0 and abs((gen / total * 100) + (spec / total * 100) - 100.0) > 0.1:
-                print(f"  WARNING: self-check failed: {learn}/{repo}", file=sys.stderr)
+                print(f"  WARNING: self-check failed: {learn}/{rtype}/{repo}", file=sys.stderr)
     print("  (Self-check: Gen + Spec = Total for each cell — OK)")
     print()
 
@@ -1684,7 +2064,8 @@ def print_dump_locations(runs: list[dict], max_per_run: int | None = None):
         if max_per_run is not None and total > max_per_run:
             shown = shown[:max_per_run]
 
-        print(f"  {_short_run(r['run_name'], 50)} [{r['learn_mode']}/{r['sb_mode']}]  "
+        ret_tag = f" [{_retrieval_label(r)}]" if r.get("retrieval", {}).get("enabled") else ""
+        print(f"  {_short_run(r['run_name'], 50)} [{r['learn_mode']}/{r['sb_mode']}]{ret_tag}  "
               f"— {total} dump message(s) across {len(set(d['instance'] for d in dumps))} instance(s)")
         for d in shown:
             traj_path = _resolve_traj_path(d["instance"], d["iter"])
@@ -1715,7 +2096,7 @@ def write_csv_tables(runs: list[dict], csv_path: str):
 
         # Summary — per_instance
         writer.writerow(["=== Per-instance summary ==="])
-        writer.writerow(["Run", "Learn", "Split", "Max Attempts", "Resolution Rate", "SBs",
+        writer.writerow(["Run", "Learn", "Retrieval", "Split", "Max Attempts", "Resolution Rate", "SBs",
                          "Skills/SB (med)", "Skills/SB (mean)", "Tokens/SB (med)", "Tokens/SB (mean)",
                          "Ctx%", "Skill tokens (med)", "Skill tokens (mean)"])
         for r in runs:
@@ -1728,7 +2109,7 @@ def write_csv_tables(runs: list[dict], csv_path: str):
             cw = r["context_window"]
             ctx_pct = statistics.median(token_counts) / cw * 100 if token_counts and cw > 0 else 0
             writer.writerow([
-                r["run_name"], r["learn_mode"], r["val_ratio"] or "-", r["max_attempts"],
+                r["run_name"], r["learn_mode"], _retrieval_label(r), r["val_ratio"] or "-", r["max_attempts"],
                 f"{r['resolution_rate']*100:.1f}%", len(final_sbs),
                 f"{statistics.median(skill_counts):.1f}" if skill_counts else "-",
                 f"{statistics.mean(skill_counts):.1f}" if skill_counts else "-",
@@ -1741,7 +2122,7 @@ def write_csv_tables(runs: list[dict], csv_path: str):
 
         writer.writerow([])
         writer.writerow(["=== Per-repo/global summary ==="])
-        writer.writerow(["Run", "Learn", "Split", "Resolution Rate", "Mode", "SBs",
+        writer.writerow(["Run", "Learn", "Retrieval", "Split", "Resolution Rate", "Mode", "SBs",
                          "Skills/SB (med)", "Skills/SB (mean)", "Tokens/SB (med)", "Tokens/SB (mean)",
                          "Ctx%", "Skill tokens (med)", "Skill tokens (mean)"])
         for r in runs:
@@ -1756,7 +2137,7 @@ def write_csv_tables(runs: list[dict], csv_path: str):
             cw = r["context_window"]
             ctx_pct = statistics.median(token_counts) / cw * 100 if token_counts and cw > 0 else 0
             writer.writerow([
-                r["run_name"], r["learn_mode"], r["val_ratio"] or "-",
+                r["run_name"], r["learn_mode"], _retrieval_label(r), r["val_ratio"] or "-",
                 f"{r['resolution_rate']*100:.1f}%", r["sb_mode"], len(sbs),
                 f"{statistics.median(skill_counts):.1f}" if skill_counts else "-",
                 f"{statistics.mean(skill_counts):.1f}" if skill_counts else "-",
@@ -1822,6 +2203,9 @@ def main():
 
     print_reference_table(runs)
     print_per_run_reference_table(runs)
+    print_val_vs_baseline(runs)
+    print_resolve_vs_citation(runs, by_instance=False)
+    print_resolve_vs_citation(runs, by_instance=True)
     print_classification_table(runs)
 
     if args.list_dumps is not None:
@@ -1834,7 +2218,8 @@ def main():
     print("Run legend:")
     for r in runs:
         n_sb = len(r["per_instance_sbs"]) or len(r["per_repo_sbs"]) or (1 if r["global_sb"] else 0)
-        print(f"  {_short_run(r['run_name'], 50)}  [{r['learn_mode']}/{r['sb_mode']}]  "
+        ret_tag = f" [{_retrieval_label(r)}]" if r.get("retrieval", {}).get("enabled") else ""
+        print(f"  {_short_run(r['run_name'], 50)}  [{r['learn_mode']}/{r['sb_mode']}]{ret_tag}  "
               f"res={r['resolution_rate']*100:.1f}%  SBs={n_sb}")
 
 

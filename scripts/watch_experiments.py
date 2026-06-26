@@ -592,6 +592,40 @@ def _get_repo_expected_sizes(dataset: str, repos: list[str], val_ratio: float | 
     return result
 
 
+def _manifest_repo_expected_sizes(cfg: dict, repos: list[str],
+                                  train_skipped: bool = False) -> dict[str, dict] | None:
+    """Per-repo expected sizes from the split manifest's per_repo section.
+
+    Returns {repo: {"train": N, "val": N, "total": N}} or None when no manifest
+    or per_repo section is available. Applies exclude_instances. When
+    train_skipped (validation-only / skillbook_source_dir), train is 0 — only
+    the val instances run.
+    """
+    manifest_path = cfg.get("experiment", {}).get("split", {}).get("manifest")
+    if not manifest_path:
+        return None
+    m = _load_split_manifest(manifest_path)
+    if not m:
+        return None
+    per_repo = m.get("per_repo")
+    if not per_repo:
+        return None
+    excludes = set(cfg.get("benchmark", {}).get("exclude_instances") or [])
+
+    def _applicable(ids: list) -> int:
+        return sum(1 for iid in ids if iid not in excludes)
+
+    result: dict[str, dict] = {}
+    for repo in repos:
+        split = per_repo.get(repo)
+        if not split:
+            continue
+        val = _applicable(split.get("val") or [])
+        train = 0 if train_skipped else _applicable(split.get("train") or [])
+        result[repo] = {"train": train, "val": val, "total": train + val}
+    return result if result else None
+
+
 def _detect_repo_phase(phases_detail: dict, max_attempts: int | None) -> str:
     """Determine the current active phase for a repo.
 
@@ -632,9 +666,19 @@ def collect_iterate_repos_progress(
     val_ratio = cfg.get("experiment", {}).get("split", {}).get("val_ratio")
     results_dir = _results_dir_for(run_dir, dataset)
 
-    # Get expected per-repo sizes from dataset (cached, accounts for excluded instances)
+    # Expected per-repo sizes. Prefer the split manifest's per_repo section
+    # (authoritative, and the only source when the split is a manifest rather
+    # than a scalar val_ratio); fall back to dataset counts + val_ratio.
+    # Validation-only runs (skillbook_source_dir) skip training → train size 0.
     exclude_instances = cfg.get("benchmark", {}).get("exclude_instances")
-    expected = _get_repo_expected_sizes(dataset, iterate_repos_list, val_ratio, exclude_instances)
+    train_skipped = bool(cfg.get("experiment", {}).get("skillbook_source_dir"))
+    expected = _manifest_repo_expected_sizes(cfg, iterate_repos_list, train_skipped)
+    if expected is None:
+        expected = _get_repo_expected_sizes(dataset, iterate_repos_list, val_ratio, exclude_instances)
+        if expected and train_skipped:
+            for e in expected.values():
+                e["train"] = 0
+                e["total"] = e["val"]
 
     # Read per-repo completed stats
     per_repo_dir = run_dir / "statistics_per_repo"
@@ -757,13 +801,13 @@ def collect_iterate_repos_progress(
                     "processed": train_processed,
                     "total": train_total,
                 }
-            if vb_dirs:
+            if vb_dirs or (exp and exp["val"] > 0):
                 phases_detail["vb"] = {
                     "resolved": vb_resolved,
                     "processed": vb_processed,
                     "total": val_total,
                 }
-            if val_dirs:
+            if val_dirs or (exp and exp["val"] > 0):
                 phases_detail["val"] = {
                     "resolved": val_resolved,
                     "processed": val_processed,
@@ -774,8 +818,13 @@ def collect_iterate_repos_progress(
             r_resolved = train_resolved + max(val_resolved, vb_resolved)
             r_processed = train_processed + max(val_processed, vb_processed)
 
-            current_phase = _detect_repo_phase(phases_detail, max_attempts)
-            r_status = "active" if current_phase not in ("pending",) else "pending"
+            # A repo with no instance dirs yet is pending (queued); otherwise the
+            # current phase is the first incomplete one across the planned phases.
+            if train_dirs or vb_dirs or val_dirs:
+                current_phase = _detect_repo_phase(phases_detail, max_attempts)
+            else:
+                current_phase = "pending"
+            r_status = "active" if current_phase != "pending" else "pending"
 
             repo_progress.append({
                 "name": repo,

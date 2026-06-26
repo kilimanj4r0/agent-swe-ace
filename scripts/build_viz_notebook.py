@@ -26,19 +26,14 @@ import nbformat as nbf
 # Each cell is (type, source). Markdown cells describe; code cells plot.
 CELLS: list[tuple[str, str]] = [
     ("md", """\
-# Val-Baseline pass@k Analysis — split025 (val_pass_k=5, aggregated)
+__TITLE__
 
-This notebook visualizes the **val baseline** results aggregated across all
-`completed*split025*vpk5` runs. Every run shares the **identical 113 val
-instances**, and each instance receives **multiple independent fresh attempts**
-(N runs × 5) under a uniform val-baseline condition (empty skillbook, no learning,
-Qwen3-Coder-30B). Aggregating across runs yields N×5 independent attempts per
-instance, enabling a pass@k curve up to k = N×5.
+__INTRO_BODY__
 
 **Methodology**
 - `avg` = resolved attempts / total attempts (== pass@1).
 - `pass@k` = `1 − C(n−c, k)/C(n, k)` (standard combinatorial / HumanEval estimator),
-  n = attempts per instance, c = successes, macro-averaged over the 113 instances.
+  n = attempts per instance, c = successes, macro-averaged over the N instances.
 - `pass@max` = fraction of instances solved at least once across all attempts.
 
 Source data: `stats/{overall,per_repo,per_instance}.json` in the folder below.
@@ -61,7 +56,7 @@ from matplotlib.patches import Patch
 _candidates = [
     Path.cwd(),
     Path.cwd().parent,
-    Path("/root/makharev/agent-swe-ace/data/val_baseline_aggregated_split025_vpk5"),
+    Path("__DATADIR__"),
 ]
 DATA_DIR = next((c for c in _candidates if (c / "stats" / "overall.json").exists()),
                 _candidates[-1])
@@ -390,12 +385,16 @@ pmax = overall["resolved_any_rate"]
 never = overall["n_instances"] - overall["resolved_any"]
 med_tok = df["total_tokens"].median()
 med_min = df["wall_seconds"].median() / 60
+# Repo extremes: gap between avg (per-attempt) and pass@max = sampling headroom.
+gap = {r: per_repo[r]["pass_at_k"][str(max_k)] - per_repo[r]["avg"] for r in REPOS}
+most_stoch = ", ".join(sorted(gap, key=gap.get, reverse=True)[:3])
+least_stoch = ", ".join(sorted(gap, key=gap.get)[:3])
 md = f'''## Takeaways (auto-computed from current data)
 
-- **Sampling alone saturates well below 100%.** pass@1={p1*100:.1f}% → pass@10={p10*100:.1f}% → pass@{max_k}={pmax*100:.1f}% ({overall['resolved_any']}/{overall['n_instances']} solvable at least once). The curve is essentially flat after ~pass@10.
-- **A hard floor of {never} instances is never solved in any of {max_k} attempts** — pure repeated sampling cannot reach them; this is the target surface for skillbook learning.
+- **__LABEL__ saturates well below 100%.** pass@1={p1*100:.1f}% → pass@10={p10*100:.1f}% → pass@{max_k}={pmax*100:.1f}% ({overall['resolved_any']}/{overall['n_instances']} solvable at least once). The curve is essentially flat after ~pass@10.
+- **A hard floor of {never} instances is never solved in any of {max_k} attempts** — repeated sampling cannot reach them.
 - **Per attempt:** median ~{med_tok:,.0f} tokens / ~{med_min:.1f} min; mean is inflated by runaway attempts (fig 9).
-- **Repo variance is large** (figs 4/6): scikit-learn / xarray / sympy are highly stochastic; matplotlib / sphinx are dominated by never-solvable instances.
+- **Repo variance is large** (figs 4/6): largest avg→pass@max headroom on {most_stoch}; {least_stoch} sit low (dominated by never-solvable instances).
 - Figures also saved as PNGs under `figures/`.
 '''
 display(Markdown(md))
@@ -403,7 +402,7 @@ display(Markdown(md))
 ]
 
 
-def build(data_dir: Path, out_path: Path) -> None:
+def build(data_dir: Path, out_path: Path, ctx: dict) -> None:
     nb = nbf.v4.new_notebook()
     nb.metadata = {
         "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
@@ -411,6 +410,8 @@ def build(data_dir: Path, out_path: Path) -> None:
     }
     for kind, src in CELLS:
         src = textwrap.dedent(src)
+        for token, value in ctx.items():
+            src = src.replace(token, value)
         if kind == "md":
             nb.cells.append(nbf.v4.new_markdown_cell(src))
         else:
@@ -425,9 +426,34 @@ def main() -> None:
     ap.add_argument("--data-dir", type=Path, default=default_data)
     ap.add_argument("--out", type=Path, default=None,
                     help="Output notebook path (default: <data-dir>/visualizations.ipynb)")
+    ap.add_argument("--label", default="Val-Baseline", help="Human label (title + takeaways)")
+    ap.add_argument("--pool-desc", default="val baseline", help="Short description of the pooled condition")
+    ap.add_argument("--condition", default="empty skillbook, no learning",
+                    help="Condition clause, e.g. 'learned skillbook + retrieval, no learning'")
+    ap.add_argument("--model", default="Qwen3-Coder-30B", help="Model name for the intro")
+    ap.add_argument("--source-glob", default="completed*split025*vpk5", help="Source-run glob shown in intro")
+    ap.add_argument("--pool-note", default="", help="Extra intro sentence (e.g. retrieval-heterogeneity note)")
     args = ap.parse_args()
     out = args.out or (args.data_dir / "visualizations.ipynb")
-    build(args.data_dir.resolve(), out)
+
+    title = f"# {args.label} pass@k Analysis — split025 (val_pass_k=5, aggregated)"
+    intro = (
+        f"This notebook visualizes the **{args.pool_desc}** results aggregated across the "
+        f"`{args.source_glob}` runs. Every run shares the **identical val instances**, and each "
+        f"instance receives **multiple independent fresh attempts** (N runs × 5) under a "
+        f"{args.condition} condition ({args.model}). Aggregating across runs yields N×5 "
+        f"independent attempts per instance, enabling a pass@k curve up to k = N×5."
+    )
+    if args.pool_note:
+        intro += f"\n\n{args.pool_note}"
+
+    ctx = {
+        "__TITLE__": title,
+        "__INTRO_BODY__": intro,
+        "__DATADIR__": str(args.data_dir.resolve()),
+        "__LABEL__": args.label,
+    }
+    build(args.data_dir.resolve(), out, ctx)
 
 
 if __name__ == "__main__":
