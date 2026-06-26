@@ -72,6 +72,26 @@ def save_trajectory(
     return output_path
 
 
+def skill_to_dict(skill) -> Dict[str, Any]:
+    """Serialize a Skill to a JSON-friendly dict.
+
+    Single source of truth for on-disk skill serialization. Used by both
+    ``save_skillbook`` (global/per_instance/per-phase files) and the per-repo
+    ``final_skillbook.json`` persistence in commands.py, so every skillbook
+    file written by any mode carries the same fields — including ``sources``
+    (the instance/repo provenance stamped during Learn). ``getattr`` defaults
+    keep serialization robust if a Skill is missing an attribute.
+    """
+    return {
+        "id": skill.id,
+        "section": getattr(skill, "section", "general"),
+        "content": getattr(skill, "content", ""),
+        "justification": getattr(skill, "justification", None),
+        "evidence": getattr(skill, "evidence", None),
+        "sources": getattr(skill, "sources", []),
+    }
+
+
 def save_skillbook(
     skillbook: "Skillbook",
     run_dir: Path,
@@ -118,14 +138,7 @@ def save_skillbook(
     }
 
     for skill in skills_list:
-        data["skills"][skill.id] = {
-            "id": skill.id,
-            "section": getattr(skill, "section", "general"),
-            "justification": getattr(skill, "justification", None),
-            "evidence": getattr(skill, "evidence", None),
-            "content": getattr(skill, "content", ""),
-            "sources": getattr(skill, "sources", []),
-        }
+        data["skills"][skill.id] = skill_to_dict(skill)
 
     with open(output_path, "w") as f:
         json.dump(data, f, indent=2, default=str)

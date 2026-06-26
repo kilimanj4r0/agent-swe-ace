@@ -190,6 +190,67 @@ class TestWriters:
         assert output_path == expected_path
         assert output_path.exists()
 
+    def test_skill_to_dict_includes_sources(self):
+        """skill_to_dict must serialize provenance `sources`.
+
+        Regression: the per-repo final_skillbook.json previously used an inline
+        copy of this serialization that dropped `sources`, so per-repo skills
+        lost their instance/repo provenance on disk while global did not.
+        skill_to_dict is now the single source shared by all skillbook files.
+        """
+        from ace import Skill
+
+        skill = Skill(
+            id="verification-00001",
+            section="verification",
+            content="AVOID: claiming success without verifying git diff",
+            justification="empty patches submitted as complete",
+            evidence="git diff --cached was empty",
+            sources=[{"instance_id": "django__django-14376", "repo": "django/django"}],
+        )
+
+        d = writers.skill_to_dict(skill)
+        assert d["id"] == "verification-00001"
+        assert d["section"] == "verification"
+        assert d["sources"] == [
+            {"instance_id": "django__django-14376", "repo": "django/django"}
+        ]
+        # Canonical field set — drift guard across global/per_repo/per_instance.
+        assert set(d.keys()) == {
+            "id",
+            "section",
+            "content",
+            "justification",
+            "evidence",
+            "sources",
+        }
+
+    def test_save_skillbook_writes_sources(self, tmp_path):
+        """Saved skillbook JSON must carry `sources` for every skill on disk."""
+        from ace import Skillbook, Skill
+
+        skillbook = Skillbook()
+        skillbook._skills["skill-1"] = Skill(
+            id="skill-1",
+            section="debugging",
+            content="Check imports first",
+            sources=[{"instance_id": "test__repo-123", "repo": "test/repo"}],
+        )
+
+        run_dir = tmp_path / "run_20260319_143052"
+        output_path = writers.save_skillbook(
+            skillbook=skillbook,
+            run_dir=run_dir,
+            benchmark="swebench-lite",
+            iteration=1,
+            instance_id=None,
+        )
+
+        data = json.loads(output_path.read_text())
+        assert data["skills"]["skill-1"]["sources"] == [
+            {"instance_id": "test__repo-123", "repo": "test/repo"}
+        ]
+
     def test_save_result(self, tmp_path):
         """Test saving an evaluation result."""
         result = {

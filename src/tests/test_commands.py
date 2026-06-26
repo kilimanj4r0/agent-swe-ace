@@ -11,6 +11,7 @@ from cli.commands import (
     _load_split_manifest,
     _split_from_manifest,
     split_instances,
+    _persist_per_repo_skillbook,
 )
 
 
@@ -347,3 +348,65 @@ class TestResolveIterateReposConcurrency:
         with caplog.at_level(logging.WARNING):
             assert _resolve_iterate_repos_concurrency({"concurrency": 1}) == 1
         assert not any("iterate_repos_concurrency" in r.message for r in caplog.records)
+
+
+# ---------------------------------------------------------------------------
+# _persist_per_repo_skillbook
+# ---------------------------------------------------------------------------
+
+
+class TestPersistPerRepoSkillbook:
+    """Per-repo persistence must write `sources` on every skill.
+
+    Regression: the per-repo final_skillbook.json previously used an inline
+    serialization copy that dropped `sources`. The shared helper now backs both
+    the normal iterate_repos path and the learn-replay path.
+    """
+
+    def test_writes_sources_and_correct_path(self, tmp_path):
+        from ace import Skillbook, Skill
+
+        sb = Skillbook()
+        sb._skills["debugging-00001"] = Skill(
+            id="debugging-00001",
+            section="debugging",
+            content="Reproduce before fixing",
+            sources=[{"instance_id": "django__django-14376", "repo": "django/django"}],
+        )
+
+        out_dir = tmp_path / "run_x"
+        out_path = _persist_per_repo_skillbook(
+            sb, out_dir, benchmark="princeton-nlp__SWE-bench_Verified", repo="django/django"
+        )
+
+        expected = (
+            out_dir / "princeton-nlp__SWE-bench_Verified" / "skillbooks" / "per_repo"
+            / "django__django" / "final_skillbook.json"
+        )
+        assert out_path == expected
+        assert out_path.exists()
+
+        data = json.loads(out_path.read_text())
+        assert data["skill_count"] == 1
+        skill = data["skills"]["debugging-00001"]
+        assert skill["sources"] == [
+            {"instance_id": "django__django-14376", "repo": "django/django"}
+        ]
+        assert set(skill.keys()) == {
+            "id", "section", "content", "justification", "evidence", "sources"
+        }
+
+    def test_every_skill_carries_sources_key(self, tmp_path):
+        """Skills with empty sources still get the key — no field drift."""
+        from ace import Skillbook, Skill
+
+        sb = Skillbook()
+        for i in range(3):
+            sb._skills[f"s-{i}"] = Skill(id=f"s-{i}", section="general", content=f"skill {i}")
+
+        out_dir = tmp_path / "run_y"
+        out_path = _persist_per_repo_skillbook(sb, out_dir, benchmark="bench", repo="o/r")
+
+        data = json.loads(out_path.read_text())
+        assert data["skill_count"] == 3
+        assert all("sources" in s for s in data["skills"].values())

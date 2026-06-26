@@ -30,7 +30,7 @@ from phases.learn import LearnPhase
 from runners.main_loop import ExperimentLoop
 from retrieval import SkillRetriever, RandomRetriever, EmbeddingRetriever, BM25Retriever
 from data_io.readers import load_skillbook, load_trajectory
-from data_io.writers import save_config, save_statistics, get_run_dir
+from data_io.writers import save_config, save_statistics, get_run_dir, skill_to_dict
 from utils.logging import setup_logging
 from utils.llm_observer import enable_observability
 
@@ -455,6 +455,22 @@ def _make_agent_factory(config: dict, agent_config: LLMConfig, output_dir: Path)
     return factory
 
 
+
+
+def _persist_per_repo_skillbook(skillbook, out_dir: Path, benchmark: str, repo: str) -> Path:
+    """Write a per-repo final_skillbook.json via the shared skill_to_dict
+    serializer, so `sources` (and all other fields) are always included.
+
+    Single source for per-repo on-disk persistence — used by both
+    _run_single_repo_experiment and the learn-replay path. Returns the path.
+    """
+    repo_dir = out_dir / benchmark / "skillbooks" / "per_repo" / repo.replace("/", "__")
+    repo_dir.mkdir(parents=True, exist_ok=True)
+    out_path = repo_dir / "final_skillbook.json"
+    skills = {s.id: skill_to_dict(s) for s in skillbook.skills()}
+    with open(out_path, "w") as f:
+        json.dump({"skill_count": len(skills), "skills": skills}, f, indent=2)
+    return out_path
 def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
     """Print execution plan without running anything."""
     benchmark = config["benchmark"]["dataset"].replace("/", "__")
@@ -949,25 +965,8 @@ def _run_single_repo_experiment(
     # Persist per-repo skillbook to disk (only after training)
     repo_sb = loop.repo_skillbooks.get(repo, loop.global_skillbook)
     if repo_sb and len(repo_sb.skills()) > 0:
-        repo_sb_dir = run_dir / benchmark / "skillbooks" / "per_repo" / repo.replace("/", "__")
-        repo_sb_dir.mkdir(parents=True, exist_ok=True)
-        out_path = repo_sb_dir / "final_skillbook.json"
-        skills_data = {
-            "skill_count": len(repo_sb.skills()),
-            "skills": {
-                s.id: {
-                    "id": s.id,
-                    "section": s.section,
-                    "content": s.content,
-                    "justification": s.justification,
-                    "evidence": s.evidence,
-                }
-                for s in repo_sb.skills()
-            },
-        }
-        with open(out_path, "w") as f:
-            json.dump(skills_data, f, indent=2)
-        logger.debug(f"[{repo}] Saved per-repo skillbook ({skills_data['skill_count']} skills) to {out_path}")
+        out_path = _persist_per_repo_skillbook(repo_sb, run_dir, benchmark, repo)
+        logger.debug(f"[{repo}] Saved per-repo skillbook ({len(repo_sb.skills())} skills) to {out_path}")
 
     return stats
 
