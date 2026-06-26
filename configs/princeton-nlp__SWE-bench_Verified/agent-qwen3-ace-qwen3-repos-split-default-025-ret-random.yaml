@@ -2,7 +2,8 @@ experiment:
   name: "agent-qwen3-ace-qwen3-verified-repos-split-default-025-retk5-random"
   description: "ACE skillbook learning — per-repo two-phase experiments (default ACE reflector)"
   max_attempts: 1
-  concurrency: 1
+  concurrency: 3
+  iterate_repos_concurrency: 2
 
   skillbook:
     mode: "per_repo"

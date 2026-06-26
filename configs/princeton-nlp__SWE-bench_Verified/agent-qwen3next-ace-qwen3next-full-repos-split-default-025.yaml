@@ -2,7 +2,8 @@ experiment:
   name: "agent-qwen3next-ace-qwen3next-full-repos-split-default-025"
   description: "ACE skillbook global per repo learning experiment on SWE-bench Verified"
   max_attempts: 1                    # Max retry attempts per instance
-  concurrency: 4
+  concurrency: 2
+  iterate_repos_concurrency: 1
 
   skillbook:
     mode: "per_repo"              # "per_instance", "per_repo", or "global"
@@ -14,7 +15,7 @@ experiment:
   # --- Two-phase experiment settings (per_repo/global modes) ---
   split:                             # Enable train/val split
     manifest: "configs/splits/princeton-nlp__SWE-bench_Verified/val_ratio_0_25.json"
-  # baseline_run_dir: "data/baseline_split025_verified"
+  baseline_run_dir: "data/baseline_split025_verified_qwen3next"
   val_pass_k: 5
 
 agent:

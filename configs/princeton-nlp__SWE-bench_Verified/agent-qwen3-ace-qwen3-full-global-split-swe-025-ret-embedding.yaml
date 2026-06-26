@@ -2,7 +2,7 @@ experiment:
   name: "agent-qwen3-ace-qwen3-full-global-split-swe-025-retk5-embedding"
   description: "ACE skillbook global per repo learning experiment on SWE-bench Verified"
   max_attempts: 1                    # Max retry attempts per instance
-  concurrency: 1
+  concurrency: 6
 
   skillbook:
     mode: "global"              # "per_instance", "per_repo", or "global"

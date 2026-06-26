@@ -2,7 +2,8 @@ experiment:
   name: "agent-qwen3-ace-qwen3-verified-repos-split-swe-025-retk5-embedding"
   description: "ACE skillbook learning — per-repo two-phase experiments (SWE ACE reflector)"
   max_attempts: 1
-  concurrency: 6
+  concurrency: 3
+  iterate_repos_concurrency: 2
 
   skillbook:
     mode: "per_repo"

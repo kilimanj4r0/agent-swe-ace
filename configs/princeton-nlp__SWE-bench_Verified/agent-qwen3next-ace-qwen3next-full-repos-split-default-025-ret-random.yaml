@@ -1,27 +1,28 @@
 experiment:
-  name: "agent-qwen3next-ace-qwen3next-full-global-split-default-025-ret-embedding"
-  description: "ACE skillbook global per repo learning experiment on SWE-bench Verified — embedding-retriever val"
+  name: "agent-qwen3next-ace-qwen3next-full-repos-split-default-025-ret-random"
+  description: "ACE skillbook per repo learning experiment on SWE-bench Verified — random-retriever val"
   max_attempts: 1                    # Max retry attempts per instance
-  concurrency: 6
+  concurrency: 2
+  iterate_repos_concurrency: 1
 
   skillbook:
-    mode: "global"              # "per_instance", "per_repo", or "global"
+    mode: "per_repo"              # "per_instance", "per_repo", or "global"
     custom_swe_learn: false            # SWE-optimized Reflector+SkillManager (anti-patterns, type prefixes)
     deduplication:
       enabled: true
       similarity_threshold: 0.85      # Cosine similarity threshold
     retrieval:
       enabled: true                   # Top-k skill retrieval before predict
-      type: "embedding"               # Cosine similarity via sentence-transformers
-      model: "Qwen/Qwen3-Embedding-4B"   # Must override config.yaml's llm retrieval model
+      type: "random"                  # Uniformly random k skills (retrieval ablation baseline)
       top_k: 5                        # Number of skills to retrieve
+      seed: 42                        # Reproducible sampling (null = non-deterministic)
 
   # --- Two-phase experiment settings (per_repo/global modes) ---
   split:                             # Enable train/val split
     manifest: "configs/splits/princeton-nlp__SWE-bench_Verified/val_ratio_0_25.json"
   baseline_run_dir: "data/baseline_split025_verified_qwen3next"
   val_pass_k: 5
-  skillbook_source_dir: "data/run_20260615_125626_completed_qwen3next_global_split025_default_verified_vpk5"
+  skillbook_source_dir: "data/run_20260622_105529_completed_qwen3next_repos_split025_default_verified_vpk5"
 
 agent:
   step_limit: 250                    # Max agent steps per attempt
@@ -31,22 +32,22 @@ llm:
     provider: "hosted_vllm"
     model: "Qwen/Qwen3-Coder-Next-FP8"
     # model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
-    # api_base: "http://10.100.30.241:8802/v1"
-    api_base: "http://localhost:8800/v1"
+    api_base: "http://10.100.30.241:8802/v1"
+    # api_base: "http://localhost:8800/v1"
     api_key_env: "HOSTED_VLLM_API_KEY"
   ace:
     provider: "hosted_vllm"
     model: "Qwen/Qwen3-Coder-Next-FP8"
     # model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
-    # api_base: "http://10.100.30.241:8802/v1"
-    api_base: "http://localhost:8800/v1"
+    api_base: "http://10.100.30.241:8802/v1"
+    # api_base: "http://localhost:8800/v1"
     api_key_env: "HOSTED_VLLM_API_KEY"
 
 benchmark:
   dataset: "princeton-nlp/SWE-bench_Verified"
   split: "test"
   max_instances: null                 # null = all instances, or set number
-  filter_repos:
+  iterate_repos:
     - "django/django"
     - "sympy/sympy"
     - "sphinx-doc/sphinx"

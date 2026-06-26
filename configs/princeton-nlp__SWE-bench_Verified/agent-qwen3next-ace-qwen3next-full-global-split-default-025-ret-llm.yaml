@@ -2,7 +2,7 @@ experiment:
   name: "agent-qwen3next-ace-qwen3next-full-global-split-default-025-ret-llm"
   description: "ACE skillbook global per repo learning experiment on SWE-bench Verified — llm-retriever val"
   max_attempts: 1                    # Max retry attempts per instance
-  concurrency: 1
+  concurrency: 2
 
   skillbook:
     mode: "global"              # "per_instance", "per_repo", or "global"
@@ -21,9 +21,7 @@ experiment:
     manifest: "configs/splits/princeton-nlp__SWE-bench_Verified/val_ratio_0_25.json"
   baseline_run_dir: "data/baseline_split025_verified_qwen3next"
   val_pass_k: 5
-  # To compare retrievers without re-training the global skillbook each time, set
-  # skillbook_source_dir to the base run's output dir (validation-only mode), as the
-  # qwen3 *-ret.yaml configs do.
+  skillbook_source_dir: "data/run_20260615_125626_completed_qwen3next_global_split025_default_verified_vpk5"
 
 agent:
   step_limit: 250                    # Max agent steps per attempt
