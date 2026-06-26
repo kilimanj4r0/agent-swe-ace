@@ -364,6 +364,18 @@ def build_action_observation_template() -> str:
     return config["agent"]["action_observation_template"]
 
 
+def build_format_error_template() -> str:
+    """Get mini-swe-agent's format error template (corrective re-example on malformed output).
+
+    Shown to the model when its response does not parse (zero or multiple bash blocks).
+    The swebench.yaml version re-shows a <response_example> so the model can self-correct;
+    without it, AgentConfig falls back to a bare one-line scold that offers no corrective
+    guidance and tends to lock the model into a format-rejection loop.
+    """
+    config = _load_mini_swe_config()
+    return config["agent"]["format_error_template"]
+
+
 def build_instance_template(skillbook: Optional[Skillbook] = None) -> str:
     """
     Build instance template with skillbook context injected.

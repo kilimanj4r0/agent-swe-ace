@@ -79,6 +79,12 @@ class TestSkillbookInjection:
             "system_template": "You are a coding assistant.",
             "instance_template": "Problem:\n{{ problem_statement }}\n\n<example_response>...</example_response>",
             "action_observation_template": "{{ observation }}",
+            "format_error_template": (
+                "Please always provide EXACTLY ONE action in triple backticks, "
+                "found {{actions|length}} actions.\n"
+                "Please format your action as shown in <response_example>.\n"
+                "<response_example>\n```bash\n<action>\n```\n</response_example>"
+            ),
         }
     }
 
@@ -104,6 +110,19 @@ class TestSkillbookInjection:
             template = build_instance_template(skillbook=None)
 
             assert "## Learned Strategies" not in template
+
+    def test_format_error_template_loaded_from_config(self):
+        """build_format_error_template returns the corrective template from swebench.yaml."""
+        from phases.predict import build_format_error_template
+
+        with patch("phases.predict._load_mini_swe_config", return_value=self.MOCK_MINI_CONFIG):
+            template = build_format_error_template()
+
+        # Must be the rich corrective version, not the bare one-line default.
+        assert "EXACTLY ONE" in template
+        assert "{{actions|length}}" in template
+        assert "<response_example>" in template
+        assert "```bash" in template
 
     def test_skillbook_injection_adds_section(self):
         """Test that skillbook with skills injects Learned Strategies section."""
