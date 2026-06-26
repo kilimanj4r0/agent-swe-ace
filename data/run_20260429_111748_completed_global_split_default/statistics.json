@@ -502,7 +502,24 @@
     "freshly_run": 0,
     "baseline_resolved_count": 42,
     "baseline_unresolved_count": 192,
-    "baseline_resolution_rate": 0.1794871794871795
+    "baseline_resolution_rate": 0.1794871794871795,
+    "exit_statuses": {
+      "Submitted": {
+        "0": 199
+      },
+      "LimitsExceeded": {
+        "0": 35
+      }
+    },
+    "exit_status_totals": {
+      "Submitted": 199,
+      "LimitsExceeded": 35
+    },
+    "iter0": {
+      "resolved": 36,
+      "total": 234,
+      "rate": 0.15384615384615385
+    }
   },
   "val_baseline_phase": {
     "total_instances": 58,
@@ -571,7 +588,47 @@
       "sympy__sympy-21171",
       "sympy__sympy-22840"
     ],
-    "skillbook_skills": 0
+    "skillbook_skills": 0,
+    "exit_statuses": {
+      "Submitted": {
+        "0": 49
+      },
+      "LimitsExceeded": {
+        "0": 9
+      }
+    },
+    "exit_status_totals": {
+      "Submitted": 49,
+      "LimitsExceeded": 9
+    },
+    "iter0": {
+      "resolved": 5,
+      "total": 58,
+      "rate": 0.08620689655172414
+    },
+    "per_attempt_resolved": {
+      "iter_0": [
+        "django__django-11848",
+        "django__django-12497",
+        "django__django-14915",
+        "sympy__sympy-14774",
+        "sympy__sympy-14817"
+      ]
+    },
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 5,
+        "total": 58,
+        "rate": 0.08620689655172414
+      }
+    },
+    "pass_at_k": {
+      "pass@1": {
+        "count": 5,
+        "total": 58,
+        "rate": 0.08620689655172414
+      }
+    }
   },
   "val_skillbook_phase": {
     "total_instances": 58,
@@ -640,7 +697,53 @@
       "sympy__sympy-21171",
       "sympy__sympy-22840"
     ],
-    "skillbook_skills": 661
+    "skillbook_skills": 661,
+    "exit_statuses": {
+      "Submitted": {
+        "0": 53
+      },
+      "LimitsExceeded": {
+        "0": 4
+      },
+      "error": {
+        "0": 1
+      }
+    },
+    "exit_status_totals": {
+      "Submitted": 53,
+      "LimitsExceeded": 4,
+      "error": 1
+    },
+    "iter0": {
+      "resolved": 7,
+      "total": 58,
+      "rate": 0.1206896551724138
+    },
+    "per_attempt_resolved": {
+      "iter_0": [
+        "django__django-10914",
+        "django__django-11620",
+        "django__django-16046",
+        "scikit-learn__scikit-learn-13496",
+        "scikit-learn__scikit-learn-13779",
+        "sympy__sympy-14774",
+        "sympy__sympy-20154"
+      ]
+    },
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 7,
+        "total": 58,
+        "rate": 0.1206896551724138
+      }
+    },
+    "pass_at_k": {
+      "pass@1": {
+        "count": 7,
+        "total": 58,
+        "rate": 0.1206896551724138
+      }
+    }
   },
   "summary": {
     "train_resolution_rate": 0.15384615384615385,
@@ -661,6 +764,49 @@
       "django__django-12497",
       "django__django-14915",
       "sympy__sympy-14817"
+    ],
+    "per_attempt_new_lost": {
+      "avg_new": 6.0,
+      "avg_lost": 4.0
+    }
+  },
+  "exit_statuses": {
+    "Submitted": {
+      "0": 301
+    },
+    "LimitsExceeded": {
+      "0": 48
+    },
+    "error": {
+      "0": 1
+    }
+  },
+  "exit_status_totals": {
+    "Submitted": 301,
+    "LimitsExceeded": 48,
+    "error": 1
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_statuses[train]",
+      "exit_statuses[val]",
+      "exit_statuses[val_baseline]",
+      "exit_totals[top]",
+      "exit_totals[train]",
+      "exit_totals[val]",
+      "exit_totals[val_baseline]",
+      "iter0[train]",
+      "iter0[val]",
+      "iter0[val_baseline]",
+      "pass_at_k[val]",
+      "pass_at_k[val_baseline]",
+      "per_attempt_new_lost",
+      "per_attempt_rate[val]",
+      "per_attempt_rate[val_baseline]",
+      "per_attempt_resolved[val]",
+      "per_attempt_resolved[val_baseline]"
     ]
   }
 }

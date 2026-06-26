@@ -25,12 +25,40 @@
   "val_baseline_phase": {
     "total_instances": 50,
     "resolved_count": 3,
-    "resolution_rate": 0.06
+    "resolution_rate": 0.06,
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 3,
+        "total": 50,
+        "rate": 0.06
+      }
+    },
+    "pass_at_k": {
+      "pass@1": {
+        "count": 3,
+        "total": 50,
+        "rate": 0.06
+      }
+    }
   },
   "val_skillbook_phase": {
     "total_instances": 50,
     "resolved_count": 5,
-    "resolution_rate": 0.1
+    "resolution_rate": 0.1,
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 5,
+        "total": 50,
+        "rate": 0.1
+      }
+    },
+    "pass_at_k": {
+      "pass@1": {
+        "count": 5,
+        "total": 50,
+        "rate": 0.1
+      }
+    }
   },
   "summary": {
     "total_repos": 6,
@@ -83,6 +111,39 @@
         "val_skillbook_rate": 0.13333333333333333,
         "improvement": "-0.067"
       }
+    },
+    "newly_resolved_by_skillbook": [
+      "django__django-14999",
+      "django__django-15347",
+      "scikit-learn__scikit-learn-14092"
+    ],
+    "lost_by_skillbook": [
+      "sympy__sympy-18621"
+    ]
+  },
+  "exit_statuses": {
+    "LimitsExceeded": {
+      "0": 34
+    },
+    "Submitted": {
+      "0": 281
     }
+  },
+  "exit_status_totals": {
+    "LimitsExceeded": 34,
+    "Submitted": 281
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_totals[top]",
+      "lost[top]",
+      "newly_resolved[top]",
+      "pass_at_k[val_baseline_phase]",
+      "pass_at_k[val_skillbook_phase]",
+      "per_attempt_rate[val_baseline_phase]",
+      "per_attempt_rate[val_skillbook_phase]"
+    ]
   }
 }

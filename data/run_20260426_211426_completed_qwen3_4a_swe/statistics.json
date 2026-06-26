@@ -365,5 +365,41 @@
         "sympy__sympy-24066"
       ]
     }
+  },
+  "exit_statuses": {
+    "Submitted": {
+      "3": 199,
+      "2": 208,
+      "0": 247,
+      "1": 208
+    },
+    "LimitsExceeded": {
+      "0": 44,
+      "3": 19,
+      "2": 15,
+      "1": 24
+    },
+    "error": {
+      "1": 2,
+      "0": 1
+    }
+  },
+  "exit_status_totals": {
+    "Submitted": 862,
+    "LimitsExceeded": 102,
+    "error": 3
+  },
+  "iter0": {
+    "resolved": 41,
+    "total": 292,
+    "rate": 0.1404109589041096
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_totals[top]",
+      "iter0[top]"
+    ]
   }
 }

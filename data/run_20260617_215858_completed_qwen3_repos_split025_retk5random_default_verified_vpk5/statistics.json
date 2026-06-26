@@ -27,12 +27,120 @@
   "val_baseline_phase": {
     "total_instances": 113,
     "resolved_count": 26,
-    "resolution_rate": 0.23008849557522124
+    "resolution_rate": 0.23008849557522124,
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 23,
+        "total": 113,
+        "rate": 0.20353982300884957
+      },
+      "iter_1": {
+        "resolved": 22,
+        "total": 113,
+        "rate": 0.19469026548672566
+      },
+      "iter_2": {
+        "resolved": 22,
+        "total": 113,
+        "rate": 0.19469026548672566
+      },
+      "iter_3": {
+        "resolved": 22,
+        "total": 113,
+        "rate": 0.19469026548672566
+      },
+      "iter_4": {
+        "resolved": 23,
+        "total": 113,
+        "rate": 0.20353982300884957
+      }
+    },
+    "pass_at_k": {
+      "pass@1": {
+        "count": 23,
+        "total": 113,
+        "rate": 0.20353982300884957
+      },
+      "pass@2": {
+        "count": 24,
+        "total": 113,
+        "rate": 0.21238938053097345
+      },
+      "pass@3": {
+        "count": 25,
+        "total": 113,
+        "rate": 0.22123893805309736
+      },
+      "pass@4": {
+        "count": 26,
+        "total": 113,
+        "rate": 0.23008849557522124
+      },
+      "pass@5": {
+        "count": 26,
+        "total": 113,
+        "rate": 0.23008849557522124
+      }
+    }
   },
   "val_skillbook_phase": {
     "total_instances": 113,
     "resolved_count": 35,
-    "resolution_rate": 0.30973451327433627
+    "resolution_rate": 0.30973451327433627,
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 28,
+        "total": 113,
+        "rate": 0.24778761061946902
+      },
+      "iter_1": {
+        "resolved": 32,
+        "total": 113,
+        "rate": 0.2831858407079646
+      },
+      "iter_2": {
+        "resolved": 32,
+        "total": 113,
+        "rate": 0.2831858407079646
+      },
+      "iter_3": {
+        "resolved": 28,
+        "total": 113,
+        "rate": 0.24778761061946902
+      },
+      "iter_4": {
+        "resolved": 32,
+        "total": 113,
+        "rate": 0.2831858407079646
+      }
+    },
+    "pass_at_k": {
+      "pass@1": {
+        "count": 28,
+        "total": 113,
+        "rate": 0.24778761061946902
+      },
+      "pass@2": {
+        "count": 33,
+        "total": 113,
+        "rate": 0.2920353982300885
+      },
+      "pass@3": {
+        "count": 34,
+        "total": 113,
+        "rate": 0.3008849557522124
+      },
+      "pass@4": {
+        "count": 34,
+        "total": 113,
+        "rate": 0.3008849557522124
+      },
+      "pass@5": {
+        "count": 35,
+        "total": 113,
+        "rate": 0.30973451327433627
+      }
+    }
   },
   "summary": {
     "total_repos": 8,
@@ -99,6 +207,75 @@
         "val_skillbook_rate": 0.5,
         "improvement": "+0.250"
       }
+    },
+    "newly_resolved_by_skillbook": [
+      "django__django-11095",
+      "django__django-11133",
+      "django__django-11880",
+      "django__django-11951",
+      "django__django-13410",
+      "django__django-13417",
+      "django__django-13658",
+      "django__django-15731",
+      "django__django-9296",
+      "matplotlib__matplotlib-23412",
+      "pytest-dev__pytest-5631",
+      "scikit-learn__scikit-learn-10297",
+      "scikit-learn__scikit-learn-10908",
+      "scikit-learn__scikit-learn-15100",
+      "sympy__sympy-13878",
+      "sympy__sympy-20801",
+      "sympy__sympy-23262"
+    ],
+    "lost_by_skillbook": [
+      "django__django-12713",
+      "django__django-13109",
+      "django__django-13810",
+      "pydata__xarray-3677",
+      "scikit-learn__scikit-learn-13439",
+      "sphinx-doc__sphinx-9673",
+      "sympy__sympy-24066",
+      "sympy__sympy-24443"
+    ]
+  },
+  "exit_statuses": {
+    "Submitted": {
+      "3": 211,
+      "2": 211,
+      "0": 210,
+      "4": 213,
+      "1": 208
+    },
+    "LimitsExceeded": {
+      "1": 18,
+      "0": 14,
+      "4": 11,
+      "3": 13,
+      "2": 13
+    },
+    "ContextWindowExceeded": {
+      "2": 2,
+      "4": 2,
+      "3": 2,
+      "0": 2
     }
+  },
+  "exit_status_totals": {
+    "Submitted": 1053,
+    "LimitsExceeded": 69,
+    "ContextWindowExceeded": 8
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_totals[top]",
+      "lost[top]",
+      "newly_resolved[top]",
+      "pass_at_k[val_baseline_phase]",
+      "pass_at_k[val_skillbook_phase]",
+      "per_attempt_rate[val_baseline_phase]",
+      "per_attempt_rate[val_skillbook_phase]"
+    ]
   }
 }

@@ -68,7 +68,24 @@
     "freshly_run": 0,
     "baseline_resolved_count": 1,
     "baseline_unresolved_count": 18,
-    "baseline_resolution_rate": 0.05263157894736842
+    "baseline_resolution_rate": 0.05263157894736842,
+    "exit_statuses": {
+      "Submitted": {
+        "0": 17
+      },
+      "LimitsExceeded": {
+        "0": 2
+      }
+    },
+    "exit_status_totals": {
+      "Submitted": 17,
+      "LimitsExceeded": 2
+    },
+    "iter0": {
+      "resolved": 9,
+      "total": 19,
+      "rate": 0.47368421052631576
+    }
   },
   "val_baseline_phase": {
     "total_instances": 4,
@@ -82,7 +99,31 @@
       "matplotlib__matplotlib-25079",
       "matplotlib__matplotlib-25311"
     ],
-    "skillbook_skills": 0
+    "skillbook_skills": 0,
+    "exit_statuses": {
+      "LimitsExceeded": {
+        "0": 2
+      },
+      "Submitted": {
+        "0": 2
+      }
+    },
+    "exit_status_totals": {
+      "LimitsExceeded": 2,
+      "Submitted": 2
+    },
+    "iter0": {
+      "resolved": 0,
+      "total": 4,
+      "rate": 0.0
+    },
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 0,
+        "total": 4,
+        "rate": 0.0
+      }
+    }
   },
   "val_skillbook_phase": {
     "total_instances": 4,
@@ -96,7 +137,31 @@
       "matplotlib__matplotlib-25079",
       "matplotlib__matplotlib-25311"
     ],
-    "skillbook_skills": 49
+    "skillbook_skills": 49,
+    "exit_statuses": {
+      "Submitted": {
+        "0": 3
+      },
+      "LimitsExceeded": {
+        "0": 1
+      }
+    },
+    "exit_status_totals": {
+      "Submitted": 3,
+      "LimitsExceeded": 1
+    },
+    "iter0": {
+      "resolved": 0,
+      "total": 4,
+      "rate": 0.0
+    },
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 0,
+        "total": 4,
+        "rate": 0.0
+      }
+    }
   },
   "summary": {
     "train_resolution_rate": 0.47368421052631576,
@@ -106,5 +171,35 @@
     "skillbook_improvement_pct": "N/A",
     "newly_resolved_by_skillbook": [],
     "lost_by_skillbook": []
+  },
+  "exit_statuses": {
+    "Submitted": {
+      "0": 22
+    },
+    "LimitsExceeded": {
+      "0": 5
+    }
+  },
+  "exit_status_totals": {
+    "Submitted": 22,
+    "LimitsExceeded": 5
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_statuses[train]",
+      "exit_statuses[val]",
+      "exit_statuses[val_baseline]",
+      "exit_totals[top]",
+      "exit_totals[train]",
+      "exit_totals[val]",
+      "exit_totals[val_baseline]",
+      "iter0[train]",
+      "iter0[val]",
+      "iter0[val_baseline]",
+      "per_attempt_rate[val]",
+      "per_attempt_rate[val_baseline]"
+    ]
   }
 }

@@ -186,6 +186,205 @@
         "total": 113,
         "rate": 0.26548672566371684
       }
+    },
+    "exit_statuses": {
+      "Submitted": {
+        "3": 106,
+        "2": 107,
+        "4": 104,
+        "1": 105,
+        "0": 105
+      },
+      "LimitsExceeded": {
+        "0": 7,
+        "4": 9,
+        "3": 5,
+        "2": 4,
+        "1": 6
+      },
+      "ContextWindowExceeded": {
+        "1": 2,
+        "3": 2,
+        "2": 2,
+        "0": 1
+      }
+    },
+    "exit_status_totals": {
+      "Submitted": 527,
+      "LimitsExceeded": 31,
+      "ContextWindowExceeded": 7
+    },
+    "iter0": {
+      "resolved": 27,
+      "total": 113,
+      "rate": 0.23893805309734514
+    },
+    "per_attempt_resolved": {
+      "iter_0": [
+        "astropy__astropy-14309",
+        "django__django-11095",
+        "django__django-11163",
+        "django__django-11880",
+        "django__django-12419",
+        "django__django-12713",
+        "django__django-13109",
+        "django__django-13658",
+        "django__django-14238",
+        "django__django-15731",
+        "django__django-16569",
+        "django__django-16662",
+        "django__django-9296",
+        "matplotlib__matplotlib-25122",
+        "pydata__xarray-6461",
+        "pytest-dev__pytest-6202",
+        "scikit-learn__scikit-learn-13135",
+        "scikit-learn__scikit-learn-15100",
+        "sphinx-doc__sphinx-9673",
+        "sphinx-doc__sphinx-9698",
+        "sympy__sympy-13372",
+        "sympy__sympy-16766",
+        "sympy__sympy-16886",
+        "sympy__sympy-18763",
+        "sympy__sympy-22714",
+        "sympy__sympy-24066",
+        "sympy__sympy-24213"
+      ],
+      "iter_1": [
+        "astropy__astropy-14309",
+        "django__django-11095",
+        "django__django-11163",
+        "django__django-11880",
+        "django__django-12419",
+        "django__django-12713",
+        "django__django-13109",
+        "django__django-13658",
+        "django__django-14238",
+        "django__django-15731",
+        "django__django-16801",
+        "django__django-9296",
+        "matplotlib__matplotlib-25122",
+        "pydata__xarray-6461",
+        "pytest-dev__pytest-6202",
+        "scikit-learn__scikit-learn-13135",
+        "scikit-learn__scikit-learn-15100",
+        "sphinx-doc__sphinx-9673",
+        "sympy__sympy-13372",
+        "sympy__sympy-16766",
+        "sympy__sympy-16886",
+        "sympy__sympy-18763",
+        "sympy__sympy-22714",
+        "sympy__sympy-24066",
+        "sympy__sympy-24213",
+        "sympy__sympy-24443"
+      ],
+      "iter_2": [
+        "astropy__astropy-14309",
+        "django__django-11095",
+        "django__django-11163",
+        "django__django-11880",
+        "django__django-12419",
+        "django__django-12713",
+        "django__django-13109",
+        "django__django-13658",
+        "django__django-14238",
+        "django__django-15731",
+        "django__django-16569",
+        "django__django-16801",
+        "django__django-9296",
+        "matplotlib__matplotlib-25122",
+        "pydata__xarray-6461",
+        "pytest-dev__pytest-6202",
+        "scikit-learn__scikit-learn-10908",
+        "scikit-learn__scikit-learn-13135",
+        "scikit-learn__scikit-learn-15100",
+        "sphinx-doc__sphinx-9673",
+        "sphinx-doc__sphinx-9698",
+        "sympy__sympy-13372",
+        "sympy__sympy-16766",
+        "sympy__sympy-16886",
+        "sympy__sympy-18763",
+        "sympy__sympy-22714",
+        "sympy__sympy-24213",
+        "sympy__sympy-24443"
+      ],
+      "iter_3": [
+        "astropy__astropy-14309",
+        "django__django-11095",
+        "django__django-11163",
+        "django__django-11880",
+        "django__django-12419",
+        "django__django-12713",
+        "django__django-13109",
+        "django__django-13658",
+        "django__django-15731",
+        "django__django-9296",
+        "matplotlib__matplotlib-25122",
+        "pydata__xarray-6461",
+        "pytest-dev__pytest-6202",
+        "scikit-learn__scikit-learn-13135",
+        "scikit-learn__scikit-learn-15100",
+        "sphinx-doc__sphinx-9673",
+        "sphinx-doc__sphinx-9698",
+        "sympy__sympy-13372",
+        "sympy__sympy-16766",
+        "sympy__sympy-16886",
+        "sympy__sympy-18763",
+        "sympy__sympy-22714",
+        "sympy__sympy-24066",
+        "sympy__sympy-24213",
+        "sympy__sympy-24443"
+      ],
+      "iter_4": [
+        "django__django-11880",
+        "django__django-12419",
+        "django__django-12713",
+        "django__django-13109",
+        "django__django-13658",
+        "django__django-15731",
+        "django__django-16801",
+        "django__django-9296",
+        "matplotlib__matplotlib-25122",
+        "pydata__xarray-6461",
+        "pytest-dev__pytest-6202",
+        "scikit-learn__scikit-learn-13135",
+        "sphinx-doc__sphinx-9673",
+        "sphinx-doc__sphinx-9698",
+        "sympy__sympy-13372",
+        "sympy__sympy-16766",
+        "sympy__sympy-16886",
+        "sympy__sympy-18763",
+        "sympy__sympy-22714",
+        "sympy__sympy-24066",
+        "sympy__sympy-24213",
+        "sympy__sympy-24443"
+      ]
+    },
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 27,
+        "total": 113,
+        "rate": 0.23893805309734514
+      },
+      "iter_1": {
+        "resolved": 26,
+        "total": 113,
+        "rate": 0.23008849557522124
+      },
+      "iter_2": {
+        "resolved": 28,
+        "total": 113,
+        "rate": 0.24778761061946902
+      },
+      "iter_3": {
+        "resolved": 25,
+        "total": 113,
+        "rate": 0.22123893805309736
+      },
+      "iter_4": {
+        "resolved": 22,
+        "total": 113,
+        "rate": 0.19469026548672566
+      }
     }
   },
   "val_skillbook_phase": {
@@ -338,6 +537,211 @@
         "total": 113,
         "rate": 0.2831858407079646
       }
+    },
+    "exit_statuses": {
+      "Submitted": {
+        "3": 104,
+        "0": 104,
+        "4": 111,
+        "1": 106,
+        "2": 105
+      },
+      "LimitsExceeded": {
+        "2": 7,
+        "4": 2,
+        "3": 9,
+        "1": 6,
+        "0": 7
+      },
+      "ContextWindowExceeded": {
+        "0": 2,
+        "1": 1,
+        "2": 1
+      }
+    },
+    "exit_status_totals": {
+      "Submitted": 530,
+      "LimitsExceeded": 31,
+      "ContextWindowExceeded": 4
+    },
+    "iter0": {
+      "resolved": 26,
+      "total": 113,
+      "rate": 0.23008849557522124
+    },
+    "per_attempt_resolved": {
+      "iter_0": [
+        "astropy__astropy-14309",
+        "django__django-10914",
+        "django__django-11095",
+        "django__django-11163",
+        "django__django-11880",
+        "django__django-12419",
+        "django__django-12713",
+        "django__django-13109",
+        "django__django-13658",
+        "django__django-14238",
+        "django__django-16569",
+        "django__django-16662",
+        "django__django-16801",
+        "django__django-9296",
+        "matplotlib__matplotlib-25122",
+        "pydata__xarray-6461",
+        "pytest-dev__pytest-6202",
+        "scikit-learn__scikit-learn-10908",
+        "scikit-learn__scikit-learn-13135",
+        "scikit-learn__scikit-learn-15100",
+        "sphinx-doc__sphinx-9673",
+        "sphinx-doc__sphinx-9698",
+        "sympy__sympy-16886",
+        "sympy__sympy-18763",
+        "sympy__sympy-22714",
+        "sympy__sympy-24066"
+      ],
+      "iter_1": [
+        "astropy__astropy-14309",
+        "django__django-10914",
+        "django__django-11095",
+        "django__django-11163",
+        "django__django-11880",
+        "django__django-12419",
+        "django__django-12713",
+        "django__django-13109",
+        "django__django-13658",
+        "django__django-14238",
+        "django__django-15731",
+        "django__django-16569",
+        "django__django-16662",
+        "django__django-16801",
+        "django__django-9296",
+        "matplotlib__matplotlib-25122",
+        "pydata__xarray-6461",
+        "pytest-dev__pytest-6202",
+        "scikit-learn__scikit-learn-10297",
+        "scikit-learn__scikit-learn-10908",
+        "scikit-learn__scikit-learn-13135",
+        "sphinx-doc__sphinx-9673",
+        "sphinx-doc__sphinx-9698",
+        "sympy__sympy-13372",
+        "sympy__sympy-16766",
+        "sympy__sympy-16886",
+        "sympy__sympy-22714",
+        "sympy__sympy-24066",
+        "sympy__sympy-24443"
+      ],
+      "iter_2": [
+        "astropy__astropy-14309",
+        "django__django-10914",
+        "django__django-11095",
+        "django__django-11163",
+        "django__django-11880",
+        "django__django-12419",
+        "django__django-14238",
+        "django__django-15731",
+        "django__django-16569",
+        "django__django-16662",
+        "django__django-16801",
+        "matplotlib__matplotlib-25122",
+        "scikit-learn__scikit-learn-10297",
+        "scikit-learn__scikit-learn-13135",
+        "sphinx-doc__sphinx-9673",
+        "sphinx-doc__sphinx-9698",
+        "sympy__sympy-13372",
+        "sympy__sympy-16766",
+        "sympy__sympy-16886",
+        "sympy__sympy-22714",
+        "sympy__sympy-24066",
+        "sympy__sympy-24213",
+        "sympy__sympy-24443"
+      ],
+      "iter_3": [
+        "astropy__astropy-14309",
+        "django__django-10914",
+        "django__django-11095",
+        "django__django-11163",
+        "django__django-11880",
+        "django__django-12713",
+        "django__django-13109",
+        "django__django-13658",
+        "django__django-14238",
+        "django__django-16569",
+        "django__django-16662",
+        "django__django-16801",
+        "django__django-9296",
+        "matplotlib__matplotlib-25122",
+        "pydata__xarray-6461",
+        "pytest-dev__pytest-6202",
+        "scikit-learn__scikit-learn-13135",
+        "scikit-learn__scikit-learn-15100",
+        "sphinx-doc__sphinx-9673",
+        "sphinx-doc__sphinx-9698",
+        "sympy__sympy-13372",
+        "sympy__sympy-16766",
+        "sympy__sympy-16886",
+        "sympy__sympy-18763",
+        "sympy__sympy-22714",
+        "sympy__sympy-24066",
+        "sympy__sympy-24213",
+        "sympy__sympy-24443"
+      ],
+      "iter_4": [
+        "astropy__astropy-14309",
+        "django__django-10914",
+        "django__django-11095",
+        "django__django-11163",
+        "django__django-11880",
+        "django__django-12419",
+        "django__django-12713",
+        "django__django-13109",
+        "django__django-13658",
+        "django__django-14238",
+        "django__django-16569",
+        "django__django-16662",
+        "django__django-16801",
+        "django__django-9296",
+        "matplotlib__matplotlib-25122",
+        "pydata__xarray-6461",
+        "pytest-dev__pytest-6202",
+        "scikit-learn__scikit-learn-10297",
+        "scikit-learn__scikit-learn-10908",
+        "scikit-learn__scikit-learn-13135",
+        "sphinx-doc__sphinx-9698",
+        "sympy__sympy-13372",
+        "sympy__sympy-16766",
+        "sympy__sympy-16886",
+        "sympy__sympy-18763",
+        "sympy__sympy-22714",
+        "sympy__sympy-24066",
+        "sympy__sympy-24213",
+        "sympy__sympy-24443"
+      ]
+    },
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 26,
+        "total": 113,
+        "rate": 0.23008849557522124
+      },
+      "iter_1": {
+        "resolved": 29,
+        "total": 113,
+        "rate": 0.25663716814159293
+      },
+      "iter_2": {
+        "resolved": 23,
+        "total": 113,
+        "rate": 0.20353982300884957
+      },
+      "iter_3": {
+        "resolved": 28,
+        "total": 113,
+        "rate": 0.24778761061946902
+      },
+      "iter_4": {
+        "resolved": 29,
+        "total": 113,
+        "rate": 0.25663716814159293
+      }
     }
   },
   "summary": {
@@ -350,7 +754,11 @@
       "django__django-10914",
       "scikit-learn__scikit-learn-10297"
     ],
-    "lost_by_skillbook": []
+    "lost_by_skillbook": [],
+    "per_attempt_new_lost": {
+      "avg_new": 5.4,
+      "avg_lost": 4.0
+    }
   },
   "retrieval": {
     "enabled": true,
@@ -364,5 +772,50 @@
     "instances_skipped_threshold": 0,
     "avg_skills_before": 842.0,
     "avg_skills_after": 20.0
+  },
+  "exit_statuses": {
+    "Submitted": {
+      "3": 210,
+      "0": 209,
+      "4": 215,
+      "1": 211,
+      "2": 212
+    },
+    "LimitsExceeded": {
+      "2": 11,
+      "4": 11,
+      "3": 14,
+      "1": 12,
+      "0": 14
+    },
+    "ContextWindowExceeded": {
+      "0": 3,
+      "1": 3,
+      "2": 3,
+      "3": 2
+    }
+  },
+  "exit_status_totals": {
+    "Submitted": 1057,
+    "LimitsExceeded": 62,
+    "ContextWindowExceeded": 11
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_statuses[val]",
+      "exit_statuses[val_baseline]",
+      "exit_totals[top]",
+      "exit_totals[val]",
+      "exit_totals[val_baseline]",
+      "iter0[val]",
+      "iter0[val_baseline]",
+      "per_attempt_new_lost",
+      "per_attempt_rate[val]",
+      "per_attempt_rate[val_baseline]",
+      "per_attempt_resolved[val]",
+      "per_attempt_resolved[val_baseline]"
+    ]
   }
 }

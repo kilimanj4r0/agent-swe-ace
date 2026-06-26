@@ -51,5 +51,34 @@
       ]
     }
   },
-  "observability_project_url": "http://localhost:5173/projects/agent-swe-ace_run_20260402_112418"
+  "observability_project_url": "http://localhost:5173/projects/agent-swe-ace_run_20260402_112418",
+  "exit_statuses": {
+    "Submitted": {
+      "2": 8,
+      "0": 17,
+      "1": 10
+    },
+    "LimitsExceeded": {
+      "2": 2,
+      "0": 1,
+      "1": 2
+    }
+  },
+  "exit_status_totals": {
+    "Submitted": 35,
+    "LimitsExceeded": 5
+  },
+  "iter0": {
+    "resolved": 5,
+    "total": 18,
+    "rate": 0.2777777777777778
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_totals[top]",
+      "iter0[top]"
+    ]
+  }
 }

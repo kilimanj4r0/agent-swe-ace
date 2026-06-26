@@ -198,6 +198,25 @@ def _total_exit_status_counts(es_data: dict[str, dict[int, int]]) -> dict[str, i
     return {status: sum(it_counts.values()) for status, it_counts in es_data.items()}
 
 
+def _merge_exit_statuses(*es_dicts: dict | None) -> dict:
+    """Merge per-phase exit_statuses dicts into one combined {status: {iter: count}}.
+
+    Reads the backfilled per-phase ``exit_statuses`` (e.g. train/val_baseline/
+    val_skillbook) from a per-repo statistics file so we can show a per-repo
+    Traj-Exit-Status cell without re-scanning every trajectory file. Tolerates
+    string or int iteration keys (statistics.json round-trips them to strings).
+    """
+    merged: dict[str, dict] = {}
+    for es in es_dicts:
+        if not es:
+            continue
+        for status, it_counts in es.items():
+            tgt = merged.setdefault(status, {})
+            for it, c in it_counts.items():
+                tgt[it] = tgt.get(it, 0) + c
+    return merged
+
+
 def _collect_all_statuses(rows_data: list[dict]) -> list[str]:
     """Collect sorted unique exit status names from all rows' exit_statuses."""
     statuses = set()
@@ -354,6 +373,96 @@ def _backfill_per_attempt_rate(pd: dict, results_dir: Path, repo_prefix: str | N
         pd["per_attempt_rate"] = par
 
 
+def _per_attempt_resolved_sets(results_dir: Path, repo_prefix: str | None = None) -> dict[int, set[str]]:
+    """Per-iteration resolved instance-id sets: ``{iter_index: {instance_id, ...}}``.
+
+    Sibling of ``_compute_per_attempt_rate`` that returns id *sets* (needed to
+    split new vs lost per attempt) instead of counts. The stored
+    ``per_attempt_rate`` only has counts, so it cannot separate gains from
+    losses.
+
+    Mirrors ``_compute_per_attempt_rate`` exactly: an instance is added to set[i]
+    for EVERY iteration whose ``iter_i.json`` is resolved (breaking only on a
+    missing file). Val instances run all K attempts rather than stopping on first
+    resolve, so an instance CAN appear in several iterations' sets. This keeps
+    the per-attempt identity ``avg_new - avg_lost == (avg_sb - avg_bl) * total``
+    intact.
+    """
+    sets: dict[int, set[str]] = {}
+    if not results_dir.exists():
+        return sets
+    for inst_dir in sorted(results_dir.iterdir()):
+        if not inst_dir.is_dir():
+            continue
+        if repo_prefix and not inst_dir.name.startswith(repo_prefix):
+            continue
+        for i in range(10):  # iterations are contiguous from iter_0
+            f = inst_dir / f"iter_{i}.json"
+            if not f.exists():
+                break
+            with open(f) as fh:
+                if json.load(fh).get("resolved"):
+                    sets.setdefault(i, set()).add(inst_dir.name)
+    return sets
+
+
+def _avg_new_lost(bl_sets: dict[int, set[str]], sb_sets: dict[int, set[str]]) -> tuple[float, float]:
+    """Average per-attempt new/lost counts across attempts.
+
+    For each attempt index i: ``new_i = |SB_i \\ BL_i|``, ``lost_i = |BL_i \\ SB_i|``.
+    Returns the mean of each over the union of attempt indices. This is the gross
+    split; when both phases use the same baseline, ``avg_new - avg_lost`` equals
+    the avg-rate delta applied to the totals (the SB Δ (avg) count line).
+    """
+    iters = sorted(set(bl_sets) | set(sb_sets))
+    if not iters:
+        return 0.0, 0.0
+    n = len(iters)
+    new = sum(len(sb_sets.get(i, set()) - bl_sets.get(i, set())) for i in iters) / n
+    lost = sum(len(bl_sets.get(i, set()) - sb_sets.get(i, set())) for i in iters) / n
+    return new, lost
+
+
+def _fmt_new_lost(newly_resolved: list, lost: list, full_path: Path | None,
+                  vpk: int, repo_prefix: str | None = None,
+                  per_attempt_new_lost: dict | None = None) -> str:
+    """New/Lost cell: line 1 accumulated set diff, optional line 2 avg new/lost.
+
+    Line 1: ``{new}/{lost}`` over the accumulated (any-of-K) resolved sets.
+    Line 2: ``avg N.N/M.N`` -- per-attempt set-diff averaged across attempts,
+    shown only when ``vpk > 1`` and the run's own val_baseline per-iteration
+    results exist. Uses each run's OWN val_baseline (the aggregated reference has
+    no per-iteration sets), so ``avg_new - avg_lost`` need not match the
+    SB Δ (avg) count when that count is built on the aggregated baseline.
+
+    ``per_attempt_new_lost`` (``{avg_new, avg_lost}``) is read from the backfilled
+    statistics.json summary when available; otherwise we fall back to computing it
+    from the per-iteration result files. The avg line is shown whenever EITHER
+    phase has per-iteration resolved data -- so a repo whose val_baseline resolved
+    nothing still reports the skillbook's new resolves (the fallback guard matches
+    the backfill's condition, keeping both paths identical).
+    """
+    cell = f"{len(newly_resolved)}/{len(lost)}"
+    if vpk <= 1 or full_path is None:
+        return cell
+
+    avg_new = avg_lost = None
+    if per_attempt_new_lost:
+        avg_new = per_attempt_new_lost.get("avg_new")
+        avg_lost = per_attempt_new_lost.get("avg_lost")
+    if avg_new is None or avg_lost is None:
+        # Fallback: derive from per-iteration result files.
+        results_root = _phase_results_dir(full_path)
+        if results_root is None:
+            return cell
+        bl_sets = _per_attempt_resolved_sets(results_root / "val_baseline", repo_prefix=repo_prefix)
+        sb_sets = _per_attempt_resolved_sets(results_root / "val", repo_prefix=repo_prefix)
+        if not bl_sets and not sb_sets:
+            return cell  # no per-iteration data at all -> can't define new/lost
+        avg_new, avg_lost = _avg_new_lost(bl_sets, sb_sets)
+    return f"{cell}\navg {avg_new:.1f}/{avg_lost:.1f}"
+
+
 def load_run(run_dir: Path, iteration: int | None = None, phase: str | None = None) -> dict | None:
     stats_path = run_dir / "statistics.json"
     config_path = run_dir / "config.json"
@@ -399,6 +508,7 @@ def load_run(run_dir: Path, iteration: int | None = None, phase: str | None = No
             "skillbook_improvement_pct": stats.get("summary", {}).get("skillbook_improvement_pct", "N/A"),
             "newly_resolved": _nr if _nr is not None else [],
             "lost": _lt if _lt is not None else [],
+            "per_attempt_new_lost": stats.get("summary", {}).get("per_attempt_new_lost"),
         }
         # Backfill per_attempt_rate from result files so the per-attempt avg is
         # correct. statistics.json stores only cumulative pass@k (whose mean is not
@@ -442,11 +552,17 @@ def load_run(run_dir: Path, iteration: int | None = None, phase: str | None = No
     filter_repos = config.get("benchmark", {}).get("filter_repos")
     experiment_name = exp.get("name", "")
 
-    # Count iter_0 resolved (for comparing baseline vs skillbook-assisted)
-    iter0_resolved, iter0_total = _count_iter0_resolved(run_dir)
+    # Count iter_0 resolved — prefer the backfilled `iter0` in statistics.json,
+    # fall back to scanning result files.
+    _i0 = stats.get("iter0")
+    if _i0 and _i0.get("total"):
+        iter0_resolved, iter0_total = _i0["resolved"], _i0["total"]
+    else:
+        iter0_resolved, iter0_total = _count_iter0_resolved(run_dir)
 
-    # Exit status counts per iteration
-    exit_statuses = _count_exit_statuses(run_dir)
+    # Exit status counts per iteration — prefer the backfilled `exit_statuses` in
+    # statistics.json, fall back to scanning trajectory files.
+    exit_statuses = stats.get("exit_statuses") or _count_exit_statuses(run_dir)
 
     # Retrieval info. Prefer the config keyword (clean: llm/embedding/bm25/random)
     # over statistics.json, which stores retriever class names or omits type.
@@ -907,7 +1023,6 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
         per_repo_runs = [r for r in split_runs if r["is_iterate_repos"] or r.get("skillbook_mode") == "per_repo"]
         global_runs = [r for r in split_runs if not r["is_iterate_repos"] and r.get("skillbook_mode") != "per_repo"]
         global_headers = ["ID", "Dataset", "Train", "ValBL", "ValSB", "SB Δ (avg)", "New/Lost", "LLM", "Learn", "Traj Exit Status"]
-        all_details: list[tuple[str, dict]] = []
 
         # --- Per-repo table ---
         if per_repo_runs:
@@ -981,12 +1096,12 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                         "ValBL": _fmt_phase(agg_valbl, val_pass_k=vpk),
                         "ValSB": _fmt_phase(agg_valsb, val_pass_k=vpk),
                         "SB Δ (avg)": _fmt_sb_delta(sb_delta, agg_valbl.get("total", 0)),
-                        "New/Lost": f"{len(agg_nr)}/{len(agg_lost)}",
+                        "New/Lost": _fmt_new_lost(agg_nr, agg_lost, full_path, vpk,
+                                                  per_attempt_new_lost=agg.get("per_attempt_new_lost")),
                         "LLM": llm_col(r),
                         "Learn\n(Ret)": _fmt_learn(r),
                     })
                     row_es_data.append(r["exit_statuses"])
-                    all_details.append((parent_tag, agg))
 
                     # Per-repo detail rows (no ID)
                     for repo in r["repos"]:
@@ -1005,6 +1120,7 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                                 "skillbook_improvement_pct": per_repo_data.get("summary", {}).get("skillbook_improvement_pct", "N/A"),
                                 "newly_resolved": per_repo_data.get("summary", {}).get("newly_resolved_by_skillbook", []),
                                 "lost": per_repo_data.get("summary", {}).get("lost_by_skillbook", []),
+                                "per_attempt_new_lost": per_repo_data.get("summary", {}).get("per_attempt_new_lost"),
                             }
 
                             # Backfill per_attempt_rate for this repo from result files
@@ -1020,13 +1136,21 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                             if _is_qwen3_split025(r):
                                 _apply_aggregated_val_baseline(s["val_baseline"], repo=repo)
 
-                            # Compute per-repo exit status from trajectory files
-                            repo_ids: set[str] = set()
-                            for pk in ["train_phase", "val_baseline_phase", "val_skillbook_phase"]:
-                                pd = per_repo_data.get(pk, {})
-                                repo_ids.update(pd.get("resolved_ids", []))
-                                repo_ids.update(pd.get("unresolved_ids", []))
-                            repo_exit_statuses = _count_exit_statuses(full_path, instance_filter=repo_ids) if full_path and repo_ids else {}
+                            # Per-repo exit status — prefer the backfilled per-phase
+                            # exit_statuses merged from the per-repo stats file; fall
+                            # back to scanning trajectory files filtered by repo ids.
+                            repo_exit_statuses = _merge_exit_statuses(
+                                per_repo_data.get("train_phase", {}).get("exit_statuses"),
+                                per_repo_data.get("val_baseline_phase", {}).get("exit_statuses"),
+                                per_repo_data.get("val_skillbook_phase", {}).get("exit_statuses"),
+                            )
+                            if not repo_exit_statuses:
+                                repo_ids: set[str] = set()
+                                for pk in ["train_phase", "val_baseline_phase", "val_skillbook_phase"]:
+                                    pd = per_repo_data.get(pk, {})
+                                    repo_ids.update(pd.get("resolved_ids", []))
+                                    repo_ids.update(pd.get("unresolved_ids", []))
+                                repo_exit_statuses = _count_exit_statuses(full_path, instance_filter=repo_ids) if full_path and repo_ids else {}
                         else:
                             repo_distil = is_distil
                             s = {
@@ -1053,12 +1177,16 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                             "ValBL": _fmt_phase(s["val_baseline"], val_pass_k=r.get("val_pass_k", 1)),
                             "ValSB": _fmt_phase(s["val_skillbook"], val_pass_k=r.get("val_pass_k", 1)),
                             "SB Δ (avg)": _fmt_sb_delta(_repo_delta, s["val_baseline"].get("total", 0)),
-                            "New/Lost": f"{len(s['newly_resolved'])}/{len(s['lost'])}",
+                            "New/Lost": _fmt_new_lost(
+                                s["newly_resolved"], s["lost"], full_path,
+                                r.get("val_pass_k", 1),
+                                repo_prefix=repo.replace("/", "__") + "-",
+                                per_attempt_new_lost=s.get("per_attempt_new_lost"),
+                            ),
                             "LLM": "",
                             "Learn\n(Ret)": "",
                         })
                         row_es_data.append(repo_exit_statuses)
-                        all_details.append(("", s))
                 else:
                     # Single-repo split run (filter_repos set but not iterate_repos)
                     repo = r["filter_repos"][0] if r.get("filter_repos") else "all"
@@ -1078,12 +1206,13 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                         "ValBL": _fmt_phase(agg["val_baseline"], val_pass_k=r.get("val_pass_k", 1)),
                         "ValSB": _fmt_phase(agg["val_skillbook"], val_pass_k=r.get("val_pass_k", 1)),
                         "SB Δ (avg)": _fmt_sb_delta(_sr_delta, agg["val_baseline"].get("total", 0)),
-                        "New/Lost": f"{len(agg['newly_resolved'])}/{len(agg['lost'])}",
+                        "New/Lost": _fmt_new_lost(
+                            agg["newly_resolved"], agg["lost"], full_path, r.get("val_pass_k", 1)
+                        ),
                         "LLM": llm_col(r),
                         "Learn\n(Ret)": _fmt_learn(r),
                     })
                     row_es_data.append(r["exit_statuses"])
-                    all_details.append((parent_tag, agg))
 
             # Second pass: collect all statuses and fill exit status column
             pr_statuses = _collect_all_statuses_from_es(row_es_data)
@@ -1107,6 +1236,7 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                 s = r["split"]
                 is_distil = bool(r.get("train_trajs_dir"))
                 vpk = r.get("val_pass_k", 1)
+                full_path = run_dir_paths.get(r["run_dir"])
                 # Override ValBL avg with the aggregated reference baseline (qwen3
                 # split025) so SB Δ compares against a low-noise 60-attempt baseline.
                 if _is_qwen3_split025(r):
@@ -1128,24 +1258,14 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                     "ValBL": _fmt_phase(s["val_baseline"], val_pass_k=vpk),
                     "ValSB": _fmt_phase(s["val_skillbook"], val_pass_k=vpk),
                     "SB Δ (avg)": _fmt_sb_delta(sb_delta, s["val_baseline"].get("total", 0)),
-                    "New/Lost": f"{len(s['newly_resolved'])}/{len(s['lost'])}",
+                    "New/Lost": _fmt_new_lost(s["newly_resolved"], s["lost"], full_path, vpk,
+                                              per_attempt_new_lost=s.get("per_attempt_new_lost")),
                     "LLM": llm_col(r),
                     "Learn\n(Ret)": _fmt_learn(r),
                     es_header: _fmt_exit_status_row(r["exit_statuses"], global_statuses),
                 })
-                all_details.append((parent_tag, s))
 
             _print_table_rows(global_headers, global_rows)
-            print()
-
-        # Print details for newly resolved / lost
-        has_details = any(s.get("newly_resolved") or s.get("lost") for _, s in all_details)
-        if has_details:
-            for tag, s in all_details:
-                if s.get("newly_resolved"):
-                    print(f"  {tag} newly resolved by skillbook: {s['newly_resolved']}")
-                if s.get("lost"):
-                    print(f"  {tag} lost by skillbook: {s['lost']}")
             print()
 
     # Print ID -> run dir legend with experiment name

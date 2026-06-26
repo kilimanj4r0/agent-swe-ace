@@ -27,12 +27,120 @@
   "val_baseline_phase": {
     "total_instances": 113,
     "resolved_count": 26,
-    "resolution_rate": 0.23008849557522124
+    "resolution_rate": 0.23008849557522124,
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 23,
+        "total": 113,
+        "rate": 0.20353982300884957
+      },
+      "iter_1": {
+        "resolved": 22,
+        "total": 113,
+        "rate": 0.19469026548672566
+      },
+      "iter_2": {
+        "resolved": 22,
+        "total": 113,
+        "rate": 0.19469026548672566
+      },
+      "iter_3": {
+        "resolved": 22,
+        "total": 113,
+        "rate": 0.19469026548672566
+      },
+      "iter_4": {
+        "resolved": 23,
+        "total": 113,
+        "rate": 0.20353982300884957
+      }
+    },
+    "pass_at_k": {
+      "pass@1": {
+        "count": 23,
+        "total": 113,
+        "rate": 0.20353982300884957
+      },
+      "pass@2": {
+        "count": 24,
+        "total": 113,
+        "rate": 0.21238938053097345
+      },
+      "pass@3": {
+        "count": 25,
+        "total": 113,
+        "rate": 0.22123893805309736
+      },
+      "pass@4": {
+        "count": 26,
+        "total": 113,
+        "rate": 0.23008849557522124
+      },
+      "pass@5": {
+        "count": 26,
+        "total": 113,
+        "rate": 0.23008849557522124
+      }
+    }
   },
   "val_skillbook_phase": {
     "total_instances": 113,
     "resolved_count": 27,
-    "resolution_rate": 0.23893805309734514
+    "resolution_rate": 0.23893805309734514,
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 24,
+        "total": 113,
+        "rate": 0.21238938053097345
+      },
+      "iter_1": {
+        "resolved": 22,
+        "total": 113,
+        "rate": 0.19469026548672566
+      },
+      "iter_2": {
+        "resolved": 21,
+        "total": 113,
+        "rate": 0.18584070796460178
+      },
+      "iter_3": {
+        "resolved": 23,
+        "total": 113,
+        "rate": 0.20353982300884957
+      },
+      "iter_4": {
+        "resolved": 24,
+        "total": 113,
+        "rate": 0.21238938053097345
+      }
+    },
+    "pass_at_k": {
+      "pass@1": {
+        "count": 24,
+        "total": 113,
+        "rate": 0.21238938053097345
+      },
+      "pass@2": {
+        "count": 27,
+        "total": 113,
+        "rate": 0.23893805309734514
+      },
+      "pass@3": {
+        "count": 27,
+        "total": 113,
+        "rate": 0.23893805309734514
+      },
+      "pass@4": {
+        "count": 27,
+        "total": 113,
+        "rate": 0.23893805309734514
+      },
+      "pass@5": {
+        "count": 27,
+        "total": 113,
+        "rate": 0.23893805309734514
+      }
+    }
   },
   "summary": {
     "total_repos": 8,
@@ -99,6 +207,51 @@
         "val_skillbook_rate": 0.25,
         "improvement": "+0.000"
       }
+    },
+    "newly_resolved_by_skillbook": [
+      "django__django-16662"
+    ],
+    "lost_by_skillbook": []
+  },
+  "exit_statuses": {
+    "Submitted": {
+      "0": 555,
+      "3": 210,
+      "2": 208,
+      "4": 213,
+      "1": 206
+    },
+    "LimitsExceeded": {
+      "0": 21,
+      "2": 16,
+      "1": 18,
+      "3": 14,
+      "4": 11
+    },
+    "ContextWindowExceeded": {
+      "0": 4,
+      "1": 2,
+      "2": 2,
+      "4": 2,
+      "3": 2
     }
+  },
+  "exit_status_totals": {
+    "Submitted": 1392,
+    "LimitsExceeded": 80,
+    "ContextWindowExceeded": 12
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_totals[top]",
+      "lost[top]",
+      "newly_resolved[top]",
+      "pass_at_k[val_baseline_phase]",
+      "pass_at_k[val_skillbook_phase]",
+      "per_attempt_rate[val_baseline_phase]",
+      "per_attempt_rate[val_skillbook_phase]"
+    ]
   }
 }

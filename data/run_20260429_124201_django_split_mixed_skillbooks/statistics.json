@@ -218,7 +218,24 @@
     "freshly_run": 0,
     "baseline_resolved_count": 22,
     "baseline_unresolved_count": 70,
-    "baseline_resolution_rate": 0.2391304347826087
+    "baseline_resolution_rate": 0.2391304347826087,
+    "exit_statuses": {
+      "Submitted": {
+        "0": 89
+      },
+      "LimitsExceeded": {
+        "0": 3
+      }
+    },
+    "exit_status_totals": {
+      "Submitted": 89,
+      "LimitsExceeded": 3
+    },
+    "iter0": {
+      "resolved": 23,
+      "total": 92,
+      "rate": 0.25
+    }
   },
   "val_baseline_phase": {
     "total_instances": 22,
@@ -251,7 +268,45 @@
       "django__django-15781",
       "django__django-16816"
     ],
-    "skillbook_skills": 0
+    "skillbook_skills": 0,
+    "exit_statuses": {
+      "Submitted": {
+        "0": 20
+      },
+      "LimitsExceeded": {
+        "0": 2
+      }
+    },
+    "exit_status_totals": {
+      "Submitted": 20,
+      "LimitsExceeded": 2
+    },
+    "iter0": {
+      "resolved": 3,
+      "total": 22,
+      "rate": 0.13636363636363635
+    },
+    "per_attempt_resolved": {
+      "iter_0": [
+        "django__django-12708",
+        "django__django-14787",
+        "django__django-15347"
+      ]
+    },
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 3,
+        "total": 22,
+        "rate": 0.13636363636363635
+      }
+    },
+    "pass_at_k": {
+      "pass@1": {
+        "count": 3,
+        "total": 22,
+        "rate": 0.13636363636363635
+      }
+    }
   },
   "val_skillbook_phase": {
     "total_instances": 22,
@@ -284,7 +339,40 @@
       "django__django-15781",
       "django__django-16816"
     ],
-    "skillbook_skills": 371
+    "skillbook_skills": 371,
+    "exit_statuses": {
+      "Submitted": {
+        "0": 22
+      }
+    },
+    "exit_status_totals": {
+      "Submitted": 22
+    },
+    "iter0": {
+      "resolved": 2,
+      "total": 22,
+      "rate": 0.09090909090909091
+    },
+    "per_attempt_resolved": {
+      "iter_0": [
+        "django__django-12284",
+        "django__django-12708"
+      ]
+    },
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 2,
+        "total": 22,
+        "rate": 0.09090909090909091
+      }
+    },
+    "pass_at_k": {
+      "pass@1": {
+        "count": 2,
+        "total": 22,
+        "rate": 0.09090909090909091
+      }
+    }
   },
   "summary": {
     "train_resolution_rate": 0.25,
@@ -298,6 +386,45 @@
     "lost_by_skillbook": [
       "django__django-14787",
       "django__django-15347"
+    ],
+    "per_attempt_new_lost": {
+      "avg_new": 1.0,
+      "avg_lost": 2.0
+    }
+  },
+  "exit_statuses": {
+    "Submitted": {
+      "0": 131
+    },
+    "LimitsExceeded": {
+      "0": 5
+    }
+  },
+  "exit_status_totals": {
+    "Submitted": 131,
+    "LimitsExceeded": 5
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_statuses[train]",
+      "exit_statuses[val]",
+      "exit_statuses[val_baseline]",
+      "exit_totals[top]",
+      "exit_totals[train]",
+      "exit_totals[val]",
+      "exit_totals[val_baseline]",
+      "iter0[train]",
+      "iter0[val]",
+      "iter0[val_baseline]",
+      "pass_at_k[val]",
+      "pass_at_k[val_baseline]",
+      "per_attempt_new_lost",
+      "per_attempt_rate[val]",
+      "per_attempt_rate[val_baseline]",
+      "per_attempt_resolved[val]",
+      "per_attempt_resolved[val_baseline]"
     ]
   }
 }

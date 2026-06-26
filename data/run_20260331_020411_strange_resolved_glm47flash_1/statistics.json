@@ -14,5 +14,26 @@
     "max_attempts": 3,
     "skillbook_mode": "per_instance"
   },
-  "status": "completed"
+  "status": "completed",
+  "exit_statuses": {
+    "Submitted": {
+      "0": 1
+    }
+  },
+  "exit_status_totals": {
+    "Submitted": 1
+  },
+  "iter0": {
+    "resolved": 1,
+    "total": 1,
+    "rate": 1.0
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_totals[top]",
+      "iter0[top]"
+    ]
+  }
 }

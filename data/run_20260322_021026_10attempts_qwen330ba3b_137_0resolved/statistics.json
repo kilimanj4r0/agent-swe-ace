@@ -151,5 +151,48 @@
   "config": {
     "max_attempts": 10,
     "skillbook_mode": "per_instance"
+  },
+  "exit_statuses": {
+    "LimitsExceeded": {
+      "5": 135,
+      "3": 135,
+      "2": 135,
+      "8": 134,
+      "0": 136,
+      "9": 134,
+      "4": 135,
+      "7": 135,
+      "1": 135,
+      "6": 135
+    },
+    "error": {
+      "5": 1,
+      "3": 1,
+      "2": 1,
+      "8": 2,
+      "9": 2,
+      "4": 1,
+      "7": 1,
+      "1": 1,
+      "6": 1,
+      "0": 1
+    }
+  },
+  "exit_status_totals": {
+    "LimitsExceeded": 1349,
+    "error": 12
+  },
+  "iter0": {
+    "resolved": 0,
+    "total": 137,
+    "rate": 0.0
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_totals[top]",
+      "iter0[top]"
+    ]
   }
 }

@@ -746,7 +746,28 @@
     "teacher_trajs_dir": null,
     "teacher_trajs_found": 0,
     "teacher_trajs_skipped": 0,
-    "teacher_trajs_resolved": 0
+    "teacher_trajs_resolved": 0,
+    "exit_statuses": {
+      "Submitted": {
+        "0": 353
+      },
+      "LimitsExceeded": {
+        "0": 13
+      },
+      "error": {
+        "0": 2
+      }
+    },
+    "exit_status_totals": {
+      "Submitted": 353,
+      "LimitsExceeded": 13,
+      "error": 2
+    },
+    "iter0": {
+      "resolved": 84,
+      "total": 368,
+      "rate": 0.22826086956521738
+    }
   },
   "val_baseline_phase": {
     "total_instances": 113,
@@ -870,7 +891,65 @@
       "sympy__sympy-17655",
       "django__django-16662"
     ],
-    "skillbook_skills": 0
+    "skillbook_skills": 0,
+    "exit_statuses": {
+      "Submitted": {
+        "0": 109
+      },
+      "LimitsExceeded": {
+        "0": 6
+      },
+      "error": {
+        "0": 4
+      }
+    },
+    "exit_status_totals": {
+      "Submitted": 109,
+      "LimitsExceeded": 6,
+      "error": 4
+    },
+    "iter0": {
+      "resolved": 19,
+      "total": 119,
+      "rate": 0.15966386554621848
+    },
+    "per_attempt_resolved": {
+      "iter_0": [
+        "astropy__astropy-14309",
+        "django__django-12419",
+        "django__django-13109",
+        "django__django-13410",
+        "django__django-13658",
+        "django__django-14238",
+        "django__django-14999",
+        "django__django-16569",
+        "django__django-9296",
+        "matplotlib__matplotlib-25122",
+        "pallets__flask-5014",
+        "pydata__xarray-3677",
+        "pydata__xarray-6461",
+        "pydata__xarray-6721",
+        "pytest-dev__pytest-6202",
+        "scikit-learn__scikit-learn-13439",
+        "sympy__sympy-16886",
+        "sympy__sympy-22714",
+        "sympy__sympy-24213"
+      ]
+    },
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 19,
+        "total": 119,
+        "rate": 0.15966386554621848
+      }
+    },
+    "pass_at_k": {
+      "pass@1": {
+        "count": 19,
+        "total": 119,
+        "rate": 0.15966386554621848
+      }
+    }
   },
   "val_skillbook_phase": {
     "total_instances": 113,
@@ -994,7 +1073,68 @@
       "sympy__sympy-17655",
       "django__django-16662"
     ],
-    "skillbook_skills": 904
+    "skillbook_skills": 904,
+    "exit_statuses": {
+      "Submitted": {
+        "0": 112
+      },
+      "LimitsExceeded": {
+        "0": 6
+      },
+      "error": {
+        "0": 1
+      }
+    },
+    "exit_status_totals": {
+      "Submitted": 112,
+      "LimitsExceeded": 6,
+      "error": 1
+    },
+    "iter0": {
+      "resolved": 22,
+      "total": 119,
+      "rate": 0.18487394957983194
+    },
+    "per_attempt_resolved": {
+      "iter_0": [
+        "astropy__astropy-14309",
+        "django__django-11095",
+        "django__django-11163",
+        "django__django-13410",
+        "django__django-13658",
+        "django__django-14238",
+        "django__django-14999",
+        "django__django-16145",
+        "django__django-16569",
+        "django__django-9296",
+        "matplotlib__matplotlib-25122",
+        "pallets__flask-5014",
+        "pydata__xarray-3677",
+        "pydata__xarray-6461",
+        "pydata__xarray-6721",
+        "pytest-dev__pytest-6202",
+        "scikit-learn__scikit-learn-10908",
+        "scikit-learn__scikit-learn-13439",
+        "sphinx-doc__sphinx-9698",
+        "sympy__sympy-16886",
+        "sympy__sympy-20801",
+        "sympy__sympy-22714"
+      ]
+    },
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 22,
+        "total": 119,
+        "rate": 0.18487394957983194
+      }
+    },
+    "pass_at_k": {
+      "pass@1": {
+        "count": 22,
+        "total": 119,
+        "rate": 0.18487394957983194
+      }
+    }
   },
   "summary": {
     "train_resolution_rate": 0.2344632768361582,
@@ -1014,6 +1154,49 @@
       "django__django-12419",
       "django__django-13109",
       "sympy__sympy-24213"
+    ],
+    "per_attempt_new_lost": {
+      "avg_new": 6.0,
+      "avg_lost": 3.0
+    }
+  },
+  "exit_statuses": {
+    "Submitted": {
+      "0": 574
+    },
+    "LimitsExceeded": {
+      "0": 25
+    },
+    "error": {
+      "0": 7
+    }
+  },
+  "exit_status_totals": {
+    "Submitted": 574,
+    "LimitsExceeded": 25,
+    "error": 7
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_statuses[train]",
+      "exit_statuses[val]",
+      "exit_statuses[val_baseline]",
+      "exit_totals[top]",
+      "exit_totals[train]",
+      "exit_totals[val]",
+      "exit_totals[val_baseline]",
+      "iter0[train]",
+      "iter0[val]",
+      "iter0[val_baseline]",
+      "pass_at_k[val]",
+      "pass_at_k[val_baseline]",
+      "per_attempt_new_lost",
+      "per_attempt_rate[val]",
+      "per_attempt_rate[val_baseline]",
+      "per_attempt_resolved[val]",
+      "per_attempt_resolved[val_baseline]"
     ]
   }
 }

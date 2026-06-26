@@ -27,12 +27,40 @@
   "val_baseline_phase": {
     "total_instances": 90,
     "resolved_count": 18,
-    "resolution_rate": 0.2
+    "resolution_rate": 0.2,
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 18,
+        "total": 90,
+        "rate": 0.2
+      }
+    },
+    "pass_at_k": {
+      "pass@1": {
+        "count": 18,
+        "total": 90,
+        "rate": 0.2
+      }
+    }
   },
   "val_skillbook_phase": {
     "total_instances": 90,
     "resolved_count": 22,
-    "resolution_rate": 0.24444444444444444
+    "resolution_rate": 0.24444444444444444,
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 22,
+        "total": 90,
+        "rate": 0.24444444444444444
+      }
+    },
+    "pass_at_k": {
+      "pass@1": {
+        "count": 22,
+        "total": 90,
+        "rate": 0.24444444444444444
+      }
+    }
   },
   "summary": {
     "total_repos": 8,
@@ -99,6 +127,51 @@
         "val_skillbook_rate": 0.30434782608695654,
         "improvement": "+0.109"
       }
+    },
+    "newly_resolved_by_skillbook": [
+      "astropy__astropy-7671",
+      "django__django-10880",
+      "django__django-10973",
+      "django__django-11276",
+      "django__django-11490",
+      "django__django-13837",
+      "django__django-14672",
+      "django__django-14765",
+      "pydata__xarray-6721",
+      "sphinx-doc__sphinx-10466"
+    ],
+    "lost_by_skillbook": [
+      "astropy__astropy-13579",
+      "django__django-11119",
+      "django__django-16454",
+      "matplotlib__matplotlib-22719",
+      "matplotlib__matplotlib-25775",
+      "scikit-learn__scikit-learn-13135"
+    ]
+  },
+  "exit_statuses": {
+    "Submitted": {
+      "0": 165
+    },
+    "LimitsExceeded": {
+      "0": 15
     }
+  },
+  "exit_status_totals": {
+    "Submitted": 165,
+    "LimitsExceeded": 15
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_totals[top]",
+      "lost[top]",
+      "newly_resolved[top]",
+      "pass_at_k[val_baseline_phase]",
+      "pass_at_k[val_skillbook_phase]",
+      "per_attempt_rate[val_baseline_phase]",
+      "per_attempt_rate[val_skillbook_phase]"
+    ]
   }
 }

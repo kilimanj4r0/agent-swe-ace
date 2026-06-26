@@ -59,5 +59,55 @@
   },
   "status": "completed",
   "baseline_dir": "data/run_baseline_qwen3coder",
-  "observability_project_url": "http://localhost:5173/projects/agent-swe-ace_run_20260323_025647"
+  "observability_project_url": "http://localhost:5173/projects/agent-swe-ace_run_20260323_025647",
+  "exit_statuses": {
+    "Submitted": {
+      "5": 34,
+      "3": 33,
+      "2": 32,
+      "8": 35,
+      "9": 31,
+      "4": 30,
+      "7": 34,
+      "1": 33,
+      "6": 32,
+      "0": 38
+    },
+    "LimitsExceeded": {
+      "0": 4,
+      "6": 2,
+      "4": 5,
+      "3": 2,
+      "2": 4,
+      "9": 4,
+      "1": 3,
+      "5": 1,
+      "7": 1
+    },
+    "TimeoutExpired": {
+      "0": 2
+    },
+    "error": {
+      "6": 1
+    }
+  },
+  "exit_status_totals": {
+    "Submitted": 332,
+    "LimitsExceeded": 26,
+    "TimeoutExpired": 2,
+    "error": 1
+  },
+  "iter0": {
+    "resolved": 8,
+    "total": 44,
+    "rate": 0.18181818181818182
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_totals[top]",
+      "iter0[top]"
+    ]
+  }
 }

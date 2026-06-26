@@ -164,6 +164,38 @@
         "val_skillbook_rate": 0.0,
         "improvement": "+0.000"
       }
+    },
+    "newly_resolved_by_skillbook": [],
+    "lost_by_skillbook": []
+  },
+  "exit_statuses": {
+    "LimitsExceeded": {
+      "0": 31,
+      "1": 7,
+      "2": 10
+    },
+    "Submitted": {
+      "0": 283,
+      "2": 89,
+      "1": 93
+    },
+    "error": {
+      "0": 1,
+      "2": 1
     }
+  },
+  "exit_status_totals": {
+    "LimitsExceeded": 48,
+    "Submitted": 465,
+    "error": 2
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_totals[top]",
+      "lost[top]",
+      "newly_resolved[top]"
+    ]
   }
 }

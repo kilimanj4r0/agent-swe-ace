@@ -311,5 +311,34 @@
     "count": 0,
     "ids": [],
     "by_iteration": {}
+  },
+  "exit_statuses": {
+    "Submitted": {
+      "0": 271
+    },
+    "LimitsExceeded": {
+      "0": 19
+    },
+    "error": {
+      "0": 2
+    }
+  },
+  "exit_status_totals": {
+    "Submitted": 271,
+    "LimitsExceeded": 19,
+    "error": 2
+  },
+  "iter0": {
+    "resolved": 28,
+    "total": 292,
+    "rate": 0.0958904109589041
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_totals[top]",
+      "iter0[top]"
+    ]
   }
 }

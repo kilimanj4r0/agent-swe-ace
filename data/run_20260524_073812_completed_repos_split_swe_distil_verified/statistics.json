@@ -27,12 +27,40 @@
   "val_baseline_phase": {
     "total_instances": 90,
     "resolved_count": 19,
-    "resolution_rate": 0.2111111111111111
+    "resolution_rate": 0.2111111111111111,
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 19,
+        "total": 90,
+        "rate": 0.2111111111111111
+      }
+    },
+    "pass_at_k": {
+      "pass@1": {
+        "count": 19,
+        "total": 90,
+        "rate": 0.2111111111111111
+      }
+    }
   },
   "val_skillbook_phase": {
     "total_instances": 90,
     "resolved_count": 19,
-    "resolution_rate": 0.2111111111111111
+    "resolution_rate": 0.2111111111111111,
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 19,
+        "total": 90,
+        "rate": 0.2111111111111111
+      }
+    },
+    "pass_at_k": {
+      "pass@1": {
+        "count": 19,
+        "total": 90,
+        "rate": 0.2111111111111111
+      }
+    }
   },
   "summary": {
     "total_repos": 8,
@@ -99,6 +127,57 @@
         "val_skillbook_rate": 0.2391304347826087,
         "improvement": "+0.043"
       }
+    },
+    "newly_resolved_by_skillbook": [
+      "astropy__astropy-7671",
+      "django__django-10880",
+      "django__django-10973",
+      "django__django-11276",
+      "django__django-11951",
+      "django__django-14672",
+      "django__django-15851",
+      "pydata__xarray-3151",
+      "sympy__sympy-13372"
+    ],
+    "lost_by_skillbook": [
+      "django__django-11119",
+      "django__django-12419",
+      "django__django-16082",
+      "django__django-16454",
+      "matplotlib__matplotlib-25775",
+      "pytest-dev__pytest-5631",
+      "scikit-learn__scikit-learn-13135",
+      "sympy__sympy-23534",
+      "sympy__sympy-24443"
+    ]
+  },
+  "exit_statuses": {
+    "Submitted": {
+      "0": 535
+    },
+    "LimitsExceeded": {
+      "0": 20
+    },
+    "error": {
+      "0": 2
     }
+  },
+  "exit_status_totals": {
+    "Submitted": 535,
+    "LimitsExceeded": 20,
+    "error": 2
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_totals[top]",
+      "lost[top]",
+      "newly_resolved[top]",
+      "pass_at_k[val_baseline_phase]",
+      "pass_at_k[val_skillbook_phase]",
+      "per_attempt_rate[val_baseline_phase]",
+      "per_attempt_rate[val_skillbook_phase]"
+    ]
   }
 }

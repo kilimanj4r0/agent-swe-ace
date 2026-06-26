@@ -156,7 +156,24 @@
     "freshly_run": 0,
     "baseline_resolved_count": 6,
     "baseline_unresolved_count": 55,
-    "baseline_resolution_rate": 0.09836065573770492
+    "baseline_resolution_rate": 0.09836065573770492,
+    "exit_statuses": {
+      "Submitted": {
+        "0": 36
+      },
+      "LimitsExceeded": {
+        "0": 25
+      }
+    },
+    "exit_status_totals": {
+      "Submitted": 36,
+      "LimitsExceeded": 25
+    },
+    "iter0": {
+      "resolved": 6,
+      "total": 61,
+      "rate": 0.09836065573770492
+    }
   },
   "val_baseline_phase": {
     "total_instances": 15,
@@ -182,7 +199,43 @@
       "sympy__sympy-21612",
       "sympy__sympy-22714"
     ],
-    "skillbook_skills": 0
+    "skillbook_skills": 0,
+    "exit_statuses": {
+      "Submitted": {
+        "0": 7
+      },
+      "LimitsExceeded": {
+        "0": 8
+      }
+    },
+    "exit_status_totals": {
+      "Submitted": 7,
+      "LimitsExceeded": 8
+    },
+    "iter0": {
+      "resolved": 1,
+      "total": 15,
+      "rate": 0.06666666666666667
+    },
+    "per_attempt_resolved": {
+      "iter_0": [
+        "sympy__sympy-13647"
+      ]
+    },
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 1,
+        "total": 15,
+        "rate": 0.06666666666666667
+      }
+    },
+    "pass_at_k": {
+      "pass@1": {
+        "count": 1,
+        "total": 15,
+        "rate": 0.06666666666666667
+      }
+    }
   },
   "val_skillbook_phase": {
     "total_instances": 15,
@@ -208,7 +261,48 @@
       "sympy__sympy-20442",
       "sympy__sympy-21612"
     ],
-    "skillbook_skills": 180
+    "skillbook_skills": 180,
+    "exit_statuses": {
+      "Submitted": {
+        "0": 13
+      },
+      "LimitsExceeded": {
+        "0": 1
+      },
+      "error": {
+        "0": 1
+      }
+    },
+    "exit_status_totals": {
+      "Submitted": 13,
+      "LimitsExceeded": 1,
+      "error": 1
+    },
+    "iter0": {
+      "resolved": 2,
+      "total": 15,
+      "rate": 0.13333333333333333
+    },
+    "per_attempt_resolved": {
+      "iter_0": [
+        "sympy__sympy-13647",
+        "sympy__sympy-22714"
+      ]
+    },
+    "per_attempt_rate": {
+      "iter_0": {
+        "resolved": 2,
+        "total": 15,
+        "rate": 0.13333333333333333
+      }
+    },
+    "pass_at_k": {
+      "pass@1": {
+        "count": 2,
+        "total": 15,
+        "rate": 0.13333333333333333
+      }
+    }
   },
   "summary": {
     "train_resolution_rate": 0.09836065573770492,
@@ -219,6 +313,49 @@
     "newly_resolved_by_skillbook": [
       "sympy__sympy-22714"
     ],
-    "lost_by_skillbook": []
+    "lost_by_skillbook": [],
+    "per_attempt_new_lost": {
+      "avg_new": 1.0,
+      "avg_lost": 0.0
+    }
+  },
+  "exit_statuses": {
+    "Submitted": {
+      "0": 56
+    },
+    "LimitsExceeded": {
+      "0": 34
+    },
+    "error": {
+      "0": 1
+    }
+  },
+  "exit_status_totals": {
+    "Submitted": 56,
+    "LimitsExceeded": 34,
+    "error": 1
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_statuses[train]",
+      "exit_statuses[val]",
+      "exit_statuses[val_baseline]",
+      "exit_totals[top]",
+      "exit_totals[train]",
+      "exit_totals[val]",
+      "exit_totals[val_baseline]",
+      "iter0[train]",
+      "iter0[val]",
+      "iter0[val_baseline]",
+      "pass_at_k[val]",
+      "pass_at_k[val_baseline]",
+      "per_attempt_new_lost",
+      "per_attempt_rate[val]",
+      "per_attempt_rate[val_baseline]",
+      "per_attempt_resolved[val]",
+      "per_attempt_resolved[val_baseline]"
+    ]
   }
 }

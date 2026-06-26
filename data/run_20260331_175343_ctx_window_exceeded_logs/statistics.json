@@ -28,5 +28,32 @@
     "skillbook_mode": "per_instance"
   },
   "status": "completed",
-  "observability_project_url": "http://localhost:5173/projects/agent-swe-ace_run_20260331_175343"
+  "observability_project_url": "http://localhost:5173/projects/agent-swe-ace_run_20260331_175343",
+  "exit_statuses": {
+    "error": {
+      "0": 11,
+      "1": 8
+    },
+    "Submitted": {
+      "1": 3,
+      "0": 2
+    }
+  },
+  "exit_status_totals": {
+    "error": 19,
+    "Submitted": 5
+  },
+  "iter0": {
+    "resolved": 2,
+    "total": 13,
+    "rate": 0.15384615384615385
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_totals[top]",
+      "iter0[top]"
+    ]
+  }
 }

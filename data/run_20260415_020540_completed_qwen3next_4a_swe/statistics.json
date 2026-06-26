@@ -330,5 +330,43 @@
         "psf__requests-863"
       ]
     }
+  },
+  "exit_statuses": {
+    "Submitted": {
+      "0": 203,
+      "3": 103,
+      "1": 102,
+      "2": 100
+    },
+    "LimitsExceeded": {
+      "2": 25,
+      "3": 18,
+      "0": 33,
+      "1": 22
+    },
+    "error": {
+      "3": 54,
+      "2": 52,
+      "0": 56,
+      "1": 57
+    }
+  },
+  "exit_status_totals": {
+    "Submitted": 508,
+    "LimitsExceeded": 98,
+    "error": 219
+  },
+  "iter0": {
+    "resolved": 110,
+    "total": 292,
+    "rate": 0.3767123287671233
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_totals[top]",
+      "iter0[top]"
+    ]
   }
 }

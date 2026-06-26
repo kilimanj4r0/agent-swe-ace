@@ -169,6 +169,42 @@
         "val_skillbook_rate": 0.2391304347826087,
         "improvement": "+0.000"
       }
+    },
+    "newly_resolved_by_skillbook": [
+      "astropy__astropy-13453"
+    ],
+    "lost_by_skillbook": [
+      "scikit-learn__scikit-learn-13439"
+    ]
+  },
+  "exit_statuses": {
+    "Submitted": {
+      "0": 508,
+      "2": 163,
+      "1": 164
+    },
+    "LimitsExceeded": {
+      "0": 49,
+      "2": 13,
+      "1": 14
+    },
+    "error": {
+      "2": 4,
+      "1": 2
     }
+  },
+  "exit_status_totals": {
+    "Submitted": 835,
+    "LimitsExceeded": 76,
+    "error": 6
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_totals[top]",
+      "lost[top]",
+      "newly_resolved[top]"
+    ]
   }
 }

@@ -655,5 +655,43 @@
         "scikit-learn__scikit-learn-11578"
       ]
     }
+  },
+  "exit_statuses": {
+    "Submitted": {
+      "3": 302,
+      "2": 314,
+      "0": 446,
+      "1": 356
+    },
+    "LimitsExceeded": {
+      "3": 29,
+      "1": 33,
+      "0": 41,
+      "2": 26
+    },
+    "error": {
+      "3": 4,
+      "1": 7,
+      "2": 6,
+      "0": 2
+    }
+  },
+  "exit_status_totals": {
+    "Submitted": 1418,
+    "LimitsExceeded": 129,
+    "error": 19
+  },
+  "iter0": {
+    "resolved": 93,
+    "total": 489,
+    "rate": 0.1901840490797546
+  },
+  "_backfill": {
+    "script": "backfill_statistics.py",
+    "derived": [
+      "exit_statuses[top]",
+      "exit_totals[top]",
+      "iter0[top]"
+    ]
   }
 }
