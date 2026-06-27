@@ -3,7 +3,7 @@ experiment:
   description: "ACE skillbook per repo learning experiment on SWE-bench Verified — emb-retriever val"
   max_attempts: 1                    # Max retry attempts per instance
   concurrency: 3
-  iterate_repos_concurrency: 1
+  iterate_repos_concurrency: 2
 
   skillbook:
     mode: "per_repo"              # "per_instance", "per_repo", or "global"
