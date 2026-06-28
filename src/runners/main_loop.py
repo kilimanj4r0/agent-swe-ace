@@ -830,15 +830,17 @@ class ExperimentLoop:
                             sh.copy2(latest[-1], skillbooks_dir / "final_skillbook.json")
 
                 if eval_on_train:
-                    # TrainBL: empty skillbook on the TRAIN split.
+                    # TrainBL: empty skillbook on the TRAIN split. Runs a SINGLE
+                    # attempt (pass@1) — it is a cheap raw-ability reference, not a
+                    # pass@k pass. TrainSB below carries the pass@k measurement.
                     train_eval_baseline_stats = self._run_val_pass(
                         val_instances=instances,
                         skillbook=Skillbook(),
                         phase="train_eval_baseline",
                         baseline_run_dir=baseline_run_dir,
-                        max_attempts=eval_on_train_pass_k,
+                        max_attempts=1,
                     )
-                    # TrainSB: learned skillbook on the TRAIN split
+                    # TrainSB: learned skillbook on the TRAIN split at pass_k
                     # (retrieval fires per config — gated in predict.py).
                     train_eval_stats = self._run_val_pass(
                         val_instances=instances,
@@ -979,22 +981,45 @@ class ExperimentLoop:
                 if eval_on_train:
                     teb = train_eval_baseline_stats or {}
                     te = train_eval_stats or {}
-                    teb_rate = teb.get("resolution_rate", 0.0)
-                    te_rate = te.get("resolution_rate", 0.0)
-                    te_improvement = te_rate - teb_rate
+                    # TrainBL runs a single attempt -> its resolution_rate IS pass@1.
+                    teb_p1 = teb.get("resolution_rate", 0.0)
+                    # TrainSB metrics: pass@1 (iter0), pass@k (cumulative resolution_rate,
+                    # the memorization ceiling), and avg@k (mean of per-iteration rates —
+                    # the statistically-sound per-attempt metric). pass_at_k / per_attempt_rate
+                    # are only populated when max_attempts > 1; fall back to resolution_rate.
+                    te_pass_at = te.get("pass_at_k", {}) or {}
+                    te_per = te.get("per_attempt_rate", {}) or {}
+                    te_p1 = te_pass_at.get("pass@1", {}).get(
+                        "rate", te.get("resolution_rate", 0.0)
+                    )
+                    te_pk = te.get("resolution_rate", 0.0)  # cumulative pass@k (ceiling)
+                    te_avgk = (
+                        sum(v.get("rate", 0.0) for v in te_per.values()) / len(te_per)
+                        if te_per
+                        else te.get("resolution_rate", 0.0)
+                    )
+                    # Skillbook effect at two attempt-matched levels: pass@1 (clean,
+                    # single-attempt) and avg@k (per-attempt average; TrainBL contributes
+                    # its lone iter0 rate).
+                    delta_p1 = te_p1 - teb_p1
+                    delta_avgk = te_avgk - teb_p1
+                    # Resolved-set diff (informational; TrainBL is pass@1, TrainSB is pass@k).
                     teb_resolved = set(teb.get("resolved_ids", []))
                     te_resolved = set(te.get("resolved_ids", []))
                     statistics["summary"] = {
-                        "train_eval_baseline_resolution_rate": teb_rate,
-                        "train_eval_resolution_rate": te_rate,
-                        "train_skillbook_improvement": f"{te_improvement:+.3f}",
+                        "train_eval_pass1_rate": te_p1,
+                        "train_eval_resolution_rate": te_pk,        # pass@k (cumulative ceiling)
+                        "train_eval_avg_rate": te_avgk,             # mean per-attempt rate
+                        "train_eval_baseline_resolution_rate": teb_p1,  # pass@1 (1 attempt)
+                        "train_skillbook_improvement": f"{delta_p1:+.3f}",          # Δ@pass@1
+                        "train_skillbook_improvement_avg": f"{delta_avgk:+.3f}",    # Δ@avg@k
                         "train_skillbook_improvement_pct": (
-                            f"{(te_improvement / teb_rate * 100) if teb_rate > 0 else 0:+.1f}%"
+                            f"{(delta_p1 / teb_p1 * 100) if teb_p1 > 0 else 0:+.1f}%"
                         ),
                         "newly_resolved_by_skillbook": sorted(te_resolved - teb_resolved),
                         "lost_by_skillbook": sorted(teb_resolved - te_resolved),
                     }
-                    # Top-level mirrors the TrainSB pass (headline metric).
+                    # Top-level mirrors the TrainSB pass (headline metric = pass@k ceiling).
                     if te:
                         statistics["total_instances"] = te.get("total_instances", 0)
                         statistics["resolved_count"] = te.get("resolved_count", 0)

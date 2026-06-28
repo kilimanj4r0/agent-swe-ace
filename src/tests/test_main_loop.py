@@ -1272,8 +1272,9 @@ class TestConcurrentValPass:
         # loop.global_skillbook rather than a non-zero skill count.
         assert len(calls[0].kwargs["skillbook"].skills()) == 0
         assert calls[1].kwargs["skillbook"] is loop.global_skillbook
-        # pass_k applied to both.
-        assert all(c.kwargs["max_attempts"] == 3 for c in calls)
+        # TrainBL runs a SINGLE attempt (pass@1 reference); TrainSB runs pass_k.
+        assert calls[0].kwargs["max_attempts"] == 1
+        assert calls[1].kwargs["max_attempts"] == 3
 
     def test_eval_on_train_statistics_blocks(self, tmp_path):
         """Returned stats carry train_eval_phase + train_eval_baseline_phase and
@@ -1297,34 +1298,59 @@ class TestConcurrentValPass:
         )
 
         def fake_pass(val_instances, skillbook, phase, max_attempts=1, **kw):
+            is_te = phase == "train_eval"
+            total = 1
+            resolved = 1 if is_te else 0
             base = {
-                "total_instances": 1, "resolved_count": 1 if phase == "train_eval" else 0,
-                "unresolved_count": 0, "resolution_rate": 1.0 if phase == "train_eval" else 0.0,
-                "resolved_ids": ["t1"] if phase == "train_eval" else [],
-                "unresolved_ids": [], "skillbook_skills": len(skillbook.skills()),
+                "total_instances": total,
+                "resolved_count": resolved,
+                "unresolved_count": total - resolved,
+                "resolution_rate": resolved / total,  # cumulative pass@k
+                "resolved_ids": ["t1"] if is_te else [],
+                "unresolved_ids": [] if is_te else ["t1"],
+                "skillbook_skills": len(skillbook.skills()),
                 "max_attempts": max_attempts,
             }
-            return dict(base)
+            # TrainSB (max_attempts>1) carries per-attempt + cumulative pass@k so the
+            # summary can compute pass@1 / pass@k / avg@k. TrainBL (max_attempts=1) does not.
+            if max_attempts > 1:
+                per = {}
+                for i in range(max_attempts):
+                    r = 1.0 if (is_te and i == 0) else 0.0
+                    per[f"iter_{i}"] = {"resolved": int(r), "total": total, "rate": r}
+                base["per_attempt_rate"] = per
+                pak = {}
+                for n in range(1, max_attempts + 1):
+                    # TE resolves at iter0 -> cumulative pass@n = 1.0 for all n>=1.
+                    rate = 1.0 if is_te else 0.0
+                    pak[f"pass@{n}"] = {"count": int(rate), "total": total, "rate": rate}
+                base["pass_at_k"] = pak
+            return base
 
         loop._run_val_pass = Mock(side_effect=fake_pass)
 
         train = [{"instance_id": "t1", "repo": "django/django"}]
         val = [{"instance_id": "v1", "repo": "django/django"}]
         stats = loop.run(
-            train, val_instances=val, eval_on_train=True, eval_on_train_pass_k=1,
+            train, val_instances=val, eval_on_train=True, eval_on_train_pass_k=3,
         )
 
         assert "train_eval_phase" in stats
         assert "train_eval_baseline_phase" in stats
         assert "val_skillbook_phase" not in stats
         assert "val_baseline_phase" not in stats
-        # Top-level mirrors TrainSB.
+        # Top-level mirrors TrainSB (pass@k ceiling).
         assert stats["resolved_count"] == 1
         assert stats["total_instances"] == 1
-        # Summary carries the train delta.
-        assert "train_eval_resolution_rate" in stats["summary"]
-        assert "train_eval_baseline_resolution_rate" in stats["summary"]
-        assert "train_skillbook_improvement" in stats["summary"]
+        # Summary reports pass@1 / pass@k / avg@k for TrainSB and pass@1 for TrainBL,
+        # with the skillbook effect at pass@1 (clean) and avg@k.
+        s = stats["summary"]
+        assert s["train_eval_pass1_rate"] == 1.0
+        assert s["train_eval_resolution_rate"] == 1.0      # pass@k (cumulative ceiling)
+        assert round(s["train_eval_avg_rate"], 3) == 0.333  # mean(iter0=1, iter1=0, iter2=0)
+        assert s["train_eval_baseline_resolution_rate"] == 0.0  # TrainBL pass@1
+        assert s["train_skillbook_improvement"] == "+1.000"     # Δ@pass@1
+        assert s["train_skillbook_improvement_avg"] == "+0.333"  # Δ@avg@k
 
     def test_train_eval_baseline_reuses_baseline_train_results(self, tmp_path):
         """TrainBL reuses empty-skillbook results from baseline_dir/results/train

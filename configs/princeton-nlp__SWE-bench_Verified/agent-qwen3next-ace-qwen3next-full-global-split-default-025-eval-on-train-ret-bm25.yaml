@@ -16,8 +16,8 @@ experiment:
       top_k: 5                        # Number of skills to retrieve
 
   # --- eval_on_train sanity-check mode ---
-  # TrainBL = empty skillbook (fresh pass on train), TrainSB = top-k of the learned skillbook.
-  # Skips the val passes entirely; eval_on_train_pass_k applies to BOTH passes for a clean delta.
+  # TrainBL = empty skillbook (1 attempt, pass@1 reference); TrainSB = top-k of the learned skillbook
+  # at eval_on_train_pass_k attempts. Skips the val passes entirely.
   eval_on_train: true
   eval_on_train_pass_k: 5
 
