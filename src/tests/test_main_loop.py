@@ -1189,3 +1189,175 @@ class TestConcurrentValPass:
         assert max_active[0] >= 2, (
             f"expected concurrent val execution, max in-flight={max_active[0]}"
         )
+
+    def test_learning_loop_skipped_when_preloaded(self, tmp_path):
+        """With preloaded_skillbook set, the train learning loop must NOT run,
+        even when train instances are non-empty. Unblocks eval_on_train +
+        skillbook_source_dir, and preserves validation-only semantics."""
+        from runners.main_loop import ExperimentLoop
+
+        mock_predict = Mock()
+        mock_predict.run.return_value = Mock(
+            instance_id="x", exit_status="submitted", patch="p", trajectory=[]
+        )
+        mock_predict.prepare_skillbook.side_effect = (
+            lambda instance, skillbook, phase=None: (skillbook, None)
+        )
+        mock_evaluate = Mock()
+        mock_evaluate.run.return_value = Mock(instance_id="x", resolved=True, feedback="ok")
+        mock_learn = Mock()
+        mock_learn.run.return_value = Mock(skills_added=1)
+
+        from ace import Skillbook
+        loop = ExperimentLoop(
+            predict_phase=mock_predict,
+            evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn,
+            output_dir=tmp_path,
+            run_name="t",
+            skillbook_mode="global",
+        )
+
+        train = [{"instance_id": "t1", "repo": "django/django"}]
+        val = [{"instance_id": "v1", "repo": "django/django"}]
+        loop.run(train, val_instances=val, preloaded_skillbook=Skillbook())
+
+        # The learning loop must be skipped entirely -> learn never runs.
+        assert not mock_learn.run.called
+
+    def test_eval_on_train_runs_two_train_passes_and_skips_val(self, tmp_path):
+        """eval_on_train=True: _run_val_pass called twice on TRAIN instances
+        (train_eval_baseline empty, train_eval learned) and NOT on val."""
+        from runners.main_loop import ExperimentLoop
+        from ace import Skillbook
+
+        mock_predict = Mock()
+        mock_predict.prepare_skillbook.side_effect = (
+            lambda instance, skillbook, phase=None: (skillbook, None)
+        )
+        mock_evaluate = Mock()
+        mock_evaluate.run.return_value = Mock(instance_id="x", resolved=True, feedback="ok")
+        mock_learn = Mock()
+        mock_learn.run.return_value = Mock(skills_added=1)
+
+        loop = ExperimentLoop(
+            predict_phase=mock_predict,
+            evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn,
+            output_dir=tmp_path,
+            run_name="t",
+            skillbook_mode="global",
+        )
+
+        empty_stats = {
+            "total_instances": 1, "resolved_count": 0, "unresolved_count": 1,
+            "resolution_rate": 0.0, "resolved_ids": [], "unresolved_ids": [],
+            "skillbook_skills": 0,
+        }
+        loop._run_val_pass = Mock(return_value=dict(empty_stats))
+
+        train = [{"instance_id": "t1", "repo": "django/django"}]
+        val = [{"instance_id": "v1", "repo": "django/django"}]
+        loop.run(train, val_instances=val, eval_on_train=True, eval_on_train_pass_k=3)
+
+        assert loop._run_val_pass.call_count == 2
+        calls = loop._run_val_pass.call_args_list
+        phases = [c.kwargs["phase"] for c in calls]
+        assert phases == ["train_eval_baseline", "train_eval"]
+        # Both passes run on the TRAIN instances, not val.
+        assert [i["instance_id"] for i in calls[0].kwargs["val_instances"]] == ["t1"]
+        assert [i["instance_id"] for i in calls[1].kwargs["val_instances"]] == ["t1"]
+        # TrainBL uses an empty book; TrainSB uses the final learned book. Learning
+        # is mocked (it does not mutate global_skillbook), so assert identity with
+        # loop.global_skillbook rather than a non-zero skill count.
+        assert len(calls[0].kwargs["skillbook"].skills()) == 0
+        assert calls[1].kwargs["skillbook"] is loop.global_skillbook
+        # pass_k applied to both.
+        assert all(c.kwargs["max_attempts"] == 3 for c in calls)
+
+    def test_eval_on_train_statistics_blocks(self, tmp_path):
+        """Returned stats carry train_eval_phase + train_eval_baseline_phase and
+        a train summary; val_*_phase absent; top-level mirrors TrainSB."""
+        from runners.main_loop import ExperimentLoop
+        from ace import Skillbook
+
+        mock_predict = Mock()
+        mock_predict.prepare_skillbook.side_effect = (
+            lambda instance, skillbook, phase=None: (skillbook, None)
+        )
+        mock_evaluate = Mock()
+        mock_evaluate.run.return_value = Mock(instance_id="x", resolved=True, feedback="ok")
+        mock_learn = Mock()
+        mock_learn.run.return_value = Mock(skills_added=1)
+
+        loop = ExperimentLoop(
+            predict_phase=mock_predict, evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn, output_dir=tmp_path, run_name="t",
+            skillbook_mode="global",
+        )
+
+        def fake_pass(val_instances, skillbook, phase, max_attempts=1, **kw):
+            base = {
+                "total_instances": 1, "resolved_count": 1 if phase == "train_eval" else 0,
+                "unresolved_count": 0, "resolution_rate": 1.0 if phase == "train_eval" else 0.0,
+                "resolved_ids": ["t1"] if phase == "train_eval" else [],
+                "unresolved_ids": [], "skillbook_skills": len(skillbook.skills()),
+                "max_attempts": max_attempts,
+            }
+            return dict(base)
+
+        loop._run_val_pass = Mock(side_effect=fake_pass)
+
+        train = [{"instance_id": "t1", "repo": "django/django"}]
+        val = [{"instance_id": "v1", "repo": "django/django"}]
+        stats = loop.run(
+            train, val_instances=val, eval_on_train=True, eval_on_train_pass_k=1,
+        )
+
+        assert "train_eval_phase" in stats
+        assert "train_eval_baseline_phase" in stats
+        assert "val_skillbook_phase" not in stats
+        assert "val_baseline_phase" not in stats
+        # Top-level mirrors TrainSB.
+        assert stats["resolved_count"] == 1
+        assert stats["total_instances"] == 1
+        # Summary carries the train delta.
+        assert "train_eval_resolution_rate" in stats["summary"]
+        assert "train_eval_baseline_resolution_rate" in stats["summary"]
+        assert "train_skillbook_improvement" in stats["summary"]
+
+    def test_train_eval_baseline_reuses_baseline_train_results(self, tmp_path):
+        """TrainBL reuses empty-skillbook results from baseline_dir/results/train
+        when present, instead of re-executing."""
+        from runners.main_loop import ExperimentLoop
+        from ace import Skillbook
+
+        bench = "princeton-nlp__SWE-bench_Lite"
+        baseline_dir = tmp_path / "baseline"
+        # Baseline has an empty-skillbook result for t1 under results/train.
+        traj_dir = baseline_dir / bench / "trajectories" / "train" / "t1"
+        res_dir = baseline_dir / bench / "results" / "train" / "t1"
+        traj_dir.mkdir(parents=True)
+        res_dir.mkdir(parents=True)
+        (traj_dir / "iter_0.json").write_text(
+            '{"info": {"exit_status": "Submitted"}, "messages": []}'
+        )
+        (res_dir / "iter_0.json").write_text('{"resolved": true}')
+
+        loop = ExperimentLoop(
+            predict_phase=Mock(), evaluate_phase=Mock(), learn_phase=Mock(),
+            output_dir=tmp_path, run_name="t", benchmark=bench,
+            agent_factory=lambda: Mock(),
+        )
+        loop._make_worker_predict = lambda: Mock()
+
+        instances = [{"instance_id": "t1", "problem_statement": "x"}]
+        stats = loop._run_val_pass(
+            val_instances=instances, skillbook=Skillbook(),
+            phase="train_eval_baseline",
+            baseline_run_dir=baseline_dir, max_attempts=1,
+        )
+
+        # Reused -> t1 counted as resolved without running the agent.
+        assert stats["resolved_count"] == 1
+        assert "t1" in stats["resolved_ids"]

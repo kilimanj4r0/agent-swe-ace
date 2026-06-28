@@ -166,7 +166,7 @@ def _count_exit_statuses(run_dir: Path, instance_filter: set[str] | None = None)
         return {}
 
     # Check for phase subdirs (split mode)
-    known_phases = {"train", "val", "val_baseline"}
+    known_phases = {"train", "val", "val_baseline", "train_eval", "train_eval_baseline"}
     phase_dirs = [d for d in trajs_dir.iterdir() if d.is_dir() and d.name in known_phases]
 
     result: dict[str, dict[int, int]] = {}
@@ -273,7 +273,7 @@ def _count_iter0_resolved(run_dir: Path) -> tuple[int, int]:
     total = 0
 
     # Check for phase subdirs (split mode)
-    known_phases = {"train", "val", "val_baseline"}
+    known_phases = {"train", "val", "val_baseline", "train_eval", "train_eval_baseline"}
     phase_dirs = [d for d in results_dir.iterdir() if d.is_dir() and d.name in known_phases]
 
     scan_dirs = []
@@ -494,8 +494,9 @@ def load_run(run_dir: Path, iteration: int | None = None, phase: str | None = No
 
     skillbook_assisted = stats.get("skillbook_assisted", {"count": 0, "ids": [], "by_iteration": {}})
 
-    # Detect split mode
-    is_split = "val_skillbook_phase" in stats
+    # Detect split mode (val two-phase OR eval_on_train sanity mode)
+    is_eval_on_train = "train_eval_phase" in stats
+    is_split = "val_skillbook_phase" in stats or is_eval_on_train
     split_data = {}
     if is_split:
         _nr = stats.get("summary", {}).get("newly_resolved_by_skillbook")
@@ -504,12 +505,19 @@ def load_run(run_dir: Path, iteration: int | None = None, phase: str | None = No
             "train": _extract_phase_data(stats, "train_phase"),
             "val_baseline": _extract_phase_data(stats, "val_baseline_phase"),
             "val_skillbook": _extract_phase_data(stats, "val_skillbook_phase"),
+            "train_eval_baseline": _extract_phase_data(stats, "train_eval_baseline_phase"),
+            "train_eval": _extract_phase_data(stats, "train_eval_phase"),
             "skillbook_improvement": stats.get("summary", {}).get("skillbook_improvement", "N/A"),
+            "train_skillbook_improvement": stats.get("summary", {}).get("train_skillbook_improvement", "N/A"),
             "skillbook_improvement_pct": stats.get("summary", {}).get("skillbook_improvement_pct", "N/A"),
             "newly_resolved": _nr if _nr is not None else [],
             "lost": _lt if _lt is not None else [],
             "per_attempt_new_lost": stats.get("summary", {}).get("per_attempt_new_lost"),
         }
+        if is_eval_on_train:
+            # No val phases in eval_on_train mode; reuse newly/lost from train summary.
+            split_data["newly_resolved"] = stats.get("summary", {}).get("newly_resolved_by_skillbook", [])
+            split_data["lost"] = stats.get("summary", {}).get("lost_by_skillbook", [])
         # Backfill per_attempt_rate from result files so the per-attempt avg is
         # correct. statistics.json stores only cumulative pass@k (whose mean is not
         # a valid per-attempt average); per-iteration rates are derived from files.
@@ -518,6 +526,9 @@ def load_run(run_dir: Path, iteration: int | None = None, phase: str | None = No
         if _results_root is not None:
             _backfill_per_attempt_rate(split_data["val_baseline"], _results_root / "val_baseline")
             _backfill_per_attempt_rate(split_data["val_skillbook"], _results_root / "val")
+            if is_eval_on_train:
+                _backfill_per_attempt_rate(split_data["train_eval_baseline"], _results_root / "train_eval_baseline")
+                _backfill_per_attempt_rate(split_data["train_eval"], _results_root / "train_eval")
 
         # Validation-only runs (skillbook_source_dir set) skip training, so their
         # own train_phase is empty (0/0). Inherit train stats from the source run
@@ -603,6 +614,7 @@ def load_run(run_dir: Path, iteration: int | None = None, phase: str | None = No
         "is_baseline": is_baseline,
         "duration_h": duration_h,
         "is_split": is_split,
+        "is_eval_on_train": is_eval_on_train,
         "split": split_data,
         "filter_repos": filter_repos,
         "experiment_name": experiment_name,
@@ -625,6 +637,8 @@ def load_run(run_dir: Path, iteration: int | None = None, phase: str | None = No
             "train": "train",
             "val_baseline": "val_baseline",
             "val": "val_skillbook",
+            "train_eval_baseline": "train_eval_baseline",
+            "train_eval": "train_eval",
         }
         phase_key = phase_map.get(phase)
         if phase_key and phase_key in split_data:
@@ -663,7 +677,7 @@ def _load_iteration_data(run_dir: Path, iteration: int) -> dict | None:
     processed = 0
 
     # Check for phase subdirs (split mode)
-    known_phases = {"train", "val", "val_baseline"}
+    known_phases = {"train", "val", "val_baseline", "train_eval", "train_eval_baseline"}
     phase_dirs = [d for d in results_dir.iterdir() if d.is_dir() and d.name in known_phases]
 
     if phase_dirs:
@@ -1229,7 +1243,13 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
             print("Split-mode runs (global):")
             global_statuses = _collect_all_statuses(global_runs)
             es_header = _fmt_exit_status_header(global_statuses)
-            global_headers = ["ID", "Dataset", "Train", "ValBL", "ValSB", "SB Δ (avg)", "New/Lost", "LLM", "Learn\n(Ret)", es_header]
+            # Pick the header set once, based on whether any eval_on_train run is
+            # present. For a mixed global list we prefer the eval_on_train header
+            # and leave val-only cells blank (acceptable v1).
+            if any(r.get("is_eval_on_train") for r in global_runs):
+                global_headers = ["ID", "Dataset", "TrainBL", "TrainSB", "Train Δ", "LLM", "Learn\n(Ret)", es_header]
+            else:
+                global_headers = ["ID", "Dataset", "Train", "ValBL", "ValSB", "SB Δ (avg)", "New/Lost", "LLM", "Learn\n(Ret)", es_header]
             global_rows = []
             for r in global_runs:
                 parent_tag = run_id_map[r["run_dir"]]
@@ -1237,6 +1257,20 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                 is_distil = bool(r.get("train_trajs_dir"))
                 vpk = r.get("val_pass_k", 1)
                 full_path = run_dir_paths.get(r["run_dir"])
+                if r.get("is_eval_on_train"):
+                    te = s["train_eval"]
+                    teb = s["train_eval_baseline"]
+                    global_rows.append({
+                        "ID": parent_tag,
+                        "Dataset": _shorten_dataset(r["benchmark"]),
+                        "TrainBL": _fmt_phase(teb, val_pass_k=vpk),
+                        "TrainSB": _fmt_phase(te, val_pass_k=vpk),
+                        "Train Δ": _fmt_sb_delta(s.get("train_skillbook_improvement"), teb.get("total", 0)),
+                        "LLM": llm_col(r),
+                        "Learn\n(Ret)": _fmt_learn(r),
+                        es_header: _fmt_exit_status_row(r["exit_statuses"], global_statuses),
+                    })
+                    continue
                 # Override ValBL avg with the aggregated reference baseline (qwen3
                 # split025) so SB Δ compares against a low-noise 60-attempt baseline.
                 if _is_qwen3_split025(r):
@@ -1355,7 +1389,8 @@ def main():
                         help="Compare two runs: show overlapping/non-overlapping IDs")
     parser.add_argument("--iter", type=int, metavar="N", default=None,
                         help="Compare specific iteration N results instead of overall statistics")
-    parser.add_argument("--phase", choices=["train", "val_baseline", "val"], default=None,
+    parser.add_argument("--phase", choices=["train", "val_baseline", "val", "train_eval", "train_eval_baseline"],
+                        default=None,
                         help="For split runs: show only this phase in the main table")
     args = parser.parse_args()
 

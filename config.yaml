@@ -80,6 +80,11 @@ experiment:
   #   val_ratio: 0.2                  # Fraction of instances for validation
   # baseline_run_dir: "data/run_20260415_020540"  # Reuse baseline results (skip re-running val baseline + train predict/eval)
   # val_pass_k: 4                     # Number of attempts per val instance (default: 1)
+  # eval_on_train: false              # Sanity-check mode: apply the learned skillbook back onto the TRAIN split
+  #                                   # (TrainBL = empty book, TrainSB = learned book) instead of running val passes.
+  #                                   # Composes with baseline_run_dir (reuses baseline train predict+eval for TrainBL)
+  #                                   # and skillbook_source_dir (skip train/learn, load book for TrainSB).
+  # eval_on_train_pass_k: 5           # Attempts per instance for BOTH TrainBL and TrainSB (default: 1)
   # skillbook_source_dir: "data/run_xxx"  # Load per-repo skillbooks from this run (skips training, validation-only mode)
   # skip_learn: false               # When true: never run Learn phase, always use empty skillbook
 

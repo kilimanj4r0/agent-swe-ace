@@ -467,3 +467,22 @@ class TestResolveLearnReplaySettings:
         from cli.commands import _resolve_learn_replay_settings
         lr = _resolve_learn_replay_settings({}, self._args(replay_run_dir="x"))
         assert lr["concurrency"] == 1
+
+
+# ---------------------------------------------------------------------------
+# _resolve_eval_on_train
+# ---------------------------------------------------------------------------
+
+
+class TestResolveEvalOnTrain:
+    def test_defaults(self):
+        from cli.commands import _resolve_eval_on_train
+        assert _resolve_eval_on_train({}) == (False, 1)
+
+    def test_reads_keys(self):
+        from cli.commands import _resolve_eval_on_train
+        assert _resolve_eval_on_train({"eval_on_train": True, "eval_on_train_pass_k": 5}) == (True, 5)
+
+    def test_enabled_only(self):
+        from cli.commands import _resolve_eval_on_train
+        assert _resolve_eval_on_train({"eval_on_train": True}) == (True, 1)

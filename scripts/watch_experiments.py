@@ -342,12 +342,16 @@ def find_repo_phase_counts(dataset: str, filter_repos: list) -> dict | None:
 
 
 def _collect_instance_dirs(results_dir: Path):
-    """Yield (instance_dir, phase) from both flat and two-phase layouts."""
-    phase_names = {"train", "val", "val_baseline"}
+    """Yield (instance_dir, phase) from both flat and two-phase layouts.
+
+    Recognized phase dirs: train, val_baseline, val (standard two-phase), and
+    train_eval, train_eval_baseline (eval_on_train re-passes of the train split).
+    """
+    phase_names = {"train", "val", "val_baseline", "train_eval", "train_eval_baseline"}
     has_phases = any((results_dir / p).is_dir() for p in phase_names)
 
     if has_phases:
-        for phase in ("train", "val_baseline", "val"):
+        for phase in ("train", "val_baseline", "val", "train_eval_baseline", "train_eval"):
             phase_dir = results_dir / phase
             if not phase_dir.is_dir():
                 continue
@@ -416,31 +420,47 @@ def scan_progress(run_dir: Path, max_attempts: int | None = None,
     # Overlay authoritative phase sizes from the split manifest so progress is
     # measured against the true workload, not dirs-seen-so-far. val_baseline
     # and val share the val size; train only applies when the phase is present.
+    # eval_on_train phases (train_eval, train_eval_baseline) are re-passes of
+    # the train split, so they share the train size.
     if expected_counts:
+        exp_train = expected_counts.get("train", 0)
         exp_val = expected_counts.get("val", 0)
-        for pname, exp in (("train", expected_counts.get("train", 0)),
-                           ("val_baseline", exp_val), ("val", exp_val)):
+        for pname, exp in (("train", exp_train),
+                           ("val_baseline", exp_val), ("val", exp_val),
+                           ("train_eval", exp_train),
+                           ("train_eval_baseline", exp_train)):
             if exp and pname in phases and exp > phases[pname][2]:
                 phases[pname][2] = exp
 
     # Compute top-level counts, deduplicating val across vb/val phases
     if phases:
-        # Train counts always included
-        tr = phases.get("train", [0, 0, 0])
-        resolved = tr[0]
-        processed = tr[1]
-        dir_count = tr[2]
-        # Val: prefer val over vb (val supersedes vb)
-        val_p = phases.get("val", [0, 0, 0])
-        vb_p = phases.get("val_baseline", [0, 0, 0])
-        if val_p[2] > 0:
-            resolved += val_p[0]
-            processed += val_p[1]
-            dir_count += val_p[2]
-        elif vb_p[2] > 0:
-            resolved += vb_p[0]
-            processed += vb_p[1]
-            dir_count += vb_p[2]
+        # eval_on_train mode: train_eval and train_eval_baseline are re-passes
+        # of the TRAIN instances. Make the headline reflect the TrainSB
+        # (train_eval) pass only; train_eval_baseline stays a secondary phase
+        # in the breakdown. This runs before the train+val derivation so we
+        # never triple-count the same train instances.
+        if "train_eval" in phases:
+            te = phases.get("train_eval", [0, 0, 0])
+            resolved = te[0]
+            processed = te[1]
+            dir_count = te[2]
+        else:
+            # Train counts always included
+            tr = phases.get("train", [0, 0, 0])
+            resolved = tr[0]
+            processed = tr[1]
+            dir_count = tr[2]
+            # Val: prefer val over vb (val supersedes vb)
+            val_p = phases.get("val", [0, 0, 0])
+            vb_p = phases.get("val_baseline", [0, 0, 0])
+            if val_p[2] > 0:
+                resolved += val_p[0]
+                processed += val_p[1]
+                dir_count += val_p[2]
+            elif vb_p[2] > 0:
+                resolved += vb_p[0]
+                processed += vb_p[1]
+                dir_count += vb_p[2]
     else:
         # Flat layout — count directly
         processed = 0
@@ -462,7 +482,12 @@ def scan_progress(run_dir: Path, max_attempts: int | None = None,
         if expected_counts:
             # Manifest gives authoritative workload sizes — use them directly
             # so the total is correct from the start (not just at completion).
-            if "train" in phases:
+            if "train_eval" in phases:
+                # eval_on_train: headline is the train_eval (TrainSB) pass,
+                # which re-runs the train instances. Total = train size only
+                # (val is not re-run in this mode).
+                total = expected_counts.get("train", 0)
+            elif "train" in phases:
                 # Full two-phase: train + val instances.
                 total = expected_counts.get("train", 0) + expected_counts.get("val", 0)
             else:
@@ -633,7 +658,7 @@ def _detect_repo_phase(phases_detail: dict, max_attempts: int | None) -> str:
     A phase is "active" if it has dirs without completed iter files.
     """
     has_any = False
-    for phase in ("train", "vb", "val"):
+    for phase in ("train", "vb", "val", "trbl", "trsb"):
         pd = phases_detail.get(phase)
         if not pd or pd["total"] == 0:
             continue
@@ -1191,12 +1216,19 @@ def render(entries, term_width: int):
         # Phase breakdown for two-phase runs
         if e["phases"]:
             phase_parts = []
-            for pname in ("train", "val_baseline", "val"):
+            _phase_labels = {
+                "train": "train",
+                "val_baseline": "vb",
+                "val": "val",
+                "train_eval_baseline": "trbl",
+                "train_eval": "trsb",
+            }
+            for pname in ("train", "val_baseline", "val", "train_eval_baseline", "train_eval"):
                 pstat = e["phases"].get(pname)
                 if pstat is None:
                     continue
                 r, p, t = pstat
-                label = "train" if pname == "train" else "vb" if pname == "val_baseline" else "val"
+                label = _phase_labels.get(pname, pname)
                 if t > 0:
                     phase_parts.append(f"{label}:{r}/{t}")
                 else:

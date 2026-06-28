@@ -1,0 +1,66 @@
+experiment:
+  name: "agent-qwen3next-ace-qwen3next-full-global-split-default-025-eval-on-train-ret-bm25"
+  description: "eval_on_train sanity check — learned global skillbook on TRAIN split, bm25 retrieval (TrainBL + TrainSB)"
+  max_attempts: 1                    # Max retry attempts per instance
+  concurrency: 6
+
+  skillbook:
+    mode: "global"              # "per_instance", "per_repo", or "global"
+    custom_swe_learn: false            # SWE-optimized Reflector+SkillManager (anti-patterns, type prefixes)
+    deduplication:
+      enabled: true
+      similarity_threshold: 0.85      # Cosine similarity threshold
+    retrieval:
+      enabled: true                   # Top-k skill retrieval before predict (TrainSB only)
+      type: "bm25"                    # Lexical Okapi BM25 via bm25s
+      top_k: 5                        # Number of skills to retrieve
+
+  # --- eval_on_train sanity-check mode ---
+  # TrainBL = empty skillbook (fresh pass on train), TrainSB = top-k of the learned skillbook.
+  # Skips the val passes entirely; eval_on_train_pass_k applies to BOTH passes for a clean delta.
+  eval_on_train: true
+  eval_on_train_pass_k: 5
+
+  # --- Two-phase experiment settings (per_repo/global modes) ---
+  split:                             # Enable train/val split
+    manifest: "configs/splits/princeton-nlp__SWE-bench_Verified/val_ratio_0_25.json"
+  # NOTE: baseline_run_dir intentionally unset. No clean empty-skillbook qwen3next train set
+  # exists yet (baseline_split025_verified_qwen3next is a learn-on-train run), so TrainBL runs
+  # fresh. TrainBL is identical to the noret experiment (empty book never retrieves).
+  val_pass_k: 5
+  skillbook_source_dir: "data/run_20260615_125626_completed_qwen3next_global_split025_default_verified_vpk5"
+
+agent:
+  step_limit: 250                    # Max agent steps per attempt
+
+llm:
+  agent:
+    provider: "hosted_vllm"
+    model: "Qwen/Qwen3-Coder-Next-FP8"
+    # model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://10.100.30.241:8801/v1"
+    # api_base: "http://localhost:8800/v1"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+    temperature: 1.0
+  ace:
+    provider: "hosted_vllm"
+    model: "Qwen/Qwen3-Coder-Next-FP8"
+    # model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    api_base: "http://10.100.30.241:8801/v1"
+    # api_base: "http://localhost:8800/v1"
+    api_key_env: "HOSTED_VLLM_API_KEY"
+    temperature: 1.0
+
+benchmark:
+  dataset: "princeton-nlp/SWE-bench_Verified"
+  split: "test"
+  max_instances: null                 # null = all instances, or set number
+  filter_repos:
+    - "django/django"
+    - "sympy/sympy"
+    - "sphinx-doc/sphinx"
+    - "matplotlib/matplotlib"
+    - "scikit-learn/scikit-learn"
+    - "astropy/astropy"
+    - "pydata/xarray"
+    - "pytest-dev/pytest"

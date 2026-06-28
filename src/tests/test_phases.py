@@ -210,6 +210,54 @@ class TestRetrieveSkillsPreservesIds:
         assert "problem_analysis-00003" not in template
 
 
+class TestPredictPhaseTrainEvalRetrieval:
+    """Retrieval gating for the eval_on_train TrainSB pass (phase='train_eval')."""
+
+    def test_prepare_skillbook_retrieves_on_train_eval(self):
+        """Retrieval fires on phase='train_eval' (eval_on_train TrainSB pass)."""
+        from phases.predict import PredictPhase
+
+        full = []
+        for i in range(20):
+            s = Mock()
+            s.id = f"section-{i:05d}"
+            s.section = "section"
+            s.content = "guidance"
+            s.justification = None
+            s.evidence = None
+            full.append(s)
+
+        retriever = Mock()
+        retriever.retrieve.return_value = full[:5]
+        retriever.skip_threshold = 10
+
+        skillbook = Mock()
+        skillbook.skills.return_value = full
+
+        phase = PredictPhase(agent=Mock(), output_dir=Path("/tmp"), skill_retriever=retriever)
+        _out_sb, stats = phase.prepare_skillbook(
+            {"instance_id": "x"}, skillbook, phase="train_eval"
+        )
+
+        assert retriever.retrieve.called
+        assert stats is not None
+        assert stats["selected"] == 5
+
+    def test_prepare_skillbook_skips_retrieval_on_train_eval_baseline(self):
+        """TrainBL (empty book) and the learning 'train' phase never retrieve."""
+        from phases.predict import PredictPhase
+
+        retriever = Mock()
+        retriever.skip_threshold = 10
+        phase = PredictPhase(agent=Mock(), output_dir=Path("/tmp"), skill_retriever=retriever)
+
+        empty_sb = Mock()
+        empty_sb.skills.return_value = []  # empty book -> short-circuit before phase check
+        out, stats = phase.prepare_skillbook({"instance_id": "x"}, empty_sb, phase="train_eval_baseline")
+        assert not retriever.retrieve.called
+        assert stats is None
+
+
 class TestIsValidPatch:
     """Test _is_valid_patch from evaluate.py."""
 

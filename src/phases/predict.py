@@ -180,7 +180,7 @@ class PredictPhase:
         """
         if not self.skill_retriever or not skillbook:
             return skillbook, None
-        if not (phase is None or phase == "val"):
+        if phase not in (None, "val", "train_eval"):
             return skillbook, None
         n_skills = len(skillbook.skills())
         if n_skills <= self.skill_retriever.skip_threshold:

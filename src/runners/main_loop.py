@@ -549,6 +549,8 @@ class ExperimentLoop:
         preloaded_skillbook: Optional[Skillbook] = None,
         val_pass_k: int = 1,
         train_trajs_dir: Optional[str] = None,
+        eval_on_train: bool = False,
+        eval_on_train_pass_k: int = 1,
     ) -> Dict[str, Any]:
         """
         Run experiment loop on multiple instances.
@@ -674,6 +676,8 @@ class ExperimentLoop:
         instance_durations: List[float] = []
         val_baseline_stats = None
         val_skillbook_stats = None
+        train_eval_stats = None
+        train_eval_baseline_stats = None
 
         try:
             # Pre-check baseline skillbook compatibility (once, before train loop)
@@ -681,97 +685,98 @@ class ExperimentLoop:
             if two_phase and baseline_run_dir and self.skillbook_mode in ("global", "per_repo"):
                 baseline_sb_compat = self._check_baseline_skillbook_compat(baseline_run_dir)
 
-            if two_phase or self.concurrency <= 1:
-                # Sequential train (two-phase train is always sequential; per_instance
-                # only goes concurrent when concurrency > 1, handled in the else below).
-                for i, instance in enumerate(instances):
-                    instance_id = instance.get("instance_id", f"unknown-{i}")
-                    logger.info(f"\n[TRAIN {i+1}/{len(instances)}] Processing {instance_id}")
+            if preloaded_skillbook is None:
+                if two_phase or self.concurrency <= 1:
+                    # Sequential train (two-phase train is always sequential; per_instance
+                    # only goes concurrent when concurrency > 1, handled in the else below).
+                    for i, instance in enumerate(instances):
+                        instance_id = instance.get("instance_id", f"unknown-{i}")
+                        logger.info(f"\n[TRAIN {i+1}/{len(instances)}] Processing {instance_id}")
 
-                    inst_start = datetime.now()
-                    if two_phase and self._train_trajs_dir is not None:
-                        # Teacher trajectory distillation (priority for train)
-                        teacher_result = self._run_train_instance_from_teacher(
-                            instance, self._train_trajs_dir, phase="train",
-                        )
-                        if teacher_result is not None:
-                            teacher_trajs_found += 1
-                            if teacher_result.final_resolved:
-                                teacher_trajs_resolved += 1
-                            result = teacher_result
-                        else:
-                            teacher_trajs_skipped += 1
-                            logger.warning(f"[TRAIN] {instance_id}: no teacher trajectory, skipping")
-                            continue
-                    elif two_phase and baseline_run_dir:
-                        result = self._run_train_instance_reusing_baseline(
-                            instance, baseline_run_dir, phase="train",
-                            allow_sb_merge=baseline_sb_compat is not False,
-                        )
-                        # Check if reused (no predict_result means it was reused)
-                        if result.iterations and result.iterations[0].predict_result is None:
-                            reused_from_baseline += 1
-                            if result.final_resolved:
-                                baseline_resolved_count += 1
-                            else:
-                                baseline_unresolved_count += 1
-                    else:
-                        result = self.run_instance(
-                            instance,
-                            force_learn=train_force_learn,
-                            max_attempts_override=train_max_attempts,
-                            phase=train_phase,
-                        )
-                    all_results[instance_id] = result
-                    instance_durations.append((datetime.now() - inst_start).total_seconds())
-
-                    if result.final_resolved:
-                        resolved_ids.append(instance_id)
-                    else:
-                        unresolved_ids.append(instance_id)
-            else:
-                # Concurrent mode — per_instance only (two-phase train is always
-                # sequential; see the branch above). Each per_instance instance gets
-                # its own ephemeral skillbook, so concurrent skillbook mutation is safe.
-                results_lock = threading.Lock()
-
-                def _worker(instance):
-                    instance_id = instance.get("instance_id", "unknown")
-                    inst_start = datetime.now()
-                    try:
-                        result = self._run_instance_concurrent(instance)
-                        with results_lock:
-                            all_results[instance_id] = result
-                            instance_durations.append((datetime.now() - inst_start).total_seconds())
-                            if result.final_resolved:
-                                resolved_ids.append(instance_id)
-                            else:
-                                unresolved_ids.append(instance_id)
-                        return result
-                    except Exception as e:
-                        logger.error(f"[{instance_id}] Worker failed: {e}")
-                        with results_lock:
-                            instance_durations.append((datetime.now() - inst_start).total_seconds())
-                            unresolved_ids.append(instance_id)
-                            all_results[instance_id] = InstanceResult(
-                                instance_id=instance_id,
-                                final_resolved=False,
-                                total_attempts=0,
+                        inst_start = datetime.now()
+                        if two_phase and self._train_trajs_dir is not None:
+                            # Teacher trajectory distillation (priority for train)
+                            teacher_result = self._run_train_instance_from_teacher(
+                                instance, self._train_trajs_dir, phase="train",
                             )
-                        return None
+                            if teacher_result is not None:
+                                teacher_trajs_found += 1
+                                if teacher_result.final_resolved:
+                                    teacher_trajs_resolved += 1
+                                result = teacher_result
+                            else:
+                                teacher_trajs_skipped += 1
+                                logger.warning(f"[TRAIN] {instance_id}: no teacher trajectory, skipping")
+                                continue
+                        elif two_phase and baseline_run_dir:
+                            result = self._run_train_instance_reusing_baseline(
+                                instance, baseline_run_dir, phase="train",
+                                allow_sb_merge=baseline_sb_compat is not False,
+                            )
+                            # Check if reused (no predict_result means it was reused)
+                            if result.iterations and result.iterations[0].predict_result is None:
+                                reused_from_baseline += 1
+                                if result.final_resolved:
+                                    baseline_resolved_count += 1
+                                else:
+                                    baseline_unresolved_count += 1
+                        else:
+                            result = self.run_instance(
+                                instance,
+                                force_learn=train_force_learn,
+                                max_attempts_override=train_max_attempts,
+                                phase=train_phase,
+                            )
+                        all_results[instance_id] = result
+                        instance_durations.append((datetime.now() - inst_start).total_seconds())
 
-                logger.info(f"Launching {len(instances)} instances with concurrency={self.concurrency}")
-                with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-                    futures = {
-                        executor.submit(_worker, inst): inst
-                        for inst in instances
-                    }
-                    done_count = 0
-                    for future in as_completed(futures):
-                        done_count += 1
-                        inst = futures[future]
-                        instance_id = inst.get("instance_id", "unknown")
-                        logger.info(f"[{done_count}/{len(instances)}] Completed {instance_id}")
+                        if result.final_resolved:
+                            resolved_ids.append(instance_id)
+                        else:
+                            unresolved_ids.append(instance_id)
+                else:
+                    # Concurrent mode — per_instance only (two-phase train is always
+                    # sequential; see the branch above). Each per_instance instance gets
+                    # its own ephemeral skillbook, so concurrent skillbook mutation is safe.
+                    results_lock = threading.Lock()
+
+                    def _worker(instance):
+                        instance_id = instance.get("instance_id", "unknown")
+                        inst_start = datetime.now()
+                        try:
+                            result = self._run_instance_concurrent(instance)
+                            with results_lock:
+                                all_results[instance_id] = result
+                                instance_durations.append((datetime.now() - inst_start).total_seconds())
+                                if result.final_resolved:
+                                    resolved_ids.append(instance_id)
+                                else:
+                                    unresolved_ids.append(instance_id)
+                            return result
+                        except Exception as e:
+                            logger.error(f"[{instance_id}] Worker failed: {e}")
+                            with results_lock:
+                                instance_durations.append((datetime.now() - inst_start).total_seconds())
+                                unresolved_ids.append(instance_id)
+                                all_results[instance_id] = InstanceResult(
+                                    instance_id=instance_id,
+                                    final_resolved=False,
+                                    total_attempts=0,
+                                )
+                            return None
+
+                    logger.info(f"Launching {len(instances)} instances with concurrency={self.concurrency}")
+                    with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
+                        futures = {
+                            executor.submit(_worker, inst): inst
+                            for inst in instances
+                        }
+                        done_count = 0
+                        for future in as_completed(futures):
+                            done_count += 1
+                            inst = futures[future]
+                            instance_id = inst.get("instance_id", "unknown")
+                            logger.info(f"[{done_count}/{len(instances)}] Completed {instance_id}")
 
             # === Two-phase: Val passes ===
 
@@ -824,22 +829,40 @@ class ExperimentLoop:
                         if latest:
                             sh.copy2(latest[-1], skillbooks_dir / "final_skillbook.json")
 
-                # Val baseline pass (empty skillbook)
-                val_baseline_stats = self._run_val_pass(
-                    val_instances=val_instances,
-                    skillbook=Skillbook(),  # Empty skillbook
-                    phase="val_baseline",
-                    baseline_run_dir=baseline_run_dir,
-                    max_attempts=val_pass_k,
-                )
+                if eval_on_train:
+                    # TrainBL: empty skillbook on the TRAIN split.
+                    train_eval_baseline_stats = self._run_val_pass(
+                        val_instances=instances,
+                        skillbook=Skillbook(),
+                        phase="train_eval_baseline",
+                        baseline_run_dir=baseline_run_dir,
+                        max_attempts=eval_on_train_pass_k,
+                    )
+                    # TrainSB: learned skillbook on the TRAIN split
+                    # (retrieval fires per config — gated in predict.py).
+                    train_eval_stats = self._run_val_pass(
+                        val_instances=instances,
+                        skillbook=final_skillbook,
+                        phase="train_eval",
+                        max_attempts=eval_on_train_pass_k,
+                    )
+                else:
+                    # Val baseline pass (empty skillbook)
+                    val_baseline_stats = self._run_val_pass(
+                        val_instances=val_instances,
+                        skillbook=Skillbook(),  # Empty skillbook
+                        phase="val_baseline",
+                        baseline_run_dir=baseline_run_dir,
+                        max_attempts=val_pass_k,
+                    )
 
-                # Val skillbook pass (learned skillbook)
-                val_skillbook_stats = self._run_val_pass(
-                    val_instances=val_instances,
-                    skillbook=final_skillbook,
-                    phase="val",
-                    max_attempts=val_pass_k,
-                )
+                    # Val skillbook pass (learned skillbook)
+                    val_skillbook_stats = self._run_val_pass(
+                        val_instances=val_instances,
+                        skillbook=final_skillbook,
+                        phase="val",
+                        max_attempts=val_pass_k,
+                    )
 
         except Exception as e:
             import traceback
@@ -946,26 +969,59 @@ class ExperimentLoop:
                 if val_skillbook_stats:
                     statistics["val_skillbook_phase"] = val_skillbook_stats
 
+                if eval_on_train:
+                    if train_eval_baseline_stats:
+                        statistics["train_eval_baseline_phase"] = train_eval_baseline_stats
+                    if train_eval_stats:
+                        statistics["train_eval_phase"] = train_eval_stats
+
                 # Summary comparison
-                baseline_rate = val_baseline_stats["resolution_rate"] if val_baseline_stats else 0.0
-                skillbook_rate = val_skillbook_stats["resolution_rate"] if val_skillbook_stats else 0.0
-                improvement = skillbook_rate - baseline_rate
+                if eval_on_train:
+                    teb = train_eval_baseline_stats or {}
+                    te = train_eval_stats or {}
+                    teb_rate = teb.get("resolution_rate", 0.0)
+                    te_rate = te.get("resolution_rate", 0.0)
+                    te_improvement = te_rate - teb_rate
+                    teb_resolved = set(teb.get("resolved_ids", []))
+                    te_resolved = set(te.get("resolved_ids", []))
+                    statistics["summary"] = {
+                        "train_eval_baseline_resolution_rate": teb_rate,
+                        "train_eval_resolution_rate": te_rate,
+                        "train_skillbook_improvement": f"{te_improvement:+.3f}",
+                        "train_skillbook_improvement_pct": (
+                            f"{(te_improvement / teb_rate * 100) if teb_rate > 0 else 0:+.1f}%"
+                        ),
+                        "newly_resolved_by_skillbook": sorted(te_resolved - teb_resolved),
+                        "lost_by_skillbook": sorted(teb_resolved - te_resolved),
+                    }
+                    # Top-level mirrors the TrainSB pass (headline metric).
+                    if te:
+                        statistics["total_instances"] = te.get("total_instances", 0)
+                        statistics["resolved_count"] = te.get("resolved_count", 0)
+                        statistics["unresolved_count"] = te.get("unresolved_count", 0)
+                        statistics["resolution_rate"] = te.get("resolution_rate", 0.0)
+                        statistics["resolved_ids"] = te.get("resolved_ids", [])
+                        statistics["unresolved_ids"] = te.get("unresolved_ids", [])
+                else:
+                    baseline_rate = val_baseline_stats["resolution_rate"] if val_baseline_stats else 0.0
+                    skillbook_rate = val_skillbook_stats["resolution_rate"] if val_skillbook_stats else 0.0
+                    improvement = skillbook_rate - baseline_rate
 
-                # Compute per-instance deltas
-                baseline_resolved = set(val_baseline_stats.get("resolved_ids", [])) if val_baseline_stats else set()
-                skillbook_resolved = set(val_skillbook_stats.get("resolved_ids", [])) if val_skillbook_stats else set()
-                newly_resolved = sorted(skillbook_resolved - baseline_resolved)
-                lost = sorted(baseline_resolved - skillbook_resolved)
+                    # Compute per-instance deltas
+                    baseline_resolved = set(val_baseline_stats.get("resolved_ids", [])) if val_baseline_stats else set()
+                    skillbook_resolved = set(val_skillbook_stats.get("resolved_ids", [])) if val_skillbook_stats else set()
+                    newly_resolved = sorted(skillbook_resolved - baseline_resolved)
+                    lost = sorted(baseline_resolved - skillbook_resolved)
 
-                statistics["summary"] = {
-                    "train_resolution_rate": len(train_resolved) / train_total if train_total > 0 else 0.0,
-                    "val_baseline_resolution_rate": baseline_rate,
-                    "val_skillbook_resolution_rate": skillbook_rate,
-                    "skillbook_improvement": f"{improvement:+.3f}",
-                    "skillbook_improvement_pct": f"{(improvement / baseline_rate * 100) if baseline_rate > 0 else 0:+.1f}%",
-                    "newly_resolved_by_skillbook": newly_resolved,
-                    "lost_by_skillbook": lost,
-                }
+                    statistics["summary"] = {
+                        "train_resolution_rate": len(train_resolved) / train_total if train_total > 0 else 0.0,
+                        "val_baseline_resolution_rate": baseline_rate,
+                        "val_skillbook_resolution_rate": skillbook_rate,
+                        "skillbook_improvement": f"{improvement:+.3f}",
+                        "skillbook_improvement_pct": f"{(improvement / baseline_rate * 100) if baseline_rate > 0 else 0:+.1f}%",
+                        "newly_resolved_by_skillbook": newly_resolved,
+                        "lost_by_skillbook": lost,
+                    }
             else:
                 # Single-phase: compute skillbook-assisted resolution stats
                 skillbook_assisted_ids = []
@@ -1382,9 +1438,11 @@ class ExperimentLoop:
         loaded_iter_details = {}  # iid -> {iter: resolved} for pass@k stats
         instances_to_run = list(val_instances)
 
-        if phase == "val_baseline" and baseline_run_dir:
+        _BASELINE_PHASES = {"val_baseline": "val_baseline", "train_eval_baseline": "train"}
+        if phase in _BASELINE_PHASES and baseline_run_dir:
             loaded_ids, loaded_iter_details, instances_to_run = self._load_baseline_results_multi(
                 baseline_run_dir, val_instances, max_attempts=max_attempts,
+                source_phase=_BASELINE_PHASES[phase], dest_phase=phase,
             )
             logger.info(
                 f"Loaded {len(loaded_ids)} baseline results from {baseline_run_dir}, "
@@ -1578,6 +1636,7 @@ class ExperimentLoop:
 
     def _load_baseline_results_multi(
         self, baseline_dir: Path, val_instances: list, max_attempts: int = 1,
+        source_phase: str = "val_baseline", dest_phase: str = "val_baseline",
     ) -> tuple:
         """Load baseline val results, supporting multi-iteration reuse.
 
@@ -1601,7 +1660,7 @@ class ExperimentLoop:
 
             # Find existing iterations across phase-based and flat layouts
             iters_found = []  # list of (traj_path, result_path, resolved)
-            for prefix in ["val_baseline", None]:
+            for prefix in [source_phase, None]:
                 if prefix:
                     traj_dir = baseline_dir / self.benchmark / "trajectories" / prefix / iid
                     result_dir = baseline_dir / self.benchmark / "results" / prefix / iid
@@ -1633,8 +1692,8 @@ class ExperimentLoop:
                 # Fully covered — copy all iterations to output
                 iter_resolved = {}
                 for n, (tp, rp, resolved) in enumerate(iters_found[:max_attempts]):
-                    dest_traj_dir = self.output_dir / self.benchmark / "trajectories" / "val_baseline" / iid
-                    dest_result_dir = self.output_dir / self.benchmark / "results" / "val_baseline" / iid
+                    dest_traj_dir = self.output_dir / self.benchmark / "trajectories" / dest_phase / iid
+                    dest_result_dir = self.output_dir / self.benchmark / "results" / dest_phase / iid
                     dest_traj_dir.mkdir(parents=True, exist_ok=True)
                     dest_result_dir.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(tp, dest_traj_dir / f"iter_{n}.json")

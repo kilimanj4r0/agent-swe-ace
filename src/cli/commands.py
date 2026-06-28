@@ -1286,6 +1286,16 @@ def _resolve_iterate_repos_concurrency(exp_cfg: dict) -> int:
     return 1
 
 
+def _resolve_eval_on_train(exp_cfg: dict) -> tuple:
+    """Resolve eval_on_train settings from the experiment config.
+
+    Returns (enabled: bool, pass_k: int). Defaults: (False, 1).
+    """
+    enabled = bool(exp_cfg.get("eval_on_train", False))
+    pass_k = int(exp_cfg.get("eval_on_train_pass_k", 1))
+    return enabled, pass_k
+
+
 def _run_iterate_repos(config: dict, args, output_dir: Path):
     """Run independent per-repo two-phase experiments for each repo in iterate_repos."""
     iterate_repos_list = config["benchmark"]["iterate_repos"]
@@ -1655,6 +1665,9 @@ def run_full_experiment(config: dict, args):
 
     train_trajs_dir = config.get("experiment", {}).get("train_trajs_dir")
     val_pass_k = config.get("experiment", {}).get("val_pass_k", 1)
+    eval_on_train, eval_on_train_pass_k = _resolve_eval_on_train(
+        config.get("experiment", {})
+    )
 
     # Validation-only mode: skip training, load skillbook from source run
     skillbook_source_dir = config.get("experiment", {}).get("skillbook_source_dir")
@@ -1667,17 +1680,21 @@ def run_full_experiment(config: dict, args):
             f"Validation-only mode: loaded {len(preloaded_skillbook.skills())} skills "
             f"from {sb_path}, val_pass_k={val_pass_k}"
         )
-        loop.run([], config,
+        loop.run(train_instances if eval_on_train else [], config,
                  val_instances=val_instances if val_instances else None,
                  baseline_run_dir=baseline_run_dir,
                  preloaded_skillbook=preloaded_skillbook,
-                 val_pass_k=val_pass_k)
+                 val_pass_k=val_pass_k,
+                 eval_on_train=eval_on_train,
+                 eval_on_train_pass_k=eval_on_train_pass_k)
     else:
         loop.run(train_instances, config,
                  val_instances=val_instances if val_instances else None,
                  baseline_run_dir=baseline_run_dir,
                  train_trajs_dir=train_trajs_dir,
-                 val_pass_k=val_pass_k)
+                 val_pass_k=val_pass_k,
+                 eval_on_train=eval_on_train,
+                 eval_on_train_pass_k=eval_on_train_pass_k)
 
 
 def run_predict_cmd(config: dict, args):
