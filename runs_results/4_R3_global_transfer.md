@@ -19,12 +19,12 @@
 
 ### Table R3.2 — split025 global transfer (primary; pass@1 & pass@5)
 **Goal:** Re-run global transfer on split025 at pass@1 and pass@5 for the paper's primary global numbers, including QNext, where full-skillbook conditioning turns negative at pass@5.
-*valB reference (fixed, in caption): Q30 = pass@1 20.4 / pass@5 38.7 (avg 20.4); QNext = 61.9 / 63.7. Pass@1 rows (`_vpk5` absent) have `-` in the p5/avg/Δ cells. Negative Δp5 here is the headline finding that motivates R4 retrieval.*
+*valB = each run's own 5-attempt val_baseline (empty skillbook); valS = skillbook val. Δ = valS − valB (5v5, k-symmetric; valB p1 == avg valB, so Δavg = valS p1 − valB p1). Pass@1-only rows (`_vpk5` absent) show valB p1 / valS p1 only. Negative Δp5 on the Q30 full-skillbook rows is the headline that motivates the R4 retrieval sweep.*
 
-| Run | Backbone | Learn | valS p1 % | valS p5 % | avg valS % | Δp5 (pp) | Δavg (pp) |
-|---|---|---|---|---|---|---|---|
-| `run_20260529_164021_completed_qwen3_global_split025_default_verified` | Q30 | default | 18.5 | - | - | - | - |
-| `run_20260602_004243_completed_qwen3_global_split025_swe_verified` | Q30 | S | 18.5 | - | - | - | - |
-| `run_20260605_111718_completed_qwen3_global_split025_swe_verified_vpk5` | Q30 | S | 11.5 | 23.0 | 14.5 | -15.7 | -5.9 |
-| `run_20260605_111733_completed_qwen3_global_split025_default_verified_vpk5` | Q30 | default | 18.6 | 22.1 | 16.1 | -16.6 | -4.3 |
-| `run_20260615_125626_completed_qwen3next_global_split025_default_verified_vpk5` | QNext | default | 61.1 | 63.7 | 61.2 | +0.0 | +0.7 |
+| Run | Backbone | Learn | valB p1 (avg) % | valB p5 % | valS p1 (avg) % | valS p5 % | Δp5 (pp) | Δavg (pp) |
+|---|---|---|---|---|---|---|---|---|
+| `run_20260529_164021_completed_qwen3_global_split025_default_verified` | Q30 | default | 16.0 | - | 18.5 | - | - | - |
+| `run_20260602_004243_completed_qwen3_global_split025_swe_verified` | Q30 | S | 17.6 | - | 18.5 | - | - | - |
+| `run_20260605_111718_completed_qwen3_global_split025_swe_verified_vpk5` | Q30 | S | 20.2 | 26.5 | 14.5 | 23.0 | -3.5 | -5.7 |
+| `run_20260605_111733_completed_qwen3_global_split025_default_verified_vpk5` | Q30 | default | 21.6 | 27.4 | 16.1 | 22.1 | -5.3 | -5.5 |
+| `run_20260615_125626_completed_qwen3next_global_split025_default_verified_vpk5` | QNext | default | 60.5 | 63.7 | 61.2 | 63.7 | +0.0 | +0.7 |
