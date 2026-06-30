@@ -33,7 +33,7 @@ A `Q30/QNext` tag = agent Q30 with a QNext ACE (skillbook) model.
 | **Δ** | valS − valB, in percentage points (skillbook benefit) |
 | **avg / `p1 (avg)`** | per-attempt average resolution rate (mean of per-iteration rates) — **equals combinatorial pass@1**, so the two are shown once as a single `p1 (avg)` column (no separate `avg` column). It is per-attempt *reliability*; pass@5 (any-of-5) is *breadth* — they measure different things. |
 | **Δavg** | valS p1 − valB p1 (= avg(valS) − avg(valB)), in pp |
-| **sb-assisted** | # instances the skillbook contributed to resolving |
+| **SB-assist: i1 / i2+** | resolved-on-retry count (`resolved_any − iter0`, attributed to the accumulated skillbook), split by the retry iteration it first resolves at: **i1** = attempt 2 (iter_1), **i2+** = attempt 3+ (iter_2…); the two sum to the old single `sb-assisted` count. For no-SB rows it is plain retry resolution. Replaces `sb-assisted` in R1.1/R1.2. |
 | **sk** | # skills in the learned skillbook |
 | **temp** | agent-model sampling temperature (`agent...temperature`, default **0.0** = greedy). Column also appears as **Temperature** in R4. |
 | **step** | max agent steps (model/tool turns) per attempt (`agent.step_limit`, default **100**) — caps trajectory length before a forced submit/abort. Also written **steps**. |
@@ -64,12 +64,12 @@ On the per-attempt **rate (pass@1/avg)** the skillbook is ≈ at/above baseline 
 | File | Theme | Tables |
 |---|---|---|
 | 2 | R1 Within-instance / test-time scaling | 3 |
-| 3 | R2 Repository-level transfer | 5 |
+| 3 | R2 Repository-level transfer | 4 |
 | 4 | R3 Global skillbook transfer | 2 |
 | 5 | R4 Global Top-k retrieval | 3 |
 | 6 | R5 Repository-level Top-k retrieval | 3 |
 | 7 | R6 Per-run significance tests (skillbook vs baseline) | 9 |
-| | **Total** | **25** |
+| | **Total** | **24** |
 
 
 ## Splits breakdown
@@ -151,3 +151,35 @@ Three train/val partitions are used across R1–R6. **Old split 020** (val_ratio
 - **sympy/sympy** — train (56): `sympy__sympy-11618`, `sympy__sympy-12096`, `sympy__sympy-12419`, `sympy__sympy-12481`, `sympy__sympy-12489`, `sympy__sympy-13031`, `sympy__sympy-13091`, `sympy__sympy-13480`, `sympy__sympy-13551`, `sympy__sympy-13615`, `sympy__sympy-13647`, `sympy__sympy-13852`, `sympy__sympy-13974`, `sympy__sympy-14248`, `sympy__sympy-14531`, `sympy__sympy-14711`, `sympy__sympy-14976`, `sympy__sympy-15017`, `sympy__sympy-15345`, `sympy__sympy-15349`, `sympy__sympy-15809`, `sympy__sympy-15875`, `sympy__sympy-15976`, `sympy__sympy-16450`, `sympy__sympy-16597`, `sympy__sympy-16792`, `sympy__sympy-17139`, `sympy__sympy-17318`, `sympy__sympy-17630`, `sympy__sympy-18189`, `sympy__sympy-18199`, `sympy__sympy-18211`, `sympy__sympy-18698`, `sympy__sympy-19040`, `sympy__sympy-19346`, `sympy__sympy-19495`, `sympy__sympy-19637`, `sympy__sympy-19783`, `sympy__sympy-19954`, `sympy__sympy-20154`, `sympy__sympy-20428`, `sympy__sympy-20438`, `sympy__sympy-20916`, `sympy__sympy-21379`, `sympy__sympy-21596`, `sympy__sympy-21612`, `sympy__sympy-21847`, `sympy__sympy-21930`, `sympy__sympy-22080`, `sympy__sympy-22456`, `sympy__sympy-22914`, `sympy__sympy-23413`, `sympy__sympy-23534`, `sympy__sympy-23824`, `sympy__sympy-23950`, `sympy__sympy-24539` — val (18): `sympy__sympy-13372`, `sympy__sympy-13757`, `sympy__sympy-13798`, `sympy__sympy-13877`, `sympy__sympy-13878`, `sympy__sympy-15599`, `sympy__sympy-16766`, `sympy__sympy-16886`, `sympy__sympy-17655`, `sympy__sympy-18763`, `sympy__sympy-20801`, `sympy__sympy-22714`, `sympy__sympy-23262`, `sympy__sympy-24066`, `sympy__sympy-24213`, `sympy__sympy-24443`, `sympy__sympy-24562`, `sympy__sympy-24661`
 
 </details>
+
+---
+
+### Table S.3 — Benchmark & split sizes
+
+Sizes used across R1–R6. Lite/Verified are evaluated wholesale in R1 (single-phase, no train/val split); split025 is the deterministic 8-repo two-phase partition (train/val) used in R2–R6. Counts are post-exclusion (SWE-bench Lite = 300 → **292** usable; Verified = 500 → **487** usable).
+
+| Dataset | Split | Instances | Train | Val | # Repos | Used in |
+|---|---|---:|---:|---:|---:|---|
+| SWE-bench Lite | full (single-phase) | 292 | — | — | 12 | R1 |
+| SWE-bench Verified | full (single-phase) | 487 | — | — | 12 | R1 |
+| SWE-bench Verified | split025 (8-repo, two-phase) | 467 | 354 | 113 | 8 | R2–R6 |
+
+*Per-repo instance counts: S.1. The legacy old-split-020 partition (Lite 234/58, Verified 390/97) appears only in R2.1/R3.1 and is not part of the primary split025 results.*
+
+---
+
+### Table S.4 — Learned skillbook sizes
+
+Learned skillbook sizes (skill count) for the split025 runs. Per-repo: independent per-repo skillbooks (`run_20260605_111708` default, `run_20260605_111658` SWE). Global: one skillbook learned across all 8 repos' train instances (`run_20260605_111733` default, `run_20260605_111718` SWE). Per-repo books and the global book are learned in independent runs, so per-repo sizes do not sum to the global size.
+
+| Scope | default sk | SWE sk |
+|---|---:|---:|
+| django/django (repo) | 432 | 371 |
+| sympy/sympy (repo) | 136 | 105 |
+| sphinx-doc/sphinx (repo) | 83 | 59 |
+| matplotlib/matplotlib (repo) | 62 | 41 |
+| scikit-learn/scikit-learn (repo) | 41 | 44 |
+| pydata/xarray (repo) | 41 | 28 |
+| astropy/astropy (repo) | 34 | 38 |
+| pytest-dev/pytest (repo) | 40 | 43 |
+| **Global (all 8 repos, one book)** | **842** | **762** |

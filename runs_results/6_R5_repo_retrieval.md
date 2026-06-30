@@ -42,17 +42,19 @@
 
 ---
 
-### Table R5.3 — Insight: per-repo retrieval Δ by retriever (split025, pass@5, Q30 default)
-**Goal:** Reveal the repo × retriever interaction hidden by the aggregate — which retriever rescues which repositories, and where retrieval (vs full skillbook) helps or hurts.
-*Δ = valS − valB per repo (pass@5), from each run's `summary.per_repo`. "no-retrieval" = full skillbook (R2 control). Source: `run_20260605_111708` (no-ret), `run_20260609_155815` (LLM), `run_20260617_215849` (BM25), `run_20260620_150312` (Embedding), `run_20260617_215858` (Random).*
+### Table R5.3 — Insight: per-repo retrieval Δ by retriever (split025, pass@1 & pass@5, Q30 default)
+**Goal:** Reveal the repo × retriever interaction hidden by the aggregate — which retriever rescues which repositories, and where retrieval (vs full skillbook) helps or hurts — at both per-attempt reliability (pass@1) and any-of-5 breadth (pass@5).
+*Δ = valS − valB per repo; each cell shows **Δp1 / Δp5** (pp) — Δp1 = valS pass@1 − valB pass@1 (per-attempt reliability), Δp5 = valS pass@5 − valB pass@5 (any-of-5 breadth). 5v5 (each run's own 5-attempt empty-skillbook valB); combinatorial pass@k (pass@1 == per-attempt avg; pass@5 == resolved-any rate). "no-retrieval" = full skillbook (R2 control). Source: `run_20260605_111708` (no-ret), `run_20260609_155815` (LLM), `run_20260617_215849` (BM25), `run_20260620_150312` (Embedding), `run_20260617_215858` (Random).*
 
-| Repo | Δ no-retrieval (pp) | Δ LLM k5 (pp) | Δ BM25 k5 (pp) | Δ Embedding k5 (pp) | Δ Random k5 (pp) |
+| Repo | no-retrieval Δp1/Δp5 | LLM k5 Δp1/Δp5 | BM25 k5 Δp1/Δp5 | Embedding k5 Δp1/Δp5 | Random k5 Δp1/Δp5 |
 |---|---|---|---|---|---|
-| sympy/sympy | +0.0 | +5.6 | +0.0 | +0.0 | +5.6 |
-| sphinx-doc/sphinx | +0.0 | +9.1 | +0.0 | +0.0 | -9.1 |
-| matplotlib/matplotlib | +0.0 | +0.0 | +12.5 | +0.0 | +12.5 |
-| scikit-learn/scikit-learn | +0.0 | +16.7 | +16.7 | +50.0 | +33.3 |
-| astropy/astropy | +0.0 | +0.0 | +0.0 | +0.0 | +0.0 |
-| pydata/xarray | +0.0 | +0.0 | -20.0 | -20.0 | -20.0 |
-| pytest-dev/pytest | +0.0 | +0.0 | +25.0 | +50.0 | +25.0 |
-| django/django | +1.8 | +0.0 | +15.8 | +8.8 | +10.5 |
+| sympy/sympy | +1.1 / +0.0 | +7.8 / +5.6 | -5.6 / +0.0 | +1.1 / +0.0 | +3.3 / +5.6 |
+| sphinx-doc/sphinx | +1.8 / +0.0 | +9.1 / +9.1 | +0.0 / +0.0 | -3.6 / +0.0 | -10.9 / -9.1 |
+| matplotlib/matplotlib | +7.5 / +0.0 | -2.5 / +0.0 | +17.5 / +12.5 | +7.5 / +0.0 | +17.5 / +12.5 |
+| scikit-learn/scikit-learn | -3.3 / +0.0 | +10.0 / +16.7 | +20.0 / +16.7 | +33.3 / +50.0 | +20.0 / +33.3 |
+| astropy/astropy | +0.0 / +0.0 | -15.0 / +0.0 | -10.0 / +0.0 | -10.0 / +0.0 | -5.0 / +0.0 |
+| pydata/xarray | -8.0 / +0.0 | -4.0 / +0.0 | -32.0 / -20.0 | -32.0 / -20.0 | -40.0 / -20.0 |
+| pytest-dev/pytest | +10.0 / +0.0 | +5.0 / +0.0 | +35.0 / +25.0 | +50.0 / +50.0 | +35.0 / +25.0 |
+| django/django | -0.7 / +1.8 | -1.1 / +0.0 | +15.1 / +15.8 | +7.4 / +8.8 | +11.9 / +10.5 |
+
+*Takeaway: Δp1 (reliability) and Δp5 (breadth) rarely move together — the skillbook mostly sharpens per-attempt reliability without expanding the solved set (no-retrieval: matplotlib +7.5/0.0, pytest +10.0/0.0; only django converts reliability into breadth, +1.8 on Δp5). Genuinely new breadth (Δp5 > 0) is concentrated in BM25/Embedding/Random on the small repos — scikit-learn, pytest, matplotlib — where ±1 instance is ±17–50 pp; LLM k5's breadth gains are confined to sympy/sphinx/scikit-learn. xarray is uniformly negative on Δp1 (−8 to −40 pp) at near-flat breadth.*

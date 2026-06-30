@@ -9,35 +9,35 @@
 ### Table R1.1 — Lite, within-instance scaling (pass@1)
 **Goal:** Measure how much allowing two or more retries per instance, with the skillbook accumulating across attempts, lifts resolution above the single-attempt floor, across backbones and attempt counts.
 
-| Run | Backbone | Learn | Attempts | temp | step | iter0 (pass@1) % | Resolved n/N | pass@N % | Δ vs iter0 (pp) | sb-assisted |
+| Run | Backbone | Learn | Attempts | temp | step | iter0 (pass@1) % | Resolved n/N | pass@N % | Δ vs iter0 (pp) | SB-assist: i1 / i2+ |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `run_20260426_210831_completed_baseline` | Q30 | no-SB | 1 | 0.0 | 250 | 13.7 | 40/292 | 13.7 | +0.0 | 0 |
-| `run_20260404_150133_completed_qwen3_1a_swe` | Q30 | S | 1 | 0.7 | 200 | 9.6 | 28/292 | 9.6 | +0.0 | 0 |
-| `run_20260404_150204_completed_qwen3_1a_default` | Q30 | default | 1 | 0.7 | 200 | 7.2 | 21/292 | 7.2 | +0.0 | 0 |
-| `run_20260414_015144_completed_glm_4a_swe` | GLM | S | 4 | 0.7 | 200 | 34.2 | 102/292 | 34.9 | +0.7 | 2 |
-| `run_20260414_015225_completed_glm_4a_default` | GLM | default | 4 | 0.7 | 200 | 37.0 | 110/292 | 37.7 | +0.7 | 2 |
-| `run_20260415_020217_completed_qwen3next_4a_default` | QNext | default | 4 | 0.7 | 200 | 38.0 | 117/292 | 40.1 | +2.1 | 6 |
-| `run_20260415_020540_completed_qwen3next_4a_swe` | QNext | S | 4 | 0.7 | 200 | 37.7 | 116/292 | 39.7 | +2.1 | 6 |
-| `run_20260526_133345_completed_qwen3_4a_no_skillbook` | Q30 | no-SB | 4 | 0.0 | 200 | 14.4 | 76/292 | 26.0 | +11.6 | 34 |
-| `run_20260426_211426_completed_qwen3_4a_swe` | Q30 | S | 4 | 0.0 | 200 | 14.0 | 59/292 | 20.2 | +6.2 | 18 |
-| `run_20260426_211500_completed_qwen3_4a_default` | Q30 | default | 4 | 0.0 | 200 | 13.4 | 54/292 | 18.5 | +5.1 | 15 |
-| `run_20260525_133304_completed_qwen3_qwen3next_4a_default` | Q30/QNext | default | 4 | 0.0 | 250 | 13.4 | 82/292 | 28.1 | +14.7 | 43 |
-| `run_20260402_235422_completed_qwen3_6a_default` | Q30 | default | 6 | 0.7 | 200 | 16.4 | 79/292 | 27.1 | +10.6 | 31 |
-| `run_20260402_235456_completed_qwen3_6a_swe` | Q30 | S | 6 | 0.7 | 200 | 16.4 | 78/292 | 26.7 | +10.3 | 30 |
+| `run_20260426_210831_completed_baseline` | Q30 | no-SB | 1 | 0.0 | 250 | 13.7 | 40/292 | 13.7 | +0.0 | 0 / 0 |
+| `run_20260404_150133_completed_qwen3_1a_swe` | Q30 | S | 1 | 0.7 | 200 | 9.6 | 28/292 | 9.6 | +0.0 | 0 / 0 |
+| `run_20260404_150204_completed_qwen3_1a_default` | Q30 | default | 1 | 0.7 | 200 | 7.2 | 21/292 | 7.2 | +0.0 | 0 / 0 |
+| `run_20260414_015144_completed_glm_4a_swe` | GLM | S | 4 | 0.7 | 200 | 34.2 | 102/292 | 34.9 | +0.7 | 2 / 0 |
+| `run_20260414_015225_completed_glm_4a_default` | GLM | default | 4 | 0.7 | 200 | 37.0 | 110/292 | 37.7 | +0.7 | 2 / 0 |
+| `run_20260415_020217_completed_qwen3next_4a_default` | QNext | default | 4 | 0.7 | 200 | 38.0 | 117/292 | 40.1 | +2.1 | 1 / 5 |
+| `run_20260415_020540_completed_qwen3next_4a_swe` | QNext | S | 4 | 0.7 | 200 | 37.7 | 116/292 | 39.7 | +2.1 | 4 / 2 |
+| `run_20260526_133345_completed_qwen3_4a_no_skillbook` | Q30 | no-SB | 4 | 0.0 | 200 | 14.4 | 76/292 | 26.0 | +11.6 | 24 / 10 |
+| `run_20260426_211426_completed_qwen3_4a_swe` | Q30 | S | 4 | 0.0 | 200 | 14.0 | 59/292 | 20.2 | +6.2 | 11 / 7 |
+| `run_20260426_211500_completed_qwen3_4a_default` | Q30 | default | 4 | 0.0 | 200 | 13.4 | 54/292 | 18.5 | +5.1 | 12 / 3 |
+| `run_20260525_133304_completed_qwen3_qwen3next_4a_default` | Q30/QNext | default | 4 | 0.0 | 250 | 13.4 | 82/292 | 28.1 | +14.7 | 37 / 6 |
+| `run_20260402_235422_completed_qwen3_6a_default` | Q30 | default | 6 | 0.7 | 200 | 16.4 | 79/292 | 27.1 | +10.6 | 18 / 13 |
+| `run_20260402_235456_completed_qwen3_6a_swe` | Q30 | S | 6 | 0.7 | 200 | 16.4 | 78/292 | 26.7 | +10.3 | 15 / 15 |
 
-*`temp` = `llm.agent.temperature`; `step` = `agent.step_limit` (max agent turns/attempt). These differ across rows (e.g. Q30-4a is `0.0/200`, while GLM-4a and QNext-4a are `0.7/200`), so cross-row backbone/attempts comparisons are not controlled for temperature or step limit.*
+*`temp` = `llm.agent.temperature`; `step` = `agent.step_limit` (max agent turns/attempt). These differ across rows (e.g. Q30-4a is `0.0/200`, while GLM-4a and QNext-4a are `0.7/200`), so cross-row backbone/attempts comparisons are not controlled for temperature or step limit. `SB-assist: i1 / i2+` splits each row's resolved-on-retry count (`resolved_any − iter0`) into instances first resolved at attempt 2 (`i1`) vs attempt 3+ (`i2+`); 1-attempt rows have no retries and show `0 / 0`.*
 
 ---
 
 ### Table R1.2 — Verified, 4-attempt ablation (pass@4)
 **Goal:** Repeat the 4-attempt default/SWE/no-SB comparison on the harder Verified split to test whether within-instance learning and the skillbook ablation generalize off Lite.
 
-| Run | Backbone | Learn | iter0 (pass@1) % | Resolved n/N | pass@4 % | Δ vs iter0 (pp) | sb-assisted |
+| Run | Backbone | Learn | iter0 (pass@1) % | Resolved n/N | pass@4 % | Δ vs iter0 (pp) | SB-assist: i1 / i2+ |
 |---|---|---|---|---|---|---|---|
-| `run_20260521_154504_completed_qwen3_4a_no_skillbook_verified` | Q30 | no-SB | 19.1 | 126/487 | 25.9 | +6.8 | 33 |
-| `run_20260520_123809_completed_qwen3_4a_swe_verified` | Q30 | S | 19.1 | 138/487 | 28.3 | +9.2 | 45 |
-| `run_20260520_144216_completed_qwen3_4a_default_verified` | Q30 | default | 19.1 | 160/487 | 32.9 | +13.8 | 67 |
-| `run_20260524_160825_completed_qwen3_qwen3next_4a_default_verified` | Q30/QNext | default | 19.1 | 160/487 | 32.9 | +13.8 | 67 |
+| `run_20260521_154504_completed_qwen3_4a_no_skillbook_verified` | Q30 | no-SB | 19.1 | 126/487 | 25.9 | +6.8 | 27 / 6 |
+| `run_20260520_123809_completed_qwen3_4a_swe_verified` | Q30 | S | 19.1 | 138/487 | 28.3 | +9.2 | 35 / 10 |
+| `run_20260520_144216_completed_qwen3_4a_default_verified` | Q30 | default | 19.1 | 160/487 | 32.9 | +13.8 | 50 / 17 |
+| `run_20260524_160825_completed_qwen3_qwen3next_4a_default_verified` | Q30/QNext | default | 19.1 | 160/487 | 32.9 | +13.8 | 57 / 10 |
 
 *(All four Verified runs share `temp=0.0`, `step=250`, so those columns are omitted here; they are shown in R1.1, where they vary.)*
 

@@ -45,36 +45,20 @@
 
 ---
 
-### Table R2.4 — Per-repo transfer breakdown (split025, pass@5; Q30 default vs SWE)
-**Goal:** Show how skillbook transfer is distributed across the 8 repos — which repositories benefit from same-repo skills and which do not (the aggregate Δ hides this spread).
-*Per-repo rates come from each run's `summary.per_repo` (only populated for pass@5/vpk5 repos runs). valB and train solve are shared across default/SWE (same Q30 backbone, empty-skillbook val); valS differs by learn mode. Source: `run_20260605_111708` (default), `run_20260605_111658` (SWE).*
+### Table R2.4 — Per-repo transfer breakdown (split025, pass@1/avg; Q30 default/SWE + QNext default)
+**Goal:** Show how per-attempt reliability transfer (pass@1/avg) distributes across the 8 repos for three conditions — Q30 default, Q30 SWE, and QNext default — to see which repos the skillbook helps vs hurts, per backbone/learn mode.
 
-| Repo | Train n/N % | valB % | valS default % | Δ default (pp) | valS SWE % | Δ SWE (pp) |
-|---|---|---|---|---|---|---|
-| sympy/sympy | 8/56 14.3% | 33.3 | 33.3 | +0.0 | 38.9 | +0.0 |
-| sphinx-doc/sphinx | 1/33 3.0% | 18.2 | 18.2 | +0.0 | 18.2 | +0.0 |
-| matplotlib/matplotlib | 3/24 12.5% | 12.5 | 12.5 | +0.0 | 25.0 | +0.0 |
-| scikit-learn/scikit-learn | 7/19 36.8% | 33.3 | 33.3 | +0.0 | 50.0 | +0.0 |
-| astropy/astropy | 2/16 12.5% | 25.0 | 25.0 | +0.0 | 25.0 | +0.0 |
-| pydata/xarray | 7/17 41.2% | 60.0 | 60.0 | +0.0 | 20.0 | +0.0 |
-| pytest-dev/pytest | 4/15 26.7% | 25.0 | 25.0 | +0.0 | 0.0 | +0.0 |
-| django/django | 51/174 29.3% | 17.5 | 19.3 | +1.8 | 24.6 | +1.8 |
+*All cells are pass@1 (avg) %; Δp1 in pp. valB = each run's own 5-attempt empty-skillbook val; valS = skillbook val; Δp1 = valS − valB (5v5, k-symmetric). Columns: `def` = Q30 default (`run_20260605_111708`), `SWE` = Q30 SWE (`run_20260605_111658`), `QNext` = QNext default (`run_20260622_105529`). Train/val/skillbook sizes are in legend tables S.3/S.4; pass@5 breadth Δp5 is ≈0 per repo (only django moves) and is omitted here — see R6 §5. Values via `compare_runs.py`.*
 
-*Note: the `valB %` column shows the default run's per-repo empty-skillbook val (reported once as the shared Q30 baseline); each Δ is computed against that run's own per-repo valB, so `Δ SWE` here equals the `Δ Q30 SWE` column of R2.5 (the two runs' valB differ by ±1 instance on the small-repo val sets, e.g. sympy 6/18 vs 7/18).*
+| Repo | def valB | def valS | def Δp1 | SWE valB | SWE valS | SWE Δp1 | QNext valB | QNext valS | QNext Δp1 |
+|---|---|---|---|---|---|---|---|---|---|
+| django/django | 15.1 | 14.4 | -0.7 | 16.8 | 20.4 | +3.6 | 58.6 | 62.8 | +4.2 |
+| sympy/sympy | 30.0 | 31.1 | +1.1 | 33.3 | 34.4 | +1.1 | 78.9 | 81.1 | +2.2 |
+| sphinx-doc/sphinx | 16.4 | 18.2 | +1.8 | 18.2 | 14.5 | -3.7 | 36.4 | 34.5 | -1.9 |
+| scikit-learn/scikit-learn | 26.7 | 23.3 | -3.4 | 43.3 | 46.7 | +3.4 | 96.7 | 96.7 | +0.0 |
+| matplotlib/matplotlib | 5.0 | 12.5 | +7.5 | 20.0 | 25.0 | +5.0 | 32.5 | 35.0 | +2.5 |
+| pydata/xarray | 60.0 | 52.0 | -8.0 | 20.0 | 20.0 | +0.0 | 68.0 | 68.0 | +0.0 |
+| astropy/astropy | 25.0 | 25.0 | +0.0 | 25.0 | 25.0 | +0.0 | 75.0 | 70.0 | -5.0 |
+| pytest-dev/pytest | 15.0 | 25.0 | +10.0 | 0.0 | 0.0 | +0.0 | 50.0 | 65.0 | +15.0 |
 
----
-
-### Table R2.5 — Insight: per-repo Δ by backbone / learn mode (split025, pass@5)
-**Goal:** Compare, repo by repo, how transfer Δ changes with learn mode (default vs SWE) and backbone (Q30 vs QNext) — to see whether SWE skills or a stronger backbone widen the set of repos that benefit.
-*Δ = valS − valB per repo (pass@5). Source: `run_20260605_111708` (Q30 default), `run_20260605_111658` (Q30 SWE), `run_20260622_105529` (QNext default).*
-
-| Repo | Δ Q30 default (pp) | Δ Q30 SWE (pp) | Δ QNext default (pp) |
-|---|---|---|---|
-| sympy/sympy | +0.0 | +0.0 | +5.6 |
-| sphinx-doc/sphinx | +0.0 | +0.0 | +0.0 |
-| matplotlib/matplotlib | +0.0 | +0.0 | +0.0 |
-| scikit-learn/scikit-learn | +0.0 | +0.0 | +0.0 |
-| astropy/astropy | +0.0 | +0.0 | +0.0 |
-| pydata/xarray | +0.0 | +0.0 | +0.0 |
-| pytest-dev/pytest | +0.0 | +0.0 | +25.0 |
-| django/django | +1.8 | +1.8 | +5.3 |
+*Takeaway: Δp1 is noisy on the small-repo val sets (±1 instance ≈ 10–25 pp on the 4–6-instance repos) with no consistent sign across conditions; django (57 val, half the set) is the only repo showing a stable positive transfer — for SWE (+3.6) and QNext (+4.2). The aggregate R2.3 gains come almost entirely from django.*
