@@ -338,4 +338,3 @@ git status --short
 ```
 
 Expected: no whitespace errors, no notebook changes, and a clean worktree.
-

@@ -1,6 +1,6 @@
 # Python Ruff Cleanup Design
 
-**Date:** 2026-07-30  
+**Date:** 2026-07-30
 **Branch:** `fix/test-audit-remediation`
 
 ## Objective
