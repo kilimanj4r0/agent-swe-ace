@@ -36,11 +36,19 @@ from statsmodels.stats.multitest import multipletests
 # ---------- helpers ----------
 
 def short_label(run_dir: str) -> str:
-    """run_<ts>_completed_qwen3_<CONFIG>_verified_vpk5 -> <CONFIG>."""
+    """run_<ts>_completed_<model>_<CONFIG>_verified_vpk5 -> <CONFIG>.
+
+    Handles both the qwen3 and qwen3next run families. qwen3next is matched first
+    because the qwen3 prefix is a substring of it (otherwise 'qwen3next' runs would
+    fall through to the full filename)."""
     name = os.path.basename(run_dir.rstrip("/")).replace(".csv", "")
-    pre, suf = "_completed_qwen3_", "_verified_vpk5"
-    i, j = name.find(pre), name.rfind(suf)
-    return name[i + len(pre):j] if i != -1 and j != -1 else name
+    suf = "_verified_vpk5"
+    for pre in ("_completed_qwen3next_", "_completed_qwen3_"):
+        i = name.find(pre)
+        if i != -1:
+            j = name.rfind(suf)
+            return name[i + len(pre):j] if j != -1 else name[i + len(pre):]
+    return name
 
 
 def fmt_p(p):
@@ -136,6 +144,10 @@ def main() -> int:
     ap.add_argument("--output", required=True, help="output markdown path")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--boot-iters", type=int, default=10000)
+    ap.add_argument("--valbl-attempts", type=int, default=60,
+                    help="attempts per instance in the shared valBL baseline (report prose)")
+    ap.add_argument("--sb-attempts", type=int, default=5,
+                    help="attempts per instance in each run's valSB (report prose)")
     args = ap.parse_args()
 
     csvs = sorted(glob.glob(os.path.join(args.csv_dir, "*.csv")))
@@ -170,12 +182,14 @@ def main() -> int:
 
 def write_report(rows, args):
     L = []
+    n_inst = rows[0]["n_inst"] if rows else 0
+    n_runs = len(rows)
     L.append("# Q1 — Does the skillbook beat the empty baseline? (per run)")
     L.append("")
-    L.append(f"Paired over the shared 113 val instances. "
+    L.append(f"Paired over the shared {n_inst} val instances. "
              f"diff = valSB − valBL (positive ⇒ skillbook helps). "
              f"Two-sided tests; Benjamini–Hochberg FDR applied per test family "
-             f"(12 runs). Bootstrap: {args.boot_iters} resamples, instance-level, "
+             f"({n_runs} runs). Bootstrap: {args.boot_iters} resamples, instance-level, "
              f"seed={args.seed}. α = 0.05.")
     L.append("")
 
@@ -223,7 +237,7 @@ def write_report(rows, args):
 
     # --- Bootstrap ---
     L.append("## 4. Bootstrap 95% CI on the mean difference")
-    L.append("Resamples the 113 instances; CI excluding 0 ≈ significant at 0.05.")
+    L.append(f"Resamples the {n_inst} instances; CI excluding 0 ≈ significant at 0.05.")
     L.append("")
     L.append("| run | mean_diff | 95% CI | excludes 0? |")
     L.append("|---|---:|---:|:--:|")
@@ -249,19 +263,22 @@ def write_report(rows, args):
                  f"{star(r['mc']['p_fdr'])} | {excl} |")
     L.append("")
 
+    bln, sbn = args.valbl_attempts, args.sb_attempts
     L.append("## Caveats")
-    L.append("- **valBL is the same 60-attempt baseline in every run** — it's the "
+    L.append(f"- **valBL is the same {bln}-attempt baseline in every run** — it's the "
              "shared control, so each run gets an identical reference.")
-    L.append("- **valSB has only 5 attempts** → per-instance rates are coarse "
-             "(multiples of 0.2), producing many ties/zeros in the Wilcoxon (handled, "
-             "n_pairs reported) and a coarse signal for the t-test.")
-    L.append("- **McNemar is k-asymmetric**: baseline's `resolved_any` draws on 60 "
-             "attempts vs the skillbook's 5, so `BL_only` is structurally inflated. "
-             "Read it as 'which instances flip solvability', not as a fair "
-             "skill-vs-baseline verdict — prefer Wilcoxon/t-test/bootstrap for that.")
+    L.append(f"- **valSB has only {sbn} attempts** → per-instance rates are coarse "
+             f"(multiples of 1/{sbn}), producing many ties/zeros in the Wilcoxon "
+             "(handled, n_pairs reported) and a coarse signal for the t-test.")
+    L.append(f"- **McNemar is k-asymmetric**: baseline's `resolved_any` draws on {bln} "
+             f"attempts vs the skillbook's {sbn}, so the two discordant cells "
+             "(`BL_only`, `SB_only`) aren't directly comparable — the higher-k side is "
+             "favored by construction. Read it as 'which instances flip solvability', "
+             "not as a fair skill-vs-baseline verdict — prefer Wilcoxon/t-test/bootstrap "
+             "for that.")
     L.append("- Direction matters: a *negative* mean_diff / negative effect means the "
              "skillbook **hurt** that run.")
-    L.append("- FDR is corrected *within* each test family (12 runs); cross-family "
+    L.append(f"- FDR is corrected *within* each test family ({n_runs} runs); cross-family "
              "comparisons are not additionally corrected.")
     L.append("")
 

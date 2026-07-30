@@ -59,6 +59,20 @@ def _dump_threshold(n_presented: int) -> int:
     """Min distinct skill IDs in one message to call it an ID dump."""
     return max(DUMP_MIN_IDS, min(n_presented, DUMP_CAP_IDS))
 
+
+# Subdirectory names that are split / eval-on-train PHASES rather than instance
+# dirs. The standard two-phase split uses {train, val_baseline, val}; eval-on-train
+# mode (experiment.eval_on_train) re-passes the TRAIN split and writes its phases
+# as {train_eval_baseline (empty skillbook), train_eval (skillbook)}. Without
+# these names here, the flat-layout fallback treats them as instance dirs and
+# silently drops every nested trajectory/result -> Cite/Any Trajs go blank.
+_PHASE_DIRS = {"train", "val_baseline", "val", "train_eval", "train_eval_baseline"}
+# Order in which a phase claims the unprefixed instance key when several phases
+# contain the same instance. The skillbook phase (val / train_eval) must win over
+# its empty-skillbook baseline so reference analysis runs on the book-showing
+# pass. The two families are mutually exclusive within a single run.
+_PHASE_PRIORITY = ["val", "train_eval", "val_baseline", "train", "train_eval_baseline"]
+
 # ---------------------------------------------------------------------------
 # Token counting
 # ---------------------------------------------------------------------------
@@ -197,7 +211,7 @@ def load_per_instance_skillbooks(run_dir: Path) -> dict[str, dict[int, dict]]:
 
     result = {}
     # Check for phase subdirs (split mode: train/val_baseline/val)
-    known_phases = {"train", "val_baseline", "val"}
+    known_phases = _PHASE_DIRS
     phase_dirs = [d for d in sb_dir.iterdir() if d.is_dir() and d.name in known_phases]
     scan_dirs = []
     if phase_dirs:
@@ -280,7 +294,7 @@ def load_trajectories(run_dir: Path) -> dict[str, dict[int, dict]]:
         return {}
 
     result = {}
-    known_phases = {"train", "val_baseline", "val"}
+    known_phases = _PHASE_DIRS
 
     def _load_inst_dir(inst_dir: Path) -> dict[int, dict] | None:
         iters = {}
@@ -300,7 +314,7 @@ def load_trajectories(run_dir: Path) -> dict[str, dict[int, dict]]:
                     # Prefixed key (always set)
                     result[f"{pd.name}/{inst_dir.name}"] = iters
         # Unprefixed keys: prefer val (has skillbook), then val_baseline, then train
-        for phase_name in ["val", "val_baseline", "train"]:
+        for phase_name in _PHASE_PRIORITY:
             phase_dir = traj_dir / phase_name
             if not phase_dir.exists():
                 continue
@@ -333,7 +347,7 @@ def load_results(run_dir: Path) -> dict[str, dict[int, bool]]:
     if not res_dir.exists():
         return {}
 
-    known_phases = {"train", "val_baseline", "val"}
+    known_phases = _PHASE_DIRS
 
     def _load_inst_dir(inst_dir: Path) -> dict[int, bool] | None:
         iters = {}
@@ -352,7 +366,7 @@ def load_results(run_dir: Path) -> dict[str, dict[int, bool]]:
                 iters = _load_inst_dir(inst_dir)
                 if iters:
                     result[f"{pd.name}/{inst_dir.name}"] = iters
-        for phase_name in ["val", "val_baseline", "train"]:
+        for phase_name in _PHASE_PRIORITY:
             phase_dir = res_dir / phase_name
             if not phase_dir.exists():
                 continue
@@ -622,8 +636,11 @@ def _extract_presented_skills(traj: dict) -> list[dict]:
             lines = p.split("\n", 1)
             heading = lines[0].strip()
             body = lines[1].strip() if len(lines) > 1 else ""
-            # Only match skill-like headings: word_chars-NNNNN
-            if _re.match(r"[a-z_]+-\d+", heading):
+            # Match skill-like headings: <section>-<digits>. Section names may
+            # contain hyphens (e.g. "bug-fixing-00001", "code-analysis-00002"),
+            # so the char class includes "-"; rsplit then takes the section as
+            # everything before the trailing "-NNNNN".
+            if _re.match(r"[a-z][a-z0-9_-]*-\d+", heading):
                 section = heading.rsplit("-", 1)[0]
                 skills.append({"id": heading, "section": section, "content": body})
         return skills
@@ -709,6 +726,48 @@ def _extract_assistant_messages(traj: dict) -> list[str]:
     return [
         m.get("content", "") for m in traj.get("messages", []) if m.get("role") == "assistant"
     ]
+
+
+# --- Prose references -----------------------------------------------------
+# The agent (qwen3next especially) often refers to the skillbook by GENERAL
+# WORDS — "Based on the skill", "the skillbook suggests", "the skill
+# description", "according to the skillbook" — instead of citing a skill ID.
+# This is a distinct engagement channel from the ID citations below: many
+# trajectories reference the skillbook in prose without ever naming an ID, so
+# counting only IDs understates engagement. The full phrasing dictionary (the
+# "how") is in data/skill_prose_phrasings.json; here we only need the boolean
+# "did the agent refer to the skillbook by words at all".
+#
+# Detection runs on ASSISTANT messages only (the injected skillbook text lives
+# in user messages and would otherwise dominate), after stripping code blocks so
+# module paths / inline code don't fire it. "strategy" is deliberately NOT
+# matched: in these trajectories it is dominated by the sklearn `strategy=`
+# parameter (KBinsDiscretizer), "strategic fix", and generic "different
+# strategy" — not skill references.
+_PROSE_SKILL_RE = re.compile(r"\bskills?\b|\bskillbooks?\b", re.IGNORECASE)
+_CODE_BLOCK_RE = re.compile(r"```.*?```", re.DOTALL)
+_INLINE_CODE_RE = re.compile(r"`[^`]*`")
+
+
+def _strip_code(text: str) -> str:
+    """Remove fenced and inline code so identifiers don't trip prose detection."""
+    return _INLINE_CODE_RE.sub(" ", _CODE_BLOCK_RE.sub(" ", text))
+
+
+def _has_prose_skill_ref(assistant_messages: list[str]) -> bool:
+    """True if any assistant message refers to the skillbook by prose words."""
+    return any(
+        msg and _PROSE_SKILL_RE.search(_strip_code(msg))
+        for msg in assistant_messages
+    )
+
+
+def _count_prose_skill_ref_msgs(assistant_messages: list[str]) -> int:
+    """Number of assistant messages that reference the skillbook by prose words."""
+    return sum(
+        1 for msg in assistant_messages
+        if msg and _PROSE_SKILL_RE.search(_strip_code(msg))
+    )
 
 
 def _find_explicit_refs(
@@ -804,6 +863,13 @@ def _compute_presented_skill_refs(run: dict) -> dict:
     traj_iters = 0
     cite_traj_iters = 0
     dump_traj_iters = 0
+    # Prose-engagement counters (distinct from ID citations). `any_traj_iters`
+    # is the deduplicated union (ID-cite OR prose-ref) so callers don't
+    # double-count trajectories that cite an ID AND reference in prose.
+    prose_traj_iters = 0
+    any_traj_iters = 0
+    both_traj_iters = 0
+    prose_msgs = 0
     dump_locations = []
     traj_records = []
 
@@ -819,9 +885,17 @@ def _compute_presented_skill_refs(run: dict) -> dict:
 
             presented_ids = [s["id"] for s in presented]
             explicit, dumped, dump_msgs = _find_explicit_refs(assistant_msgs, presented_ids)
+            prose = _has_prose_skill_ref(assistant_msgs)
+            prose_msgs += _count_prose_skill_ref_msgs(assistant_msgs)
             traj_records.append((inst_id, it, bool(explicit)))
             if explicit:
                 cite_traj_iters += 1
+            if prose:
+                prose_traj_iters += 1
+            if explicit and prose:
+                both_traj_iters += 1
+            if explicit or prose:
+                any_traj_iters += 1
             if dumped:
                 dump_traj_iters += 1
             for dm in dump_msgs:
@@ -856,6 +930,10 @@ def _compute_presented_skill_refs(run: dict) -> dict:
             "traj_iters": traj_iters,
             "cite_traj_iters": cite_traj_iters,
             "dump_traj_iters": dump_traj_iters,
+            "prose_traj_iters": prose_traj_iters,
+            "any_traj_iters": any_traj_iters,
+            "both_traj_iters": both_traj_iters,
+            "prose_ref_msgs": prose_msgs,
         },
     }
     if cache_key is not None:
@@ -867,8 +945,17 @@ _compute_presented_skill_refs._cache = {}
 
 
 def _compute_refs_per_instance(run: dict, trajectories: dict) -> dict:
-    """Reference computation for per_instance mode."""
-    per_inst = run["per_instance_sbs"]
+    """Reference computation for per_instance mode.
+
+    Reads the skills actually presented out of EACH trajectory's own prompt and
+    checks selective/dump citations against them. This is robust to the
+    skillbook-file <-> trajectory-file iteration correspondence, which is NOT a
+    clean same-N mapping: attempt 1 has no skillbook, the book shown in
+    trajectory ``iter_N`` is the one learned after the previous attempt, and
+    resume / early-resolve make the two file numberings drift. Using the prompt
+    gives exactly what the agent saw, per attempt. (``run`` is retained in the
+    signature for call-site compatibility but is no longer used.)
+    """
     skill_refs = {}  # skill_id -> {"explicit": int, "dumped": int, "specificity": str}
     dump_locations = []
     traj_records = []
@@ -879,30 +966,29 @@ def _compute_refs_per_instance(run: dict, trajectories: dict) -> dict:
     traj_iters = 0
     cite_traj_iters = 0
     dump_traj_iters = 0
+    prose_traj_iters = 0
+    any_traj_iters = 0
+    both_traj_iters = 0
+    prose_msgs = 0
 
-    for inst_id, iters in per_inst.items():
-        if inst_id not in trajectories:
-            continue
-        trajs = trajectories[inst_id]
-        for it, sb in iters.items():
-            if it == 0:
-                continue  # No skillbook at iter 0
-            if it not in trajs:
+    for inst_id, iters in trajectories.items():
+        for it, traj in iters.items():
+            presented = _extract_presented_skills(traj)
+            if not presented:
+                continue  # attempt had no skillbook shown (e.g. first attempt)
+            assistant_msgs = _extract_assistant_messages(traj)
+            if not any(assistant_msgs):
                 continue
 
-            skills = _extract_skills(sb)
-            if not skills:
-                continue
-
-            skill_ids = [s["id"] for s in skills]
-            assistant_msgs = _extract_assistant_messages(trajs[it])
-
+            skill_ids = [s["id"] for s in presented]
             explicit, dumped, dump_msgs = _find_explicit_refs(assistant_msgs, skill_ids)
+            prose = _has_prose_skill_ref(assistant_msgs)
+            prose_msgs += _count_prose_skill_ref_msgs(assistant_msgs)
             traj_records.append((inst_id, it, bool(explicit)))
             for dm in dump_msgs:
                 dump_locations.append({**dm, "instance": inst_id, "iter": it})
 
-            for s in skills:
+            for s in presented:
                 sid = s["id"]
                 if sid not in skill_refs:
                     skill_refs[sid] = {"explicit": 0, "dumped": 0, "specificity": classify_skill_specificity(s["content"], s["section"])}
@@ -911,12 +997,18 @@ def _compute_refs_per_instance(run: dict, trajectories: dict) -> dict:
                 if sid in dumped:
                     skill_refs[sid]["dumped"] += 1
 
-            total_skills += len(skills)
+            total_skills += len(presented)
             total_explicit += len(explicit)
             total_dumped += len(dumped)
             traj_iters += 1
             if explicit:
                 cite_traj_iters += 1
+            if prose:
+                prose_traj_iters += 1
+            if explicit and prose:
+                both_traj_iters += 1
+            if explicit or prose:
+                any_traj_iters += 1
             if dumped:
                 dump_traj_iters += 1
 
@@ -932,6 +1024,10 @@ def _compute_refs_per_instance(run: dict, trajectories: dict) -> dict:
             "traj_iters": traj_iters,
             "cite_traj_iters": cite_traj_iters,
             "dump_traj_iters": dump_traj_iters,
+            "prose_traj_iters": prose_traj_iters,
+            "any_traj_iters": any_traj_iters,
+            "both_traj_iters": both_traj_iters,
+            "prose_ref_msgs": prose_msgs,
         },
     }
 
@@ -952,6 +1048,10 @@ def _compute_refs_for_skillbook(skills: list[dict], trajectories: dict, traj_pha
     traj_iters = 0
     cite_traj_iters = 0
     dump_traj_iters = 0
+    prose_traj_iters = 0
+    any_traj_iters = 0
+    both_traj_iters = 0
+    prose_msgs = 0
 
     # Build skill lookup
     skill_by_id = {s["id"]: s for s in skills}
@@ -965,6 +1065,8 @@ def _compute_refs_for_skillbook(skills: list[dict], trajectories: dict, traj_pha
                 continue
 
             explicit, dumped, dump_msgs = _find_explicit_refs(assistant_msgs, skill_ids)
+            prose = _has_prose_skill_ref(assistant_msgs)
+            prose_msgs += _count_prose_skill_ref_msgs(assistant_msgs)
             traj_records.append((inst_id, it, bool(explicit)))
             for dm in dump_msgs:
                 dump_locations.append({**dm, "instance": inst_id, "iter": it})
@@ -983,6 +1085,12 @@ def _compute_refs_for_skillbook(skills: list[dict], trajectories: dict, traj_pha
             traj_iters += 1
             if explicit:
                 cite_traj_iters += 1
+            if prose:
+                prose_traj_iters += 1
+            if explicit and prose:
+                both_traj_iters += 1
+            if explicit or prose:
+                any_traj_iters += 1
             if dumped:
                 dump_traj_iters += 1
 
@@ -1003,6 +1111,10 @@ def _compute_refs_for_skillbook(skills: list[dict], trajectories: dict, traj_pha
             "traj_iters": traj_iters,
             "cite_traj_iters": cite_traj_iters,
             "dump_traj_iters": dump_traj_iters,
+            "prose_traj_iters": prose_traj_iters,
+            "any_traj_iters": any_traj_iters,
+            "both_traj_iters": both_traj_iters,
+            "prose_ref_msgs": prose_msgs,
         },
     }
 
@@ -1024,6 +1136,10 @@ def _compute_refs_per_repo(run: dict, trajectories: dict) -> dict:
         "traj_iters": 0,
         "cite_traj_iters": 0,
         "dump_traj_iters": 0,
+        "prose_traj_iters": 0,
+        "any_traj_iters": 0,
+        "both_traj_iters": 0,
+        "prose_ref_msgs": 0,
     }
 
     for repo_name, sb in per_repo.items():
@@ -1194,6 +1310,52 @@ def _compute_skillbook_stats(skillbooks: list[dict], context_window: int) -> dic
     }
 
 
+def _baseline_delta(run: dict) -> tuple[float, float, float] | None:
+    """Paired (sb_rate, baseline_rate, delta) on instances in both phases.
+
+    Each val instance is run twice on the same task — with the learned skillbook
+    (val) and with an empty one (val_baseline). Returns None for runs without a
+    paired baseline (single-phase / flat runs). The delta is exact on the shared
+    instance set, so it is negative when the skillbook hurts resolution.
+    """
+    sp = _paired_resolve(load_results(run["run_dir"]))
+    if sp["n"] == 0:
+        return None
+    n = sp["n"]
+    base_res = (sp["n11"] + sp["n01"]) / n * 100
+    sb_res = (sp["n11"] + sp["n10"]) / n * 100
+    return sb_res, base_res, sb_res - base_res
+
+
+def _res_rate_cell(run: dict) -> str:
+    """Resolve-rate cell for the summary table.
+
+    Line 1: skillbook (val) resolve rate. When a paired val_baseline exists for
+    the same instances, append two more lines — the baseline (empty-skillbook)
+    rate and the skillbook delta (sb − baseline, in pp), i.e. the lift or
+    regression over running with no skillbook. Runs without a baseline show the
+    resolve rate alone.
+    """
+    bd = _baseline_delta(run)
+    if bd is None:
+        return f"{run['resolution_rate']*100:.1f}%"
+    sb_res, base_res, delta = bd
+    return f"{sb_res:.1f}%\nbase {base_res:.1f}%\nΔ{delta:+.1f}pp"
+
+
+def _res_rate_compact(run: dict) -> str:
+    """Compact single-line resolve-rate cell: 'bsr B% / r S% / Δ Dpp'.
+
+    bsr = val_baseline (empty-skillbook) rate; r = skillbook (val) rate;
+    Δ = r − bsr, signed, in pp. Runs without a paired baseline show just 'r S%'.
+    """
+    bd = _baseline_delta(run)
+    if bd is None:
+        return f"r{run['resolution_rate']*100:.1f}%"
+    sb_res, base_res, delta = bd
+    return f"bsr{base_res:.1f}% / r{sb_res:.1f}% / Δ{delta:+.1f}pp"
+
+
 def print_summary_tables(runs: list[dict]):
     """Output 1: Two summary tables — per_instance vs per_repo/global."""
     # Partition runs
@@ -1218,7 +1380,7 @@ def print_summary_tables(runs: list[dict]):
                 "Retrieval": _retrieval_label(r),
                 "Split": f"{r['val_ratio']:.2f}" if r["val_ratio"] else "-",
                 "Iters": str(r["max_attempts"]),
-                "Res Rate": f"{r['resolution_rate']*100:.1f}%",
+                "Res Rate": _res_rate_cell(r),
                 "SBs": str(st["n_skillbooks"]),
                 "Skills/SB": _med_mean_str([st["skill_count_med"], st["skill_count_mean"]])
                     if st else "-",
@@ -1280,7 +1442,7 @@ def print_summary_tables(runs: list[dict]):
                 "Learn": r["learn_mode"],
                 "Retrieval": _retrieval_label(r),
                 "Split": f"{r['val_ratio']:.2f}" if r["val_ratio"] else "-",
-                "Res Rate": f"{r['resolution_rate']*100:.1f}%",
+                "Res Rate": _res_rate_cell(r),
                 "Mode": r["sb_mode"],
                 "SBs": str(len(sbs)),
                 "Skills/SB": _med_mean_str(skill_counts),
@@ -1290,6 +1452,8 @@ def print_summary_tables(runs: list[dict]):
             })
         if rows:
             _print_table_rows(headers, rows)
+        print("  (Res Rate: line 1 = skillbook (val) resolve rate; 'base' = paired "
+              "val_baseline (empty-skillbook) rate; 'Δ' = skillbook − baseline, in pp)")
         print()
 
 
@@ -1534,9 +1698,9 @@ def print_per_run_reference_table(runs: list[dict]):
     print()
 
     headers = [
-        "Run", "Learn", "Mode", "Retrieval",
+        "Run", "LLM", "Learn", "Mode", "Retrieval", "Res Rate",
         "SB Skills", "Skills/i", "Gen/i", "Spec/i",
-        "Explicit", "Dumped", "Cite Trajs", "Presented RR",
+        "Explicit", "Dumped", "Cite Trajs", "Prose Trajs", "Any Trajs", "Presented RR",
     ]
     rows = []
 
@@ -1559,6 +1723,9 @@ def print_per_run_reference_table(runs: list[dict]):
         dumped = summary.get("dumped_refs", 0)
         dump_trajs = summary.get("dump_traj_iters", 0)
         cite_trajs = summary.get("cite_traj_iters", 0)
+        prose_trajs = summary.get("prose_traj_iters", 0)
+        any_trajs = summary.get("any_traj_iters", 0)
+        both_trajs = summary.get("both_traj_iters", 0)
 
         # Retrieval label (type + top_k when retrieval ran, else 'off')
         ret_label = _retrieval_label(r)
@@ -1596,9 +1763,11 @@ def print_per_run_reference_table(runs: list[dict]):
 
         rows.append({
             "Run": _short_run(r["run_name"]),
+            "LLM": r["llm_short"],
             "Learn": r["learn_mode"],
             "Mode": r["sb_mode"],
             "Retrieval": ret_label,
+            "Res Rate": _res_rate_compact(r),
             "SB Skills": str(total_skills),
             "Skills/i": f"{skills_per_inst:.0f}" if skills_per_inst == int(skills_per_inst) else f"{skills_per_inst:.1f}",
             "Gen/i": f"{gen_per_inst:.1f}",
@@ -1607,6 +1776,15 @@ def print_per_run_reference_table(runs: list[dict]):
             "Dumped": f"{dumped} ({dump_trajs}t)" if dumped else "0",
             "Cite Trajs": (
                 f"{cite_trajs}/{n_traj_iters} ({cite_trajs / n_traj_iters * 100:.1f}%)"
+                if n_traj_iters > 0 else "-"
+            ),
+            "Prose Trajs": (
+                f"{prose_trajs}/{n_traj_iters} ({prose_trajs / n_traj_iters * 100:.1f}%)"
+                if n_traj_iters > 0 else "-"
+            ),
+            "Any Trajs": (
+                (f"{any_trajs}/{n_traj_iters} ({any_trajs / n_traj_iters * 100:.1f}%)"
+                 + (f", {both_trajs} both" if both_trajs else ""))
                 if n_traj_iters > 0 else "-"
             ),
             "Presented RR": f"{presented_rr['rate']:.1f}%",
@@ -1618,10 +1796,17 @@ def print_per_run_reference_table(runs: list[dict]):
 
     _print_table_rows(headers, rows)
     print()
+    print("  (Res Rate: bsr = val_baseline (empty-skillbook) rate; r = skillbook (val) rate; "
+          "Δ = r − bsr in pp;\n      runs without a paired baseline show only 'r S%')")
     print("  (Skills/i, Gen/i, Spec/i = avg per trajectory; Gen=process advice, Spec=repo-specific)")
     print("  (Explicit = selective ID citation events; Dumped = IDs from list-dump messages "
           f">=max({DUMP_MIN_IDS},min(presented,{DUMP_CAP_IDS})) IDs/message, with #trajectories)")
-    print("  (Cite Trajs = trajectories with >=1 selective citation / total trajectories; dumps don't count)")
+    print("  (Cite Trajs = trajectories with >=1 selective ID citation / total; dumps don't count)")
+    print("  (Prose Trajs = trajectories where the agent referred to the skillbook by WORDS — "
+          "\"skill\"/\"skillbook\"\n      e.g. \"Based on the skill\", \"the skillbook suggests\" — "
+          "without necessarily citing an ID; see data/skill_prose_phrasings.json)")
+    print("  (Any Trajs = Cite ∪ Prose, DEDUPLICATED: a trajectory citing an ID AND using prose "
+          "is counted once;\n      \"N both\" = that overlap, so Any = Cite + Prose - both)")
     print("  (Presented RR = explicit citations / all presented skill-slots across trajectories; dumps excluded)")
     print()
 
@@ -1667,14 +1852,24 @@ def _mcnemar_exact(b: int, c: int) -> float:
 
 
 def _paired_resolve(results: dict) -> dict:
-    """Pair val (skillbook) vs val_baseline (empty) resolution per instance.
+    """Pair skillbook phase vs empty-skillbook baseline phase per instance.
 
-    An instance counts as resolved in a phase if resolved in ANY of its
-    attempts (pass@k semantics). Returns the discordant 2x2:
-    n11 both, n10 skillbook-only (helped), n01 baseline-only (hurt), n00 neither.
+    Standard split: val (skillbook) vs val_baseline (empty). eval-on-train:
+    train_eval (skillbook) vs train_eval_baseline (empty). An instance counts as
+    resolved in a phase if resolved in ANY of its attempts (pass@k semantics).
+    Returns the discordant 2x2: n11 both, n10 skillbook-only (helped),
+    n01 baseline-only (hurt), n00 neither.
     """
-    val = {k[4:]: v for k, v in results.items() if k.startswith("val/")}
-    base = {k[13:]: v for k, v in results.items() if k.startswith("val_baseline/")}
+    val: dict[str, dict[int, bool]] = {}
+    base: dict[str, dict[int, bool]] = {}
+    for k, v in results.items():
+        if "/" not in k:
+            continue
+        phase, inst = k.split("/", 1)
+        if phase in ("val", "train_eval"):
+            val[inst] = v
+        elif phase in ("val_baseline", "train_eval_baseline"):
+            base[inst] = v
     insts = set(val) & set(base)
     n11 = n10 = n01 = n00 = 0
     for inst in insts:
@@ -2191,6 +2386,9 @@ def main():
     print(f"  Runs processed: {len(runs)}, skipped: {skipped}")
     print(f"  Definitions: explicit ref = skill ID cited selectively (below dump threshold); "
           f"dumped = IDs from list-dump messages (>=max({DUMP_MIN_IDS},min(presented,{DUMP_CAP_IDS})) IDs/message, agent echoing the list)")
+    print(f"  prose ref = agent refers to the skillbook by words (skill/skillbook, e.g. "
+          f"\"Based on the skill\", \"the skillbook suggests\") without citing an ID; "
+          f"any ref = explicit ∪ prose, deduplicated (data/skill_prose_phrasings.json)")
     print(f"  general = process advice; specific = mentions concrete identifiers")
     print(f"  General/specific classification: by content analysis (NOT by AVOID/VERIFIED/CONSIDER prefix)")
     print()
