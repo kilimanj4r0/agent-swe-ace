@@ -539,7 +539,7 @@ class ExperimentLoop:
             return result
 
         if start_iteration > 0:
-            self._copy_resume_artifacts(instance_id, phase=phase)
+            self._copy_resume_artifacts(instance_id)
 
         for iteration in range(start_iteration, self.max_attempts):
             logger.info(f"[{instance_id}] Iteration {iteration + 1}/{self.max_attempts}")

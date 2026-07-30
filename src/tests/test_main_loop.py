@@ -1,9 +1,8 @@
 # src/tests/test_main_loop.py
 """Tests for main loop runner."""
 import sys
-import pytest
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -202,6 +201,50 @@ class TestMainLoop:
         worker_predict.run.assert_called_once()
         mock_evaluate.run.assert_not_called()
         mock_learn.run.assert_not_called()
+
+    def test_concurrent_partial_resume_copies_flat_artifacts(self, tmp_path):
+        """Concurrent resume must not reference a nonexistent phase variable."""
+        from data_io.resume_scanner import ResumePoint
+        from runners.main_loop import ExperimentLoop
+
+        worker_predict = Mock()
+        worker_predict.run.return_value = Mock(
+            exit_status="submitted",
+            error_kind=None,
+            patch="patch",
+            trajectory=[],
+        )
+        mock_evaluate = Mock()
+        mock_evaluate.run.return_value = Mock(
+            resolved=True,
+            feedback="ok",
+        )
+        resume_state = {
+            "test__repo-123": ResumePoint(
+                resume_dir=tmp_path,
+                last_complete_iter=0,
+                is_fully_complete=False,
+            )
+        }
+        loop = ExperimentLoop(
+            predict_phase=Mock(),
+            evaluate_phase=mock_evaluate,
+            learn_phase=Mock(),
+            output_dir=tmp_path,
+            max_attempts=2,
+            concurrency=2,
+            agent_factory=Mock(),
+            resume_state=resume_state,
+        )
+        loop._make_worker_predict = Mock(return_value=worker_predict)
+        loop._copy_resume_artifacts = Mock()
+
+        result = loop._run_instance_concurrent_inner(
+            {"instance_id": "test__repo-123", "repo": "test/repo"}
+        )
+
+        loop._copy_resume_artifacts.assert_called_once_with("test__repo-123")
+        assert result.final_resolved is True
 
     def test_statistics_keep_infrastructure_errors_disjoint(self, tmp_path):
         """Infrastructure failures are reported separately from task outcomes."""
