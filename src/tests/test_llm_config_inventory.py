@@ -9,6 +9,35 @@ ROOT = Path(__file__).resolve().parents[2]
 SNAPSHOT = ROOT / "src/tests/fixtures/llm_config_legacy_snapshot.json"
 sys.path.insert(0, str(ROOT / "scripts"))
 
+VERIFIED_QWEN3_CONFIGS = (
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-4a-default.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-4a-swe.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default-025-ret-bm25.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default-025-ret-embedding.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default-025-ret-random.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default-025-ret.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default-025.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-swe-025-ret-bm25.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-swe-025-ret-embedding.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-swe-025-ret-random.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-swe-025-ret.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-swe-025.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default-025-ret-bm25.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default-025-ret-embedding.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default-025-ret-random.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default-025-ret.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default-025.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe-025-ret-bm25.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe-025-ret-embedding.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe-025-ret-random.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe-025-ret.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe-025.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-full-4a-no-skillbook.yaml",
+)
+
 from llm_config_inventory import (  # noqa: E402
     compare_current_to_golden,
     validate_commented_aliases,
@@ -97,4 +126,20 @@ def test_migrated_lite_configs_match_legacy_snapshot():
         ROOT,
         SNAPSHOT,
         include_prefixes=("configs/princeton-nlp__SWE-bench_Lite/",),
+    )
+
+
+def test_migrated_verified_qwen3_configs_match_legacy_snapshot():
+    assert len(VERIFIED_QWEN3_CONFIGS) == 26
+    compare_current_to_golden(
+        ROOT,
+        SNAPSHOT,
+        include_prefixes=VERIFIED_QWEN3_CONFIGS,
+    )
+
+
+def test_migrated_verified_qwen3_comments_use_catalog_aliases():
+    validate_commented_aliases(
+        ROOT,
+        include_prefixes=VERIFIED_QWEN3_CONFIGS,
     )

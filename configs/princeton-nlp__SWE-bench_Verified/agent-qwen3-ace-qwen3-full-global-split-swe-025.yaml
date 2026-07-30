@@ -24,21 +24,20 @@ agent:
 
 llm:
   agent:
-    provider: "hosted_vllm"
-    # model: "Qwen/Qwen3-Coder-Next-FP8"
-    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
-    # api_base: "http://10.100.30.241:8800/v1"
-    api_base: "http://localhost:8800/v1"
-    api_key_env: "HOSTED_VLLM_API_KEY"
-    temperature: 0.7
+    preset: qwen3-coder-30b-local-8800
+    overrides:
+      temperature: 0.7
+  # agent: qwen3-coder-30b-241-8800
+  # agent: qwen3-coder-next-local-8800
+  # agent: qwen3-coder-next-241-8800
+
   ace:
-    provider: "hosted_vllm"
-    # model: "Qwen/Qwen3-Coder-Next-FP8"
-    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
-    # api_base: "http://10.100.30.241:8800/v1"
-    api_base: "http://localhost:8800/v1"
-    api_key_env: "HOSTED_VLLM_API_KEY"
-    temperature: 0.7
+    preset: qwen3-coder-30b-local-8800
+    overrides:
+      temperature: 0.7
+  # ace: qwen3-coder-30b-241-8800
+  # ace: qwen3-coder-next-local-8800
+  # ace: qwen3-coder-next-241-8800
 
 benchmark:
   dataset: "princeton-nlp/SWE-bench_Verified"
