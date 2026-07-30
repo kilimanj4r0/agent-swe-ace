@@ -114,7 +114,7 @@ class TestSWEReflectorOutput:
         learnings = output.extracted_learnings
         assert len(learnings) == 3
 
-        learning_texts = [l.learning for l in learnings]
+        learning_texts = [learning.learning for learning in learnings]
         assert any("[ANTI-PATTERN]" in t for t in learning_texts)
         assert any("[DISCOVERY]" in t for t in learning_texts)
         assert any("[HYPOTHESIS]" in t for t in learning_texts)
@@ -141,11 +141,15 @@ class TestSWEReflectorOutput:
         learnings = output.get_all_learnings_as_dicts()
         assert len(learnings) == 2
 
-        ap_learning = next(l for l in learnings if l["type"] == "anti_pattern")
+        ap_learning = next(
+            learning for learning in learnings if learning["type"] == "anti_pattern"
+        )
         assert ap_learning["learning"] == "AP1"
         assert ap_learning["why_harmful"] == "h1"
 
-        disc_learning = next(l for l in learnings if l["type"] == "discovery")
+        disc_learning = next(
+            learning for learning in learnings if learning["type"] == "discovery"
+        )
         assert disc_learning["learning"] == "D1"
 
 

@@ -798,9 +798,12 @@ def analyze_cross_domain(data: dict) -> list[str]:
     lines.append("|--------|--------|------|-----|")
     all_domains = sorted(set(list(gained_by_domain.keys()) + list(lost_by_domain.keys())))
     for d in all_domains:
-        g = gained_by_domain.get(d, 0)
-        l = lost_by_domain.get(d, 0)
-        lines.append(f"| {d} | +{g} | -{l} | {'+' if g-l >= 0 else ''}{g - l} |")
+        gained_count = gained_by_domain.get(d, 0)
+        lost_count = lost_by_domain.get(d, 0)
+        lines.append(
+            f"| {d} | +{gained_count} | -{lost_count} | "
+            f"{'+' if gained_count - lost_count >= 0 else ''}{gained_count - lost_count} |"
+        )
     total_g = sum(gained_by_domain.values())
     total_l = sum(lost_by_domain.values())
     lines.append(f"| **Total** | **+{total_g}** | **-{total_l}** | **{'+' if total_g - total_l >= 0 else ''}{total_g - total_l}** |")

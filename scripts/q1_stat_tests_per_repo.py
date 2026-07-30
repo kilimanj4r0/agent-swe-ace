@@ -102,7 +102,7 @@ def main() -> int:
         for r, c in zip(rows, corr):
             r[key]["p_fdr"] = c
 
-    run_order = [l for l, _ in sorted(pooled.items(), key=lambda x: -x[1])]
+    run_order = [run_label for run_label, _ in sorted(pooled.items(), key=lambda x: -x[1])]
     repo_order = [r for r, _ in sorted(repo_n.items(), key=lambda x: -x[1])]
     write_report(rows, run_order, repo_order, pooled, args)
     print(f"wrote {args.output}", file=sys.stderr)

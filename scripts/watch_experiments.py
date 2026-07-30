@@ -220,7 +220,7 @@ def get_active_run_dirs() -> set[str]:
             ["pgrep", "-af", "src.cli.commands"],
             capture_output=True, text=True, timeout=5,
         )
-        pids = [l.split()[0] for l in result.stdout.strip().split("\n") if l.strip()]
+        pids = [line.split()[0] for line in result.stdout.strip().split("\n") if line.strip()]
     except Exception:
         return active
 

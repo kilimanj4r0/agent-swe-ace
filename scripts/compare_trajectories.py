@@ -374,8 +374,8 @@ def print_pairwise_matrix(runs_data: dict[str, dict[str, dict]]):
     # Resolution agreement
     print("\n  Resolution agreement (% of common instances with same resolved status):")
     header = f"  {'':>20s}"
-    for l in labels:
-        header += f" {l[-14:]:>14s}"
+    for label in labels:
+        header += f" {label[-14:]:>14s}"
     print(header)
     print("  " + "-" * (len(header) - 2))
 
@@ -401,8 +401,8 @@ def print_pairwise_matrix(runs_data: dict[str, dict[str, dict]]):
     # Patch class agreement
     print("\n  Patch class agreement (% of common instances with same patch_class):")
     header = f"  {'':>20s}"
-    for l in labels:
-        header += f" {l[-14:]:>14s}"
+    for label in labels:
+        header += f" {label[-14:]:>14s}"
     print(header)
     print("  " + "-" * (len(header) - 2))
 
@@ -428,8 +428,8 @@ def print_pairwise_matrix(runs_data: dict[str, dict[str, dict]]):
     # Avg msg count difference (symmetric)
     print("\n  Avg |msg_count diff| (lower = more similar trajectories):")
     header = f"  {'':>20s}"
-    for l in labels:
-        header += f" {l[-14:]:>14s}"
+    for label in labels:
+        header += f" {label[-14:]:>14s}"
     print(header)
     print("  " + "-" * (len(header) - 2))
 

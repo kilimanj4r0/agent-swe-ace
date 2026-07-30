@@ -252,10 +252,10 @@ def plot_failure_breakdown(
     # De-duplicate legend entries (one per category, in canonical order)
     handles, labels = ax.get_legend_handles_labels()
     seen = {}
-    for h, l in zip(handles, labels):
-        seen.setdefault(l, h)
+    for handle, legend_label in zip(handles, labels):
+        seen.setdefault(legend_label, handle)
     ordered = [(seen[c], c) for c in FAILURE_CATEGORIES if c in seen]
-    ax.legend([h for h, _ in ordered], [l for _, l in ordered],
+    ax.legend([handle for handle, _ in ordered], [legend_label for _, legend_label in ordered],
               bbox_to_anchor=(1.01, 1), loc="upper left", fontsize=8,
               frameon=False, title="failure category")
 
