@@ -31,7 +31,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 # sys.path when run as `python scripts/compare_runs.py`; insert it explicitly so the
 # import also resolves when this module is imported from elsewhere.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from collect_val_baseline_aggregated import pass_at_k as _pass_at_k_combinatorial
+from collect_val_baseline_aggregated import pass_at_k as _pass_at_k_combinatorial  # noqa: E402
 
 # Aggregated val-baseline reference for qwen3 split025 experiments. Built across
 # 12 runs x 5 attempts = 60 attempts per instance (113 val instances) under a

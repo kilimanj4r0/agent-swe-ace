@@ -21,21 +21,31 @@ _src_dir = Path(__file__).parent.parent
 if str(_src_dir) not in sys.path:
     sys.path.insert(0, str(_src_dir))
 
-from agents.miniswe_agent import MiniSWEAgent
-from config.llm import LLMConfig, create_ace_client, create_model, create_model_settings
-from data_io.readers import load_skillbook, load_trajectory
-from data_io.writers import get_run_dir, save_config, save_statistics, skill_to_dict
-from phases.evaluate import EvaluatePhase
-from phases.learn import LearnPhase
-from phases.predict import PredictPhase
-from retrieval import BM25Retriever, EmbeddingRetriever, RandomRetriever, SkillRetriever
-from runners.main_loop import ExperimentLoop
-from utils.llm_observer import enable_observability
-from utils.logging import setup_logging
+from agents.miniswe_agent import MiniSWEAgent  # noqa: E402
+from config.llm import (  # noqa: E402
+    LLMConfig,
+    create_ace_client,
+    create_model,
+    create_model_settings,
+)
+from data_io.readers import load_skillbook, load_trajectory  # noqa: E402
+from data_io.writers import get_run_dir, save_config, save_statistics, skill_to_dict  # noqa: E402
+from phases.evaluate import EvaluatePhase  # noqa: E402
+from phases.learn import LearnPhase  # noqa: E402
+from phases.predict import PredictPhase  # noqa: E402
+from retrieval import (  # noqa: E402
+    BM25Retriever,
+    EmbeddingRetriever,
+    RandomRetriever,
+    SkillRetriever,
+)
+from runners.main_loop import ExperimentLoop  # noqa: E402
+from utils.llm_observer import enable_observability  # noqa: E402
+from utils.logging import setup_logging  # noqa: E402
 
 load_dotenv(_src_dir.parent / ".env")
 
-import litellm
+import litellm  # noqa: E402
 
 
 def _setup_console_logging(log_level: str = "INFO"):

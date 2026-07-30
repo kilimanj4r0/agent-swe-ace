@@ -17,6 +17,9 @@ from data_io.resume_scanner import ResumePoint, copy_instance_artifacts
 from data_io.writers import save_config, save_statistics
 from phases.evaluate import EvaluateResult
 from phases.predict import PredictResult
+from utils.llm_observer import get_project_url
+from utils.llm_observer import is_enabled as is_observability_enabled
+from utils.logging import instance_context
 
 
 def _build_ground_truth(instance: Dict[str, Any], max_chars: int = 512) -> str:
@@ -38,9 +41,6 @@ def _build_ground_truth(instance: Dict[str, Any], max_chars: int = 512) -> str:
     if len(result) > max_chars:
         result = result[:max_chars] + f"\n... (truncated, {len(result)} total chars)"
     return result
-from utils.llm_observer import get_project_url
-from utils.llm_observer import is_enabled as is_observability_enabled
-from utils.logging import instance_context
 
 
 @dataclass
