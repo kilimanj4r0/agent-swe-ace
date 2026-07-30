@@ -128,6 +128,8 @@ class PredictPhase:
         }
         if retrieval_stats:
             info["retrieval_stats"] = retrieval_stats
+        if result.error:
+            info["error"] = result.error
         trajectory = {"info": info, "messages": result.trajectory}
 
         # Save trajectory

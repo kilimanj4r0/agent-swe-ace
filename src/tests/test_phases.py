@@ -3,10 +3,11 @@
 import json
 import sys
 import threading
-import pytest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
+
+import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -95,6 +96,7 @@ class TestPredictPhase:
         assert result.error_kind == "infrastructure"
         trajectory = json.loads(result.trajectory_path.read_text())
         assert trajectory["info"]["error_kind"] == "infrastructure"
+        assert trajectory["info"]["error"] == "docker create failed"
 
 
 class TestSkillbookInjection:
