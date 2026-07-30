@@ -16,7 +16,6 @@ from .llm_catalog import (
     resolve_llm_section,
 )
 
-
 _LLM_PATHS = (
     ("llm", "agent"),
     ("llm", "ace"),

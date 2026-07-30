@@ -58,10 +58,13 @@ uv run python scripts/prepare_images.py --instances django__django-11099  # Spec
 uv run python -m src.cli.commands --max-instances 10
 
 # Run with override config (deep-merged on top of config.yaml)
-uv run python -m src.cli.commands --config configs/agent-glm-ace-glm.yaml
+uv run python -m src.cli.commands \
+  --config configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-full-4a-default.yaml
 
 # Run with override config + CLI args (CLI args take precedence)
-uv run python -m src.cli.commands --config configs/agent-glm-ace-glm.yaml --max-instances 10
+uv run python -m src.cli.commands \
+  --config configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-full-4a-default.yaml \
+  --max-instances 10
 
 # Run with observability
 uv run python -m src.cli.commands --observe
@@ -116,7 +119,7 @@ uv run python -m src.cli.commands --resume-dir data/run_20260415_020540
 
 # Resume with override config
 uv run python -m src.cli.commands \
-    --config configs/agent-qwen3-ace-qwen3.yaml \
+    --config configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-full-4a-default.yaml \
     --resume-dir data/run_20260415_020540 \
     --custom-swe-learn \
     --observe
@@ -161,67 +164,184 @@ uv run python -m src.cli.commands \
 Configuration is loaded in layers (later overrides earlier):
 
 1. **`config.yaml`** — base defaults (always loaded)
-2. **`--config <file>`** — override config, deep-merged on top of base
+2. **`--config <file>`** — experiment override
 3. **CLI arguments** — override specific values
 
-Override configs (in `configs/`) only need to specify keys they change:
+Ordinary mappings are deep-merged. LLM sections use the stricter preset rules
+described below.
 
 ```yaml
-# configs/agent-glm-ace-glm.yaml — overrides LLM and step limit only
 experiment:
-  name: "agent-glm-ace-glm"
+  name: agent-qwen-ace-glm
   max_attempts: 5
 
 agent:
   step_limit: 250
 
 llm:
-  agent:
-    provider: "zai"
-    model: "glm-4.7-flash"
+  agent: qwen3-coder-30b-local-8800
   ace:
-    provider: "zai"
-    model: "glm-4.7-flash"
+    preset: zai-glm-4.7-coding
+    overrides:
+      temperature: 0.7
 ```
 
-Full options in `config.yaml`:
+### LLM deployment catalog
+
+Reusable deployments live in the root `llms.yaml`. Add a deployment there
+once, then refer to its preset name from `config.yaml` and `configs/**/*.yaml`:
+
+```yaml
+version: 1
+presets:
+  my-qwen-endpoint:
+    provider: hosted_vllm
+    model: Qwen/Qwen3-Coder-30B-A3B-Instruct
+    api_base: http://localhost:8800/v1
+    api_key_env: HOSTED_VLLM_API_KEY
+    temperature: 0.0
+    max_tokens: 4096
+    extra_kwargs:
+      top_p: 0.9
+```
+
+`provider`, `model`, `api_base`, `api_key_env`, `temperature`, and
+`max_tokens` are required in every preset. `api_base` is mandatory for every
+provider, including Z.AI. Supported providers are `hosted_vllm` and `zai`.
+`api_key` is forbidden in YAML; use `api_key_env` and keep the actual secret in
+`.env`.
+
+Agent, ACE, and generative retrieval accept the same three reference forms:
+
+```yaml
+llm:
+  # Short form: selects a preset and clears inherited overrides.
+  agent: qwen3-coder-30b-local-8800
+
+  # Extended form: selects a preset and applies explicit changes.
+  ace:
+    preset: zai-glm-4.7-coding
+    overrides:
+      temperature: 0.7
+      extra_kwargs:
+        seed: 42
+```
+
+An override file can patch the inherited preset without repeating its name:
+
+```yaml
+llm:
+  agent:
+    overrides:
+      temperature: 1.0
+```
+
+The override-only form requires a preset inherited from an earlier layer.
+Selecting a new preset clears earlier overrides; override-only layers merge
+with inherited overrides, including recursive merging of `extra_kwargs`.
+Every supported deployment field may be overridden:
+
+- `provider`
+- `model`
+- `api_base`
+- `api_key_env`
+- `temperature`
+- `max_tokens`
+- `extra_kwargs`
+
+Legacy inline deployment mappings such as `llm.agent.provider` plus
+`llm.agent.model` are rejected in experiment YAML. This is a strict transition,
+so configuration mistakes fail before an experiment starts.
+
+### Retrieval LLMs versus embedding models
+
+Generative LLM retrieval uses the same catalog under `retrieval.llm`; algorithm
+settings remain on the retrieval mapping:
 
 ```yaml
 experiment:
-  name: "mini-swe-v1-skillbook-learning"
-  max_attempts: 2
-  skillbook_mode: "per_instance"  # per_instance, per_repo, global
+  skillbook:
+    retrieval:
+      enabled: true
+      type: llm
+      top_k: 5
+      skip_threshold: 10
+      llm:
+        preset: qwen3-coder-30b-local-8800
+        overrides:
+          max_tokens: 2048
+      chunk_size: 200
+      filter_target: 100
+```
 
-llm:
-  agent:
-    provider: "hosted_vllm"
-    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
-  ace:
-    provider: "zai"
-    model: "glm-4.5-flash"
+Embedding retrieval is different: its sentence-transformer model remains in
+`retrieval.model` and does not use an LLM preset:
+
+```yaml
+experiment:
+  skillbook:
+    retrieval:
+      enabled: true
+      type: embedding
+      model: Qwen/Qwen3-Embedding-4B
+      device: cuda
+      top_k: 5
+```
+
+`random` and `bm25` retrieval also do not require `retrieval.llm`.
+
+### Saved run configuration
+
+Resolved runs save both user intent and the exact effective deployment in
+`data/run_*/config.json`:
+
+```json
+{
+  "llm": {
+    "agent": {
+      "preset": "qwen3-coder-30b-local-8800",
+      "overrides": {"temperature": 0.7},
+      "effective": {
+        "provider": "hosted_vllm",
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "temperature": 0.7,
+        "max_tokens": 4096,
+        "extra_kwargs": {}
+      }
+    }
+  }
+}
+```
+
+This makes a run reproducible even if `llms.yaml` changes later. Existing saved
+run configs with legacy flat LLM mappings remain readable by replay, analysis,
+and monitoring tools.
+
+Other experiment options remain in `config.yaml`, for example:
+
+```yaml
+experiment:
+  name: mini-swe-v1-skillbook-learning
+  max_attempts: 2
+  skillbook:
+    mode: per_instance  # per_instance, per_repo, global
 
 benchmark:
-  dataset: "princeton-nlp/SWE-bench_Lite"
-  max_instances: null              # null = all instances
-  exclude_instances:               # Instances with broken Docker images
+  dataset: princeton-nlp/SWE-bench_Lite
+  max_instances: null
+  exclude_instances:
     - pylint-dev__pylint-7114
     - sympy__sympy-20590
-    # ... see config.yaml for full list
 
 environment:
-  namespace: "ghcr.io/epoch-research/"  # Docker registry prefix
+  namespace: ghcr.io/epoch-research/
 
 evaluation:
   use_docker: true
-  timeout: 1800                     # Seconds per patch evaluation
-  rm_image: false                   # Keep images (avoids rebuilds)
-
-# Skill deduplication settings
-deduplication:
-  enabled: true
-  similarity_threshold: 0.85
-  embedding_provider: "sentence_transformers"
-  local_model_name: "all-MiniLM-L6-v2"
+  timeout: 1800
+  rm_image: false
 ```
 
 Copy `.env.example` to `.env` and add your API keys.
@@ -233,8 +353,10 @@ Copy `.env.example` to `.env` and add your API keys.
 uv run pytest src/tests/ -v -m "not integration"
 
 # LLM health check — verify endpoints from a config
-uv run pytest src/tests/test_llm_health.py -v --config=configs/agent-glm-ace-glm.yaml
-uv run pytest src/tests/test_llm_health.py -v --config=configs/agent-qwen3-ace-qwen3.yaml
+uv run pytest src/tests/test_llm_health.py -v \
+  --config=configs/princeton-nlp__SWE-bench_Lite/agent-glm-ace-glm-full-4a-default.yaml
+uv run pytest src/tests/test_llm_health.py -v \
+  --config=configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-full-4a-default.yaml
 ```
 
 ## Project Structure

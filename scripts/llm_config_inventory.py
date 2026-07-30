@@ -21,7 +21,6 @@ if str(REPO_ROOT / "src") not in sys.path:
 from config.llm_catalog import get_effective_llm, load_llm_catalog  # noqa: E402
 from config.loader import load_experiment_config  # noqa: E402
 
-
 LLM_FIELDS = (
     "provider",
     "model",
