@@ -128,6 +128,81 @@ class TestMainLoop:
         assert mock_predict.run.call_count == 2
         assert results.final_resolved is False
 
+    def test_infrastructure_error_skips_evaluate_and_learn(self, tmp_path):
+        """A broken runner stops only this instance before evaluation."""
+        from runners.main_loop import ExperimentLoop
+
+        mock_predict = Mock()
+        mock_predict.run.return_value = Mock(
+            instance_id="test__repo-123",
+            exit_status="error",
+            error="docker exit 125",
+            error_kind="infrastructure",
+            patch="",
+            trajectory=[],
+        )
+        mock_evaluate = Mock()
+        mock_learn = Mock()
+        loop = ExperimentLoop(
+            predict_phase=mock_predict,
+            evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn,
+            output_dir=tmp_path,
+            max_attempts=3,
+        )
+
+        result = loop.run_instance(
+            {"instance_id": "test__repo-123", "problem_statement": "Fix"}
+        )
+
+        assert result.status == "infrastructure_error"
+        assert result.infrastructure_error == "docker exit 125"
+        assert result.total_attempts == 1
+        assert len(result.iterations) == 1
+        assert result.iterations[0].evaluate_result is None
+        mock_predict.run.assert_called_once()
+        mock_evaluate.run.assert_not_called()
+        mock_learn.run.assert_not_called()
+
+    def test_concurrent_infrastructure_error_skips_evaluate_and_learn(self, tmp_path):
+        """Concurrent workers apply the same infrastructure-error boundary."""
+        from runners.main_loop import ExperimentLoop
+
+        worker_predict = Mock()
+        worker_predict.run.return_value = Mock(
+            instance_id="test__repo-123",
+            exit_status="error",
+            error="docker daemon unavailable",
+            error_kind="infrastructure",
+            patch="",
+            trajectory=[],
+        )
+        mock_evaluate = Mock()
+        mock_learn = Mock()
+        loop = ExperimentLoop(
+            predict_phase=Mock(),
+            evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn,
+            output_dir=tmp_path,
+            max_attempts=3,
+            concurrency=2,
+            agent_factory=Mock(),
+        )
+        loop._make_worker_predict = Mock(return_value=worker_predict)
+
+        result = loop._run_instance_concurrent_inner(
+            {"instance_id": "test__repo-123", "repo": "test/repo"}
+        )
+
+        assert result.status == "infrastructure_error"
+        assert result.infrastructure_error == "docker daemon unavailable"
+        assert result.total_attempts == 1
+        assert len(result.iterations) == 1
+        assert result.iterations[0].evaluate_result is None
+        worker_predict.run.assert_called_once()
+        mock_evaluate.run.assert_not_called()
+        mock_learn.run.assert_not_called()
+
 
 class TestSkillbookModes:
     """Test skillbook mode handling."""

@@ -31,6 +31,7 @@ class TestMiniSWEAgentImportError:
         assert result.patch == ""
         assert result.trajectory == []
         assert "not installed" in result.error
+        assert result.error_kind == "infrastructure"
 
 
 def _make_mock_agent(exit_status="submitted", run_result="patch-content", messages=None):
@@ -207,6 +208,7 @@ class TestMiniSWEAgentRun:
         assert result.patch == ""
         assert result.trajectory == failing_agent.messages
         assert "LLM connection lost" in result.error
+        assert result.error_kind == "infrastructure"
 
     def test_context_window_exceeded_returns_dedicated_status(self):
         """ContextWindowExceededError should produce exit_status='ContextWindowExceeded'."""
@@ -243,6 +245,7 @@ class TestMiniSWEAgentRun:
         assert result.patch == ""
         assert result.trajectory == failing_agent.messages
         assert "Context window exceeded" in result.error
+        assert result.error_kind is None
 
     def test_string_result_extraction(self):
         """When agent.run() returns a string result, it should be used as the patch directly."""

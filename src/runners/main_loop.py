@@ -61,6 +61,37 @@ class InstanceResult:
     iterations: List[IterationResult] = field(default_factory=list)
     final_resolved: bool = False
     total_attempts: int = 0
+    status: str = "completed"
+    infrastructure_error: Optional[str] = None
+
+
+def _is_infrastructure_error(predict_result: Any) -> bool:
+    """Return whether predict failed before producing a task-level outcome."""
+    return (
+        getattr(predict_result, "error_kind", None) == "infrastructure"
+        or getattr(predict_result, "exit_status", None) == "error"
+    )
+
+
+def _record_infrastructure_error(
+    result: InstanceResult,
+    iteration: int,
+    predict_result: Any,
+) -> None:
+    """Record a terminal infrastructure failure for one instance."""
+    result.iterations.append(
+        IterationResult(
+            iteration=iteration,
+            predict_result=predict_result,
+            evaluate_result=None,
+        )
+    )
+    result.total_attempts = iteration + 1
+    result.status = "infrastructure_error"
+    result.infrastructure_error = (
+        getattr(predict_result, "error", None)
+        or "predict phase infrastructure error"
+    )
 
 
 class ExperimentLoop:
@@ -392,6 +423,14 @@ class ExperimentLoop:
                     skillbook_prepared=frozen_skillbook,
                 )
 
+                if _is_infrastructure_error(predict_result):
+                    _record_infrastructure_error(result, iteration, predict_result)
+                    logger.error(
+                        f"[{instance_id}] Infrastructure error: "
+                        f"{result.infrastructure_error}"
+                    )
+                    break
+
                 # Phase 2: Evaluate
                 evaluate_result = self.evaluate.run(
                     instance=instance,
@@ -507,6 +546,14 @@ class ExperimentLoop:
                     skillbook=skillbook,
                     iteration=iteration,
                 )
+
+                if _is_infrastructure_error(predict_result):
+                    _record_infrastructure_error(result, iteration, predict_result)
+                    logger.error(
+                        f"[{instance_id}] Infrastructure error: "
+                        f"{result.infrastructure_error}"
+                    )
+                    break
 
                 # Phase 2: Evaluate
                 evaluate_result = self.evaluate.run(

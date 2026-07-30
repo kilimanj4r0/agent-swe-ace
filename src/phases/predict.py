@@ -21,6 +21,7 @@ class PredictResult:
     patch: str
     trajectory: list
     error: Optional[str] = None
+    error_kind: Optional[str] = None
     trajectory_path: Optional[Path] = None
 
 
@@ -119,6 +120,7 @@ class PredictPhase:
             "iteration": iteration,
             "instance_id": instance_id,
             "model": self.model_name,
+            "error_kind": result.error_kind,
             "message_count": len(result.trajectory),
             "assistant_message_count": sum(
                 1 for m in result.trajectory if m.get("role") == "assistant"
@@ -151,6 +153,7 @@ class PredictPhase:
             patch=result.patch,
             trajectory=result.trajectory,
             error=result.error,
+            error_kind=result.error_kind,
             trajectory_path=trajectory_path,
         )
 

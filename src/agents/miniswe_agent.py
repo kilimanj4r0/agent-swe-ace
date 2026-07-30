@@ -25,6 +25,7 @@ class AgentResult:
     patch: str
     trajectory: List[dict]
     error: Optional[str] = None
+    error_kind: Optional[str] = None
 
 
 class MiniSWEAgent:
@@ -103,6 +104,7 @@ class MiniSWEAgent:
                 patch="",
                 trajectory=[],
                 error="mini-swe-agent not installed",
+                error_kind="infrastructure",
             )
 
         try:
@@ -222,4 +224,5 @@ class MiniSWEAgent:
                 patch="",
                 trajectory=trajectory,
                 error=str(e),
+                error_kind="infrastructure",
             )

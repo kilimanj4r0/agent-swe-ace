@@ -72,6 +72,30 @@ class TestPredictPhase:
         traj_file = tmp_path / "swebench-lite" / "trajectories" / "test__repo-123" / "iter_0.json"
         assert traj_file.exists()
 
+    def test_predict_phase_persists_infrastructure_error(self, tmp_path):
+        """Infrastructure classification survives the AgentResult boundary."""
+        from phases.predict import PredictPhase
+
+        mock_agent = Mock()
+        mock_agent.run.return_value = AgentResult(
+            exit_status="error",
+            patch="",
+            trajectory=[],
+            error="docker create failed",
+            error_kind="infrastructure",
+        )
+        instance = {"instance_id": "test__repo-123", "problem_statement": "Fix"}
+
+        result = PredictPhase(agent=mock_agent, output_dir=tmp_path).run(
+            instance=instance,
+            skillbook=None,
+            iteration=0,
+        )
+
+        assert result.error_kind == "infrastructure"
+        trajectory = json.loads(result.trajectory_path.read_text())
+        assert trajectory["info"]["error_kind"] == "infrastructure"
+
 
 class TestSkillbookInjection:
     """Test skillbook injection edge cases."""
