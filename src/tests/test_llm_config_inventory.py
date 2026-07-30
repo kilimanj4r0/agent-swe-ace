@@ -90,3 +90,11 @@ def test_migrated_test_config_comments_use_catalog_aliases():
         ROOT,
         include_prefixes=("configs/test.yaml", "configs/test/"),
     )
+
+
+def test_migrated_lite_configs_match_legacy_snapshot():
+    compare_current_to_golden(
+        ROOT,
+        SNAPSHOT,
+        include_prefixes=("configs/princeton-nlp__SWE-bench_Lite/",),
+    )
