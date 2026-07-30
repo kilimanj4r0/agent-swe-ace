@@ -1,13 +1,27 @@
 """Tests for MiniSWEAgent.run() — import guard, model reset, context management branching,
 patch extraction, and error handling."""
 
+import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
+
+import litellm
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from agents.miniswe_agent import MiniSWEAgent, AgentResult
+from agents.miniswe_agent import AgentResult, MiniSWEAgent
+
+
+def test_litellm_imports_in_cold_process():
+    completed = subprocess.run(
+        [sys.executable, "-c", "import litellm; print('ok')"],
+        text=True,
+        capture_output=True,
+        timeout=30,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == "ok"
 
 
 class TestMiniSWEAgentImportError:
@@ -212,7 +226,6 @@ class TestMiniSWEAgentRun:
 
     def test_context_window_exceeded_returns_dedicated_status(self):
         """ContextWindowExceededError should produce exit_status='ContextWindowExceeded'."""
-        import litellm
         model = Mock()
         failing_agent = Mock()
         failing_agent.run.side_effect = litellm.ContextWindowExceededError(
