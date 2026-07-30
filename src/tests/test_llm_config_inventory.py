@@ -37,8 +37,28 @@ VERIFIED_QWEN3_CONFIGS = (
     "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe.yaml",
     "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-full-4a-no-skillbook.yaml",
 )
+REMAINING_VERIFIED_CONFIGS = (
+    "configs/princeton-nlp__SWE-bench_Verified/agent-ace-qwen3-16opus45-distil-repos-split-default.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-ace-qwen3-16opus45-distil-repos-split-swe.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3next-4a-retrieval-verified.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3next-full-4a-default.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-eval-on-train-noret.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-eval-on-train-ret-bm25.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-ret-bm25.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-ret-embedding.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-ret-llm.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-ret-random.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-repos-split-default-025-ret-bm25.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-repos-split-default-025-ret-embedding.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-repos-split-default-025-ret-llm.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-repos-split-default-025-ret-random.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-repos-split-default-025.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/val-retrieval-distil-repos-split.yaml",
+)
 
 from llm_config_inventory import (  # noqa: E402
+    build_current_snapshot,
     compare_current_to_golden,
     validate_commented_aliases,
 )
@@ -143,3 +163,40 @@ def test_migrated_verified_qwen3_comments_use_catalog_aliases():
         ROOT,
         include_prefixes=VERIFIED_QWEN3_CONFIGS,
     )
+
+
+def test_migrated_remaining_verified_configs_match_legacy_snapshot():
+    assert len(REMAINING_VERIFIED_CONFIGS) == 17
+    compare_current_to_golden(
+        ROOT,
+        SNAPSHOT,
+        include_prefixes=REMAINING_VERIFIED_CONFIGS,
+    )
+
+
+def test_verified_groups_cover_every_golden_verified_config():
+    golden_verified = {
+        path
+        for path in _snapshot()["override_configs"]
+        if path.startswith("configs/princeton-nlp__SWE-bench_Verified/")
+    }
+    assert set(VERIFIED_QWEN3_CONFIGS) | set(REMAINING_VERIFIED_CONFIGS) == (
+        golden_verified
+    )
+
+
+def test_all_migrated_configs_match_legacy_snapshot():
+    compare_current_to_golden(ROOT, SNAPSHOT)
+
+
+def test_all_current_configs_preserve_inventory_shape():
+    current = build_current_snapshot(ROOT)
+    golden = _snapshot()
+    assert len(current["effective_by_config"]) == 69
+    assert len(current["override_configs"]) == 68
+    assert current["retrieval_counts"] == golden["retrieval_counts"]
+    assert current["mixed_agent_ace_configs"] == golden["mixed_agent_ace_configs"]
+
+
+def test_all_migrated_comments_use_catalog_aliases():
+    validate_commented_aliases(ROOT)
