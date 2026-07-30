@@ -4,9 +4,12 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from loguru import logger
+
+if TYPE_CHECKING:
+    from ace import Skillbook
 
 
 def extract_benchmark_name(dataset: str) -> str:
