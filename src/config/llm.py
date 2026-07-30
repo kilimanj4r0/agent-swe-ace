@@ -41,13 +41,16 @@ class LLMConfig:
     model: str = "glm-4.5-flash"  # Z.AI model
     api_key: Optional[str] = None
     api_key_env: str = "ZAI_API_KEY"  # Standard env var for Z.AI
-    api_base: Optional[str] = None  # Required for vLLM, auto-handled for Z.AI
+    api_base: Optional[str] = None  # Required explicitly for every provider
     temperature: float = 0.7  # Lower temperature for more deterministic code generation
     max_tokens: int = 4096
     extra_kwargs: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Resolve API key from environment if not provided directly."""
+        if not self.api_base:
+            raise ValueError("api_base is required for every LLM provider")
+
         if not self.api_key:
             self.api_key = os.environ.get(self.api_key_env)
 
@@ -56,13 +59,6 @@ class LLMConfig:
             raise ValueError(
                 f"Z.AI API key not found. Set {self.api_key_env} in .env file "
                 "or pass api_key parameter. Get your key at: https://z.ai/"
-            )
-
-        # vLLM requires api_base
-        if self.provider == "hosted_vllm" and not self.api_base:
-            raise ValueError(
-                "vLLM requires api_base parameter. "
-                "Example: api_base='http://localhost:8000/v1'"
             )
 
     def to_dict(self) -> dict:
@@ -74,6 +70,7 @@ class LLMConfig:
             "api_key_env": self.api_key_env,
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
+            "extra_kwargs": self.extra_kwargs.copy(),
         }
 
     @classmethod
@@ -81,27 +78,28 @@ class LLMConfig:
         """Create LLMConfig from a dictionary with defaults."""
         provider = config_dict.get("provider", "zai")
 
-        # Set provider-specific defaults
+        # Keep historical model/key defaults for programmatic callers, but the
+        # deployment endpoint is always explicit.
         if provider == "hosted_vllm":
             defaults = {
                 "model": "Qwen/Qwen3-Coder-30B-A3B",  # Popular coding model
                 "api_key_env": "HOSTED_VLLM_API_KEY",  # Optional for local servers
-                "api_base": "http://localhost:8000/v1",
             }
         else:  # zai
             defaults = {
                 "model": "glm-4.5-flash",
                 "api_key_env": "ZAI_API_KEY",
-                "api_base": "https://api.z.ai/api/paas/v4",
             }
 
         return cls(
             provider=provider,
             model=config_dict.get("model", defaults["model"]),
-            api_base=config_dict.get("api_base", defaults["api_base"]),
+            api_key=config_dict.get("api_key"),
+            api_base=config_dict.get("api_base"),
             api_key_env=config_dict.get("api_key_env", defaults["api_key_env"]),
             temperature=config_dict.get("temperature", 0.7),
             max_tokens=config_dict.get("max_tokens", 4096),
+            extra_kwargs=config_dict.get("extra_kwargs", {}).copy(),
         )
 
     def get_model_string(self) -> str:
@@ -132,13 +130,13 @@ def create_model(config: LLMConfig):
         )
 
     model_kwargs: Dict[str, Any] = {
+        "api_base": config.api_base,
         "temperature": config.temperature,
         "max_tokens": config.max_tokens,
         **config.extra_kwargs
     }
 
     if config.provider == "hosted_vllm":
-        model_kwargs["api_base"] = config.api_base
         if config.api_key:
             model_kwargs["api_key"] = config.api_key
         else:

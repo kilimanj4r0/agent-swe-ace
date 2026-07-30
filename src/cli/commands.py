@@ -12,7 +12,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-import yaml
 from datasets import load_dataset
 from dotenv import load_dotenv
 from loguru import logger
@@ -23,6 +22,8 @@ if str(_src_dir) not in sys.path:
     sys.path.insert(0, str(_src_dir))
 
 from config.llm import LLMConfig, create_model, create_ace_client, create_model_settings
+from config.llm_catalog import get_effective_llm
+from config.loader import deep_merge, load_experiment_config
 from agents.miniswe_agent import MiniSWEAgent
 from phases.predict import PredictPhase
 from phases.evaluate import EvaluatePhase
@@ -55,17 +56,6 @@ def apply_litellm_config(config: dict):
     litellm.verbose_logger.setLevel(level_name)
     for handler in litellm.verbose_logger.handlers:
         handler.setLevel(level_name)
-
-
-def deep_merge(base: dict, override: dict) -> dict:
-    """Deep merge override into base dict."""
-    result = base.copy()
-    for key, value in override.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge(result[key], value)
-        else:
-            result[key] = value
-    return result
 
 
 def _build_skill_retriever(experiment_cfg: dict):
@@ -151,12 +141,6 @@ def _build_llm_retriever(retrieval_cfg: dict):
         temperature=retrieval_cfg.get("temperature", 0.0),
         max_tokens=retrieval_cfg.get("max_tokens", 2048),
     )
-
-
-def load_config(config_path: str) -> dict:
-    """Load configuration from YAML file."""
-    with open(config_path) as f:
-        return yaml.safe_load(f)
 
 
 def get_instances(config: dict) -> list:
@@ -419,11 +403,8 @@ def main():
     # Setup console logging (file logging added after run_dir is created)
     _setup_console_logging(args.log_level)
 
-    # Load base config, then merge override config on top
-    config = load_config("config.yaml")
-    if args.config:
-        override = load_config(args.config)
-        config = deep_merge(config, override)
+    # Load base + optional override and resolve strict LLM preset references.
+    config = load_experiment_config(Path("config.yaml"), args.config)
 
     # Apply LiteLLM settings
     apply_litellm_config(config)
@@ -474,7 +455,7 @@ def _make_agent_factory(config: dict, agent_config: LLMConfig, output_dir: Path)
             namespace=config.get("environment", {}).get("namespace"),
             context_management=config.get("agent", {}).get("context", {}).get("enabled", True),
             context_window=config.get("agent", {}).get("context", {}).get("context_window", 65536),
-            max_tokens=config.get("llm", {}).get("agent", {}).get("max_tokens", 4096),
+            max_tokens=agent_config.max_tokens,
             keep_recent_messages=config.get("agent", {}).get("context", {}).get("keep_recent_messages", 6),
             truncate_threshold=config.get("agent", {}).get("context", {}).get("truncate_threshold", 0.85),
         )
@@ -490,7 +471,7 @@ def _build_ace_components(config: dict):
     Returns:
         (reflector, skill_manager)
     """
-    ace_config = LLMConfig.from_dict(config["llm"]["ace"])
+    ace_config = LLMConfig.from_dict(get_effective_llm(config["llm"]["ace"]))
     ace_client = create_ace_client(ace_config.to_dict())
     ace_settings = create_model_settings(ace_config.to_dict())
 
@@ -604,10 +585,12 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
     print("\nLLM:")
     for role in ("agent", "ace"):
         role_cfg = llm_cfg.get(role, {})
-        model = role_cfg.get("model", "not set")
-        api_base = role_cfg.get("api_base", "default")
-        max_tokens = role_cfg.get("max_tokens", "default")
-        print(f"  {role}: model={model}, api_base={api_base}, max_tokens={max_tokens}")
+        effective = get_effective_llm(role_cfg)
+        preset = role_cfg.get("preset", "legacy")
+        print(
+            f"  {role}: preset={preset}, model={effective['model']}, "
+            f"api_base={effective['api_base']}, max_tokens={effective['max_tokens']}"
+        )
 
     # ── 3. Dataset ───────────────────────────────────────────────────────
     print("\nDataset:")
@@ -874,7 +857,7 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
 
     # ── 9. Limits ────────────────────────────────────────────────────────
     ctx = agent_cfg.get("context", {})
-    agent_llm = llm_cfg.get("agent", {})
+    agent_llm = get_effective_llm(llm_cfg.get("agent", {}))
     print(f"\nLimits:")
     print(f"  Step limit:        {agent_cfg.get('step_limit', 100)}")
     print(f"  Cost limit:        ${agent_cfg.get('cost_limit', 5.0):.2f}")
@@ -1326,8 +1309,8 @@ def _run_iterate_repos(config: dict, args, output_dir: Path):
         return
 
     # Create shared components
-    agent_config = LLMConfig.from_dict(config["llm"]["agent"])
-    ace_config = LLMConfig.from_dict(config["llm"]["ace"])
+    agent_config = LLMConfig.from_dict(get_effective_llm(config["llm"]["agent"]))
+    ace_config = LLMConfig.from_dict(get_effective_llm(config["llm"]["ace"]))
     agent_factory = _make_agent_factory(config, agent_config, output_dir)
 
     benchmark = config["benchmark"]["dataset"].replace("/", "__")
@@ -1526,8 +1509,8 @@ def run_full_experiment(config: dict, args):
         enable_observability(project_name=f"{project_base_name}_{run_id}")
 
     # Create LLM configs
-    agent_config = LLMConfig.from_dict(config["llm"]["agent"])
-    ace_config = LLMConfig.from_dict(config["llm"]["ace"])
+    agent_config = LLMConfig.from_dict(get_effective_llm(config["llm"]["agent"]))
+    ace_config = LLMConfig.from_dict(get_effective_llm(config["llm"]["ace"]))
 
     # Create agent factory (each worker gets its own agent + model)
     agent_factory = _make_agent_factory(config, agent_config, output_dir)
@@ -1714,7 +1697,8 @@ def run_predict_cmd(config: dict, args):
         sys.exit(1)
 
     if args.dry_run:
-        agent_llm_cfg = config.get("llm", {}).get("agent", {})
+        agent_llm_ref = config.get("llm", {}).get("agent", {})
+        agent_llm_cfg = get_effective_llm(agent_llm_ref)
         agent_cfg = config.get("agent", {})
         ctx = agent_cfg.get("context", {})
         print(f"\n=== DRY RUN: predict ===")
@@ -1723,6 +1707,7 @@ def run_predict_cmd(config: dict, args):
         print(f"  Instance:          {args.instance}")
         print(f"  Iteration:         {args.iteration}")
         print(f"  Skillbook:         {args.skillbook or '(empty)'}")
+        print(f"  LLM preset:        {agent_llm_ref.get('preset', 'legacy')}")
         print(f"  Model:             {agent_llm_cfg.get('model', 'not set')}")
         print(f"  Step limit:        {agent_cfg.get('step_limit', 100)}")
         print(f"  Cost limit:        ${agent_cfg.get('cost_limit', 5.0):.2f}")
@@ -1735,7 +1720,7 @@ def run_predict_cmd(config: dict, args):
         sys.exit(0)
 
     # Create agent
-    agent_config = LLMConfig.from_dict(config["llm"]["agent"])
+    agent_config = LLMConfig.from_dict(get_effective_llm(config["llm"]["agent"]))
     agent_model = create_model(agent_config)
     agent = MiniSWEAgent(
         llm_model=agent_model,
@@ -1746,7 +1731,7 @@ def run_predict_cmd(config: dict, args):
         namespace=config.get("environment", {}).get("namespace"),
         context_management=config.get("agent", {}).get("context", {}).get("enabled", True),
         context_window=config.get("agent", {}).get("context", {}).get("context_window", 65536),
-        max_tokens=config.get("llm", {}).get("agent", {}).get("max_tokens", 4096),
+        max_tokens=agent_config.max_tokens,
         keep_recent_messages=config.get("agent", {}).get("context", {}).get("keep_recent_messages", 6),
         truncate_threshold=config.get("agent", {}).get("context", {}).get("truncate_threshold", 0.85),
     )
@@ -1936,9 +1921,19 @@ def run_learn_replay_cmd(config: dict, args, lr: dict):
         overlay["benchmark"] = bench_overlay
     if src_exp.get("skillbook"):
         overlay["experiment"] = {"skillbook": src_exp["skillbook"]}
-    if src_llm.get("ace"):
-        overlay["llm"] = {"ace": src_llm["ace"]}
+    source_ace = src_llm.get("ace")
     config = deep_merge(config, overlay)
+    if source_ace:
+        if "effective" in source_ace:
+            config.setdefault("llm", {})["ace"] = copy.deepcopy(source_ace)
+        else:
+            effective = get_effective_llm(source_ace)
+            fallback_preset = config["llm"]["ace"]["preset"]
+            config["llm"]["ace"] = {
+                "preset": fallback_preset,
+                "overrides": copy.deepcopy(effective),
+                "effective": effective,
+            }
     # Deny-list: never let the source run trigger baseline reuse / val-only /
     # distillation / resume during a pure learn replay.
     for bad in ("baseline_run_dir", "skillbook_source_dir", "resume_dirs", "train_trajs_dir"):

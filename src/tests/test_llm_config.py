@@ -11,11 +11,12 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-import yaml
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from config.llm_catalog import get_effective_llm
+from config.loader import load_experiment_config
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -28,22 +29,21 @@ litellm.request_timeout = 10  # Fail fast if server unreachable
 
 @pytest.fixture
 def config():
-    """Load config.yaml."""
+    """Load and resolve config.yaml."""
     config_path = Path(__file__).parent.parent.parent / "config.yaml"
-    with open(config_path) as f:
-        return yaml.safe_load(f)
+    return load_experiment_config(config_path)
 
 
 @pytest.fixture
 def agent_config(config):
-    """Get agent LLM configuration."""
-    return config["llm"]["agent"]
+    """Get effective agent LLM configuration."""
+    return get_effective_llm(config["llm"]["agent"])
 
 
 @pytest.fixture
 def ace_config(config):
-    """Get ACE LLM configuration."""
-    return config["llm"]["ace"]
+    """Get effective ACE LLM configuration."""
+    return get_effective_llm(config["llm"]["ace"])
 
 
 class TestAgentModelCreation:
@@ -95,20 +95,29 @@ class TestLLMConfigErrorPaths:
         env.pop("ZAI_API_KEY", None)
         with patch.dict(os.environ, env, clear=True):
             with pytest.raises(ValueError, match="Z.AI API key not found"):
-                LLMConfig(provider="zai")
+                LLMConfig(
+                    provider="zai",
+                    api_base="https://api.z.ai/api/paas/v4",
+                )
 
-    def test_vllm_without_api_base_raises(self):
-        """hosted_vllm provider without api_base should raise ValueError."""
+    @pytest.mark.parametrize("provider", ["zai", "hosted_vllm"])
+    def test_api_base_is_required_for_every_provider(self, provider):
+        """Every provider requires an explicit api_base."""
         from config.llm import LLMConfig
 
-        with pytest.raises(ValueError, match="vLLM requires api_base"):
-            LLMConfig(provider="hosted_vllm", api_base=None, api_key="test")
+        with pytest.raises(ValueError, match="api_base is required"):
+            LLMConfig(provider=provider, api_base=None, api_key="test")
 
     def test_zai_with_api_key_succeeds(self):
         """Z.AI provider with explicit api_key should succeed."""
         from config.llm import LLMConfig
 
-        cfg = LLMConfig(provider="zai", model="glm-4.5-flash", api_key="test-key")
+        cfg = LLMConfig(
+            provider="zai",
+            model="glm-4.5-flash",
+            api_base="https://api.z.ai/api/paas/v4",
+            api_key="test-key",
+        )
         assert cfg.api_key == "test-key"
 
     def test_vllm_with_api_base_succeeds(self):
@@ -125,29 +134,42 @@ class TestLLMConfigErrorPaths:
 class TestLLMConfigHelpers:
     """Tests for LLMConfig.from_dict and get_model_string helpers."""
 
-    def test_from_dict_zai_defaults(self):
-        """from_dict with zai provider should set correct defaults."""
+    @pytest.mark.parametrize("provider", ["zai", "hosted_vllm"])
+    def test_from_dict_requires_explicit_api_base(self, provider):
+        """from_dict must not hide a missing deployment endpoint."""
         from config.llm import LLMConfig
 
-        cfg = LLMConfig.from_dict({"provider": "zai", "api_key": "test"})
-        assert cfg.model == "glm-4.5-flash"
-        assert cfg.api_key_env == "ZAI_API_KEY"
-        assert cfg.api_base == "https://api.z.ai/api/paas/v4"
+        with pytest.raises(ValueError, match="api_base is required"):
+            LLMConfig.from_dict({"provider": provider, "api_key": "test"})
 
-    def test_from_dict_vllm_defaults(self):
-        """from_dict with hosted_vllm provider should set correct defaults."""
+    def test_from_dict_preserves_extra_kwargs(self):
+        """Provider-specific LiteLLM kwargs survive parsing and logging."""
         from config.llm import LLMConfig
 
-        cfg = LLMConfig.from_dict({"provider": "hosted_vllm", "api_base": "http://localhost:8000/v1"})
-        assert cfg.model == "Qwen/Qwen3-Coder-30B-A3B"
-        assert cfg.api_key_env == "HOSTED_VLLM_API_KEY"
-        assert cfg.api_base == "http://localhost:8000/v1"
+        cfg = LLMConfig.from_dict(
+            {
+                "provider": "hosted_vllm",
+                "model": "Qwen/test",
+                "api_base": "http://localhost:8000/v1",
+                "api_key_env": "HOSTED_VLLM_API_KEY",
+                "temperature": 0.0,
+                "max_tokens": 4096,
+                "extra_kwargs": {"top_p": 0.9, "seed": 42},
+            }
+        )
+        assert cfg.extra_kwargs == {"top_p": 0.9, "seed": 42}
+        assert cfg.to_dict()["extra_kwargs"] == {"top_p": 0.9, "seed": 42}
 
     def test_get_model_string_zai(self):
         """get_model_string for zai should return zai/<model>."""
         from config.llm import LLMConfig
 
-        cfg = LLMConfig(provider="zai", model="glm-4.5-flash", api_key="test")
+        cfg = LLMConfig(
+            provider="zai",
+            model="glm-4.5-flash",
+            api_base="https://api.z.ai/api/paas/v4",
+            api_key="test",
+        )
         assert cfg.get_model_string() == "zai/glm-4.5-flash"
 
     def test_get_model_string_vllm(self):
@@ -156,6 +178,40 @@ class TestLLMConfigHelpers:
 
         cfg = LLMConfig(provider="hosted_vllm", model="Qwen/test", api_base="http://localhost:8000/v1")
         assert cfg.get_model_string() == "hosted_vllm/Qwen/test"
+
+    @pytest.mark.parametrize(
+        ("provider", "api_base"),
+        [
+            ("zai", "https://api.z.ai/api/paas/v4"),
+            ("hosted_vllm", "http://localhost:8000/v1"),
+        ],
+    )
+    def test_create_model_passes_api_base_for_every_provider(
+        self,
+        provider,
+        api_base,
+    ):
+        """LiteLLM receives the selected endpoint for every provider."""
+        from config.llm import LLMConfig, create_model
+
+        cfg = LLMConfig(
+            provider=provider,
+            model="test-model",
+            api_base=api_base,
+            api_key="test-key",
+            extra_kwargs={"top_p": 0.9},
+        )
+        with (
+            patch(
+                "minisweagent.models.litellm_model.LitellmModelConfig"
+            ) as model_config,
+            patch("minisweagent.models.litellm_model.LitellmModel"),
+        ):
+            create_model(cfg)
+
+        model_kwargs = model_config.call_args.kwargs["model_kwargs"]
+        assert model_kwargs["api_base"] == api_base
+        assert model_kwargs["top_p"] == 0.9
 
 
 @pytest.mark.integration
