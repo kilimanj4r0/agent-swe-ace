@@ -349,6 +349,24 @@ class TestPredictPhaseWithRetriever:
         assert passed_sb is mock_skillbook
 
 
+def _retrieval_llm_section(**overrides):
+    effective = {
+        "provider": "hosted_vllm",
+        "model": "Qwen/test",
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "temperature": 0.0,
+        "max_tokens": 2048,
+        "extra_kwargs": {},
+    }
+    effective.update(overrides)
+    return {
+        "preset": "test-preset",
+        "overrides": {},
+        "effective": effective,
+    }
+
+
 class TestBuildSkillRetriever:
     """Test _build_skill_retriever config wiring."""
 
@@ -364,51 +382,45 @@ class TestBuildSkillRetriever:
         result = _build_skill_retriever({})
         assert result is None
 
-    @patch.dict("os.environ", {"ZAI_API_KEY": "test-key-123"})
-    def test_enabled_returns_retriever(self):
+    @patch.dict("os.environ", {"HOSTED_VLLM_API_KEY": "test-key-123"})
+    @patch("cli.commands.SkillRetriever")
+    def test_enabled_uses_nested_effective_llm(self, retriever_cls):
         from cli.commands import _build_skill_retriever
 
-        result = _build_skill_retriever({
-            "skillbook": {
-                "retrieval": {
-                    "enabled": True,
-                    "model": "glm-4.5-flash",
-                    "api_base": "https://api.example.com/v1",
-                    "top_k": 3,
-                    "skip_threshold": 7,
+        result = _build_skill_retriever(
+            {
+                "skillbook": {
+                    "retrieval": {
+                        "enabled": True,
+                        "llm": _retrieval_llm_section(
+                            temperature=0.4,
+                            max_tokens=3072,
+                        ),
+                        "top_k": 3,
+                        "skip_threshold": 7,
+                        "filter_prompt": "filter.txt",
+                        "rank_prompt": "rank.txt",
+                        "chunk_size": 50,
+                        "filter_target": 25,
+                    }
                 }
             }
-        })
+        )
 
-        assert result is not None
-        assert result.top_k == 3
-        assert result.skip_threshold == 7
-
-    def test_enabled_no_model_returns_none(self):
-        from cli.commands import _build_skill_retriever
-
-        result = _build_skill_retriever({
-            "skillbook": {
-                "retrieval": {
-                    "enabled": True,
-                    "api_base": "https://api.example.com/v1",
-                }
-            }
-        })
-        assert result is None
-
-    def test_enabled_no_api_base_returns_none(self):
-        from cli.commands import _build_skill_retriever
-
-        result = _build_skill_retriever({
-            "skillbook": {
-                "retrieval": {
-                    "enabled": True,
-                    "model": "glm-4.5-flash",
-                }
-            }
-        })
-        assert result is None
+        assert result is retriever_cls.return_value
+        retriever_cls.assert_called_once_with(
+            model="Qwen/test",
+            api_base="http://localhost:8800/v1",
+            api_key="test-key-123",
+            top_k=3,
+            skip_threshold=7,
+            filter_prompt="filter.txt",
+            rank_prompt="rank.txt",
+            chunk_size=50,
+            filter_target=25,
+            temperature=0.4,
+            max_tokens=3072,
+        )
 
 
 class TestBuildSkillRetrieverDispatch:
@@ -490,8 +502,9 @@ class TestBuildSkillRetrieverDispatch:
                 "skillbook": {
                     "retrieval": {
                         "enabled": True,
-                        "model": "glm-4.5-flash",
-                        "api_base": "https://api.example.com/v1",
+                        "llm": _retrieval_llm_section(
+                            api_key_env="ZAI_API_KEY",
+                        ),
                         "top_k": 3,
                     }
                 }
@@ -524,8 +537,9 @@ class TestBuildSkillRetrieverDispatch:
                     "retrieval": {
                         "enabled": True,
                         "type": "llm",
-                        "model": "glm-4.5-flash",
-                        "api_base": "https://api.example.com/v1",
+                        "llm": _retrieval_llm_section(
+                            api_key_env="ZAI_API_KEY",
+                        ),
                     }
                 }
             })

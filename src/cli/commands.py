@@ -116,21 +116,12 @@ def _build_skill_retriever(experiment_cfg: dict):
 
 def _build_llm_retriever(retrieval_cfg: dict):
     """Build an LLM-based SkillRetriever from config."""
-    model = retrieval_cfg.get("model")
-    if not model:
-        logger.warning("[Retriever] retrieval.enabled=true but no model specified, skipping")
-        return None
-
-    api_base = retrieval_cfg.get("api_base")
-    api_key = os.environ.get(retrieval_cfg.get("api_key_env", "ZAI_API_KEY"), "EMPTY")
-
-    if not api_base:
-        logger.warning("[Retriever] retrieval.enabled=true but no api_base specified, skipping")
-        return None
+    llm_cfg = get_effective_llm(retrieval_cfg["llm"])
+    api_key = os.environ.get(llm_cfg["api_key_env"], "EMPTY")
 
     return SkillRetriever(
-        model=model,
-        api_base=api_base,
+        model=llm_cfg["model"],
+        api_base=llm_cfg["api_base"],
         api_key=api_key,
         top_k=retrieval_cfg.get("top_k", 5),
         skip_threshold=retrieval_cfg.get("skip_threshold", 10),
@@ -138,8 +129,8 @@ def _build_llm_retriever(retrieval_cfg: dict):
         rank_prompt=retrieval_cfg.get("rank_prompt"),
         chunk_size=retrieval_cfg.get("chunk_size", 200),
         filter_target=retrieval_cfg.get("filter_target", 100),
-        temperature=retrieval_cfg.get("temperature", 0.0),
-        max_tokens=retrieval_cfg.get("max_tokens", 2048),
+        temperature=llm_cfg["temperature"],
+        max_tokens=llm_cfg["max_tokens"],
     )
 
 

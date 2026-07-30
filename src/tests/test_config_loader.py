@@ -202,11 +202,12 @@ def test_embedding_model_remains_at_retrieval_level(tmp_path):
     retrieval["enabled"] = True
     retrieval["type"] = "embedding"
     retrieval["model"] = "Qwen/Qwen3-Embedding-4B"
+    del retrieval["llm"]
     base_path = write_config(tmp_path / "config.yaml", base)
     result = load_experiment_config(base_path, catalog_path=catalog)
     resolved = result["experiment"]["skillbook"]["retrieval"]
     assert resolved["model"] == "Qwen/Qwen3-Embedding-4B"
-    assert resolved["llm"]["preset"] == "p"
+    assert "llm" not in resolved
 
 
 def test_enabled_llm_retrieval_requires_llm_reference(tmp_path):
