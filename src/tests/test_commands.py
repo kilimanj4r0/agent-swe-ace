@@ -7,8 +7,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from config.loader import deep_merge
 from cli.commands import (
-    deep_merge,
     _load_split_manifest,
     _split_from_manifest,
     split_instances,
