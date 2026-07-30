@@ -24,6 +24,15 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
+# Reuse the CANONICAL combinatorial pass@k estimator from
+# collect_val_baseline_aggregated.py so the pass@k reported here is computed with
+# the identical formula used to build data/val_baseline_aggregated_split025_vpk5_qwen3
+# (no duplicated math that could drift out of sync). The sibling scripts dir is on
+# sys.path when run as `python scripts/compare_runs.py`; insert it explicitly so the
+# import also resolves when this module is imported from elsewhere.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from collect_val_baseline_aggregated import pass_at_k as _pass_at_k_combinatorial
+
 # Aggregated val-baseline reference for qwen3 split025 experiments. Built across
 # 12 runs x 5 attempts = 60 attempts per instance (113 val instances) under a
 # uniform empty-skillbook / no-learning condition. For matching runs we override
@@ -62,12 +71,24 @@ def _is_qwen3_split025(run: dict) -> bool:
     return "split025" in run.get("run_dir", "") and _is_qwen3_coder(run.get("agent_llm", ""))
 
 
-def _apply_aggregated_val_baseline(pd: dict, repo: str | None) -> None:
-    """Override a val_baseline phase dict's avg with the aggregated reference.
+def _apply_aggregated_val_baseline(pd: dict, repo: str | None, vpk: int = 5) -> None:
+    """Override a val_baseline phase dict's AVG with the aggregated n=60 reference.
 
-    Sets pd['aggregated_avg'] = {'avg': rate, 'att_per_inst': N}. repo selects the
-    per-repo value (iterate_repos / single-repo rows); None uses the overall value.
-    No-op if the aggregated baseline is unavailable or the repo is missing.
+    Only the avg is taken from the pooled 60-attempt baseline -- the low-noise
+    reference the SB Delta compares against. The resolved count and the pass@k
+    curve stay from THIS run's own 5 attempts when they exist (backfilled by
+    _backfill_pass_at_k, which sets pd['_own_pass_at_k']); the aggregated pass@k is
+    used only as a fallback when the run has no own multi-attempt results.
+
+    Sets pd['aggregated_avg'] = {'avg': rate, 'att_per_inst': N} (always, when the
+    aggregated baseline is available). repo selects the per-repo entry (iterate_repos
+    / single-repo rows); None uses the overall value. vpk bounds the fallback pass@k
+    curve (pass@1..pass@vpk). No-op if the aggregated baseline is unavailable or the
+    repo is missing.
+
+    Note: with avg from 60 attempts and pass@k from 5, avg need not equal p@1 for
+    ValBL -- the '(agg 60att)' label flags that avg is the reference, not the run's
+    own first-draw rate.
     """
     agg = _load_aggregated_val_baseline()
     if agg is None:
@@ -79,15 +100,29 @@ def _apply_aggregated_val_baseline(pd: dict, repo: str | None) -> None:
         avg = entry.get("avg")
         n_att = entry.get("n_attempts")
         n_inst = entry.get("n_instances")
+        agg_pak = entry.get("pass_at_k", {})
     else:
         ov = agg["overall"]
         avg = ov.get("avg")
         n_att = ov.get("total_attempts")
         n_inst = ov.get("n_instances")
+        agg_pak = ov.get("pass_at_k", {})
     if avg is None:
         return
     att_per_inst = round(n_att / n_inst) if n_inst else n_att
     pd["aggregated_avg"] = {"avg": avg, "att_per_inst": att_per_inst}
+    # pass@k: keep this run's own 5-attempt curve when it exists; only fall back to
+    # the aggregated 60-attempt curve when the run has no own multi-attempt results.
+    if pd.get("_own_pass_at_k"):
+        return
+    pak: dict[str, dict] = {}
+    for k in range(1, vpk + 1):
+        r = agg_pak.get(str(k))
+        if r is None:
+            break
+        pak[f"pass@{k}"] = {"count": round(r * n_inst), "total": n_inst, "rate": r}
+    if pak:
+        pd["pass_at_k"] = pak
 
 
 def _find_benchmark_dir(run_dir: Path) -> Path | None:
@@ -373,6 +408,69 @@ def _backfill_per_attempt_rate(pd: dict, results_dir: Path, repo_prefix: str | N
         pd["per_attempt_rate"] = par
 
 
+def _compute_pass_at_k(results_dir: Path, repo_prefix: str | None = None) -> dict:
+    """Combinatorial pass@k curve (HumanEval/CodeX estimator) from result files.
+
+    For each instance, count ``c = resolved iterations`` and ``n = total
+    iterations``, then compute the per-instance ``pass@k = 1 - C(n-c, k)/C(n, k)``
+    via the canonical ``_pass_at_k_combinatorial`` (the SAME formula the aggregated
+    val-baseline is built with). The curve is macro-averaged over instances. With
+    uniform ``n`` this makes pass@1 identical to the per-attempt avg rate, so the
+    ``avg`` and ``p@1`` cells agree by construction.
+
+    Returns the same ``{"pass@k": {"count","total","rate"}}`` schema main_loop
+    writes, but with the combinatorial estimator instead of the empirical "solved
+    within the first k attempts" curve. Returns ``{}`` when there are fewer than 2
+    attempts (single-attempt phases keep statistics.json's pass@1 untouched).
+    """
+    if not results_dir.exists():
+        return {}
+    per_inst: list[tuple[int, int]] = []  # (c, n) per instance
+    max_n = 0
+    for inst_dir in sorted(results_dir.iterdir()):
+        if not inst_dir.is_dir():
+            continue
+        if repo_prefix and not inst_dir.name.startswith(repo_prefix):
+            continue
+        c = 0
+        n = 0
+        for i in range(10):  # iterations are contiguous from iter_0
+            f = inst_dir / f"iter_{i}.json"
+            if not f.exists():
+                break
+            n += 1
+            with open(f) as fh:
+                if json.load(fh).get("resolved"):
+                    c += 1
+        if n > 0:
+            per_inst.append((c, n))
+            max_n = max(max_n, n)
+    if not per_inst or max_n < 2:
+        return {}
+    total = len(per_inst)
+    out: dict[str, dict] = {}
+    for k in range(1, max_n + 1):
+        rate = sum(_pass_at_k_combinatorial(n, c, k) for (c, n) in per_inst) / total
+        out[f"pass@{k}"] = {"count": round(rate * total), "total": total, "rate": rate}
+    return out
+
+
+def _backfill_pass_at_k(pd: dict, results_dir: Path, repo_prefix: str | None = None) -> None:
+    """Override ``pd['pass_at_k']`` with the combinatorial estimator when the phase
+    has multi-attempt results.
+
+    statistics.json stores the empirical cumulative pass@k (fraction solved within
+    the first k attempts), whose pass@1 is "first attempt only" rather than the
+    per-draw success rate and whose mean is not a valid per-attempt average. The
+    combinatorial estimator is the standard HumanEval metric, matches the aggregated
+    val-baseline, and makes pass@1 == avg. No-op for single-attempt phases.
+    """
+    pak = _compute_pass_at_k(results_dir, repo_prefix=repo_prefix)
+    if pak:
+        pd["pass_at_k"] = pak
+        pd["_own_pass_at_k"] = True  # this run's own multi-attempt curve is available
+
+
 def _per_attempt_resolved_sets(results_dir: Path, repo_prefix: str | None = None) -> dict[int, set[str]]:
     """Per-iteration resolved instance-id sets: ``{iter_index: {instance_id, ...}}``.
 
@@ -526,9 +624,13 @@ def load_run(run_dir: Path, iteration: int | None = None, phase: str | None = No
         if _results_root is not None:
             _backfill_per_attempt_rate(split_data["val_baseline"], _results_root / "val_baseline")
             _backfill_per_attempt_rate(split_data["val_skillbook"], _results_root / "val")
+            _backfill_pass_at_k(split_data["val_baseline"], _results_root / "val_baseline")
+            _backfill_pass_at_k(split_data["val_skillbook"], _results_root / "val")
             if is_eval_on_train:
                 _backfill_per_attempt_rate(split_data["train_eval_baseline"], _results_root / "train_eval_baseline")
                 _backfill_per_attempt_rate(split_data["train_eval"], _results_root / "train_eval")
+                _backfill_pass_at_k(split_data["train_eval_baseline"], _results_root / "train_eval_baseline")
+                _backfill_pass_at_k(split_data["train_eval"], _results_root / "train_eval")
 
         # Validation-only runs (skillbook_source_dir set) skip training, so their
         # own train_phase is empty (0/0). Inherit train stats from the source run
@@ -808,12 +910,15 @@ def _fmt_phase(pd: dict, distil: bool = False, val_pass_k: int = 1) -> str:
     lines.append(base)
 
     if len(pak) > 1:
-        # Cumulative per-pass@k resolved counts
+        # Combinatorial pass@k rates (HumanEval estimator; matches the aggregated
+        # val-baseline formula). pass@1 == the avg line above by construction, so
+        # the two agree. Shown as rates, not counts, because the combinatorial
+        # metric is a probability rather than a tally.
         parts = []
         for k_label in sorted(pak, key=lambda x: int(x.split("@")[1])):
             info = pak[k_label]
             short_label = k_label.replace("pass@", "p@")
-            parts.append(f"{short_label}:{info['count']}")
+            parts.append(f"{short_label}:{info['rate'] * 100:.1f}%")
         if parts:
             lines.append("[{0}]".format(", ".join(parts)))
 
@@ -1085,11 +1190,13 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                         if _results_root is not None:
                             _backfill_per_attempt_rate(agg_valbl, _results_root / "val_baseline")
                             _backfill_per_attempt_rate(agg_valsb, _results_root / "val")
+                            _backfill_pass_at_k(agg_valbl, _results_root / "val_baseline")
+                            _backfill_pass_at_k(agg_valsb, _results_root / "val")
 
-                    # Override ValBL avg with the aggregated reference baseline
+                    # Override ValBL with the aggregated reference baseline
                     # (qwen3 split025) so SB Δ uses a low-noise baseline.
                     if _is_qwen3_split025(r):
-                        _apply_aggregated_val_baseline(agg_valbl, repo=None)
+                        _apply_aggregated_val_baseline(agg_valbl, repo=None, vpk=vpk)
 
                     # Compute SB Δ from avg rates when vpk > 1
                     if vpk > 1:
@@ -1145,10 +1252,12 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                                     _prefix = repo.replace("/", "__") + "-"
                                     _backfill_per_attempt_rate(s["val_baseline"], _results_root / "val_baseline", repo_prefix=_prefix)
                                     _backfill_per_attempt_rate(s["val_skillbook"], _results_root / "val", repo_prefix=_prefix)
+                                    _backfill_pass_at_k(s["val_baseline"], _results_root / "val_baseline", repo_prefix=_prefix)
+                                    _backfill_pass_at_k(s["val_skillbook"], _results_root / "val", repo_prefix=_prefix)
 
-                            # Override per-repo ValBL avg with aggregated reference (qwen3 split025)
+                            # Override per-repo ValBL with aggregated reference (qwen3 split025)
                             if _is_qwen3_split025(r):
-                                _apply_aggregated_val_baseline(s["val_baseline"], repo=repo)
+                                _apply_aggregated_val_baseline(s["val_baseline"], repo=repo, vpk=r.get("val_pass_k", 1))
 
                             # Per-repo exit status — prefer the backfilled per-phase
                             # exit_statuses merged from the per-repo stats file; fall
@@ -1204,9 +1313,9 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                 else:
                     # Single-repo split run (filter_repos set but not iterate_repos)
                     repo = r["filter_repos"][0] if r.get("filter_repos") else "all"
-                    # Override ValBL avg with aggregated reference for this repo (qwen3 split025)
+                    # Override ValBL with aggregated reference for this repo (qwen3 split025)
                     if _is_qwen3_split025(r):
-                        _apply_aggregated_val_baseline(agg["val_baseline"], repo=repo if repo != "all" else None)
+                        _apply_aggregated_val_baseline(agg["val_baseline"], repo=repo if repo != "all" else None, vpk=r.get("val_pass_k", 1))
                     # SB Δ from per-attempt avg (falls back to skillbook_improvement when
                     # avg is unavailable, e.g. vpk=1).
                     _bl = _compute_avg_rate(agg["val_baseline"])
@@ -1271,10 +1380,10 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
                         es_header: _fmt_exit_status_row(r["exit_statuses"], global_statuses),
                     })
                     continue
-                # Override ValBL avg with the aggregated reference baseline (qwen3
+                # Override ValBL with the aggregated reference baseline (qwen3
                 # split025) so SB Δ compares against a low-noise 60-attempt baseline.
                 if _is_qwen3_split025(r):
-                    _apply_aggregated_val_baseline(s["val_baseline"], repo=None)
+                    _apply_aggregated_val_baseline(s["val_baseline"], repo=None, vpk=vpk)
                 # Compute SB Δ from avg rates when vpk > 1
                 if vpk > 1:
                     avg_bl = _compute_avg_rate(s["val_baseline"])
@@ -1311,9 +1420,19 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
         print(f"  {run_id_map[r['run_dir']]}  {r['run_dir']}{name_tag}")
 
 
+def _strip_private(obj):
+    """Drop private keys (leading underscore) introduced for internal signaling
+    (e.g. phase dicts' '_own_pass_at_k') so they don't leak into JSON output."""
+    if isinstance(obj, dict):
+        return {k: _strip_private(v) for k, v in obj.items() if not k.startswith("_")}
+    if isinstance(obj, list):
+        return [_strip_private(v) for v in obj]
+    return obj
+
+
 def print_json(runs: list[dict], save_path: str | None = None):
     runs.sort(key=lambda r: (0 if r["is_baseline"] else 1, r["run_dir"]))
-    text = json.dumps(runs, indent=2)
+    text = json.dumps(_strip_private(runs), indent=2)
     if save_path:
         Path(save_path).write_text(text)
         print(f"Saved JSON to {save_path}")

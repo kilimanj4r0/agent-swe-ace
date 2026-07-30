@@ -170,7 +170,9 @@ class PredictPhase:
         Retrieval applies on:
           - single-phase mode (phase=None): always
           - two-phase mode: only on "val" (val skillbook pass)
-        Skipped on "train" and "val_baseline" (empty skillbook there anyway).
+        Skipped on "train" and "val_baseline": the runner hands predict an empty
+        Skillbook for both (val_baseline by construction; train by the distillation
+        design — solved unaided, learned afterward into the accumulated book).
 
         Returns:
             (skillbook, retrieval_stats). retrieval_stats is None when retrieval is

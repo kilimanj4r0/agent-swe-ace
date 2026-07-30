@@ -330,6 +330,17 @@ class ExperimentLoop:
         # Get skillbook for this instance
         skillbook = initial_skillbook or self.get_skillbook(repo)
 
+        # Train solves WITHOUT a skillbook (distillation): every train attempt is
+        # made unaided, and the SkillManager learns from that raw attempt into the
+        # accumulated book (global/per_repo). Val phases solve with the real
+        # (optionally retrieval-narrowed) book, so they keep `skillbook` as-is.
+        # `not initial_skillbook` is defensive: train never receives one, but if a
+        # caller preloads a book we respect it.
+        if phase == "train" and not initial_skillbook:
+            solve_skillbook = Skillbook()
+        else:
+            solve_skillbook = skillbook
+
         result = InstanceResult(instance_id=instance_id)
 
         # Check resume state
@@ -352,8 +363,8 @@ class ExperimentLoop:
         # skillbook doesn't warrant retrieval.
         retrieval_stats = None
         if frozen_skillbook:
-            skillbook, retrieval_stats = predict.prepare_skillbook(
-                instance, skillbook, phase
+            solve_skillbook, retrieval_stats = predict.prepare_skillbook(
+                instance, solve_skillbook, phase
             )
 
         for iteration in range(start_iteration, effective_max):
@@ -374,7 +385,7 @@ class ExperimentLoop:
                 # Phase 1: Predict
                 predict_result = predict.run(
                     instance=instance,
-                    skillbook=skillbook,
+                    skillbook=solve_skillbook,
                     iteration=iteration,
                     phase=phase,
                     retrieval_stats=retrieval_stats,

@@ -19,7 +19,7 @@ experiment:
   # TrainBL = empty skillbook (1 attempt, pass@1 reference); TrainSB = top-k of the learned skillbook
   # at eval_on_train_pass_k attempts. Skips the val passes entirely.
   eval_on_train: true
-  eval_on_train_pass_k: 5
+  eval_on_train_pass_k: 3
 
   # --- Two-phase experiment settings (per_repo/global modes) ---
   split:                             # Enable train/val split
@@ -27,7 +27,6 @@ experiment:
   # NOTE: baseline_run_dir intentionally unset. No clean empty-skillbook qwen3next train set
   # exists yet (baseline_split025_verified_qwen3next is a learn-on-train run), so TrainBL runs
   # fresh. TrainBL is identical to the noret experiment (empty book never retrieves).
-  val_pass_k: 5
   skillbook_source_dir: "data/run_20260615_125626_completed_qwen3next_global_split025_default_verified_vpk5"
 
 agent:
@@ -38,18 +37,16 @@ llm:
     provider: "hosted_vllm"
     model: "Qwen/Qwen3-Coder-Next-FP8"
     # model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
-    api_base: "http://10.100.30.241:8801/v1"
-    # api_base: "http://localhost:8800/v1"
+    # api_base: "http://10.100.30.241:8801/v1"
+    api_base: "http://localhost:8800/v1"
     api_key_env: "HOSTED_VLLM_API_KEY"
-    temperature: 1.0
   ace:
     provider: "hosted_vllm"
     model: "Qwen/Qwen3-Coder-Next-FP8"
     # model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
-    api_base: "http://10.100.30.241:8801/v1"
-    # api_base: "http://localhost:8800/v1"
+    # api_base: "http://10.100.30.241:8801/v1"
+    api_base: "http://localhost:8800/v1"
     api_key_env: "HOSTED_VLLM_API_KEY"
-    temperature: 1.0
 
 benchmark:
   dataset: "princeton-nlp/SWE-bench_Verified"

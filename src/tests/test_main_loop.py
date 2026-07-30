@@ -1387,3 +1387,169 @@ class TestConcurrentValPass:
         # Reused -> t1 counted as resolved without running the agent.
         assert stats["resolved_count"] == 1
         assert "t1" in stats["resolved_ids"]
+
+
+class TestTrainEmptySkillbook:
+    """Two-phase train must SOLVE with an empty skillbook (distillation) while
+    learn still accumulates into the real book. Val phases keep using the real book."""
+
+    def test_train_predict_receives_empty_skillbook(self, tmp_path):
+        """run_instance(phase='train') hands predict an empty Skillbook even when
+        the accumulated global book is non-empty; learn receives the accumulated one."""
+        from ace import Skillbook, Skill
+        from runners.main_loop import ExperimentLoop
+
+        mock_predict = Mock()
+        mock_predict.run.return_value = Mock(
+            instance_id="django__django-1", exit_status="submitted",
+            patch="p", trajectory=[],
+        )
+        mock_evaluate = Mock()
+        mock_evaluate.run.return_value = Mock(
+            instance_id="django__django-1", resolved=False, feedback="Bad",
+        )
+        mock_learn = Mock()
+        mock_learn.run.return_value = Mock(skills_added=1)
+
+        loop = ExperimentLoop(
+            predict_phase=mock_predict, evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn, output_dir=tmp_path, run_name="t",
+            max_attempts=1, skillbook_mode="global",
+        )
+        # Seed the accumulated global book so we can prove predict does NOT see it.
+        loop.global_skillbook._skills["seed"] = Skill(
+            id="seed", section="debugging", content="should not reach predict",
+        )
+
+        instance = {"instance_id": "django__django-1", "repo": "django/django"}
+        loop.run_instance(instance, force_learn=True, phase="train")
+
+        # Predict got an EMPTY book (0 skills), not the seeded accumulated book.
+        pred_sb = mock_predict.run.call_args.kwargs["skillbook"]
+        assert isinstance(pred_sb, Skillbook)
+        assert len(pred_sb.skills()) == 0
+
+        # Learn got the accumulated book (the seeded skill is there).
+        learn_sb = mock_learn.run.call_args.kwargs["skillbook"]
+        assert len(learn_sb.skills()) == 1
+        assert learn_sb is loop.global_skillbook
+
+    def test_train_accumulates_across_instances_with_empty_predict(self, tmp_path):
+        """Two sequential train instances: each predict gets an empty book, but
+        learn still accumulates into the real book (instance 2's learn sees
+        instance 1's skill)."""
+        from ace import Skillbook, Skill
+        from runners.main_loop import ExperimentLoop
+
+        mock_predict = Mock()
+        mock_predict.run.return_value = Mock(
+            instance_id="x", exit_status="submitted", patch="p", trajectory=[],
+        )
+        mock_evaluate = Mock()
+        mock_evaluate.run.return_value = Mock(
+            instance_id="x", resolved=False, feedback="Bad",
+        )
+
+        # learn.run actually adds a skill to the passed (accumulated) book.
+        def learn_run(**kw):
+            iid = kw["instance"]["instance_id"]
+            kw["skillbook"]._skills[f"lesson-{iid}"] = Skill(
+                id=f"lesson-{iid}", section="debugging", content="x"
+            )
+            return Mock(skills_added=1)
+
+        mock_learn = Mock()
+        mock_learn.run.side_effect = learn_run
+
+        loop = ExperimentLoop(
+            predict_phase=mock_predict, evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn, output_dir=tmp_path, run_name="t",
+            max_attempts=1, skillbook_mode="global",
+        )
+
+        instances = [
+            {"instance_id": "django__django-1", "repo": "django/django"},
+            {"instance_id": "django__django-2", "repo": "django/django"},
+        ]
+        for inst in instances:
+            loop.run_instance(inst, force_learn=True, phase="train")
+
+        # Accumulation: the global book now holds both lessons.
+        assert len(loop.global_skillbook.skills()) == 2
+
+        # But every predict call still received an EMPTY book.
+        assert mock_predict.run.call_count == 2
+        for call in mock_predict.run.call_args_list:
+            assert len(call.kwargs["skillbook"].skills()) == 0
+
+    def test_val_predict_receives_real_skillbook(self, tmp_path):
+        """val (skillbook) pass: predict gets the real book, not an empty one."""
+        from ace import Skillbook, Skill
+        from runners.main_loop import ExperimentLoop
+
+        mock_predict = Mock()
+        mock_predict.prepare_skillbook.side_effect = (
+            lambda instance, skillbook, phase=None: (skillbook, None)
+        )
+        mock_predict.run.return_value = Mock(
+            instance_id="v-1", exit_status="submitted", patch="p", trajectory=[],
+        )
+        mock_evaluate = Mock()
+        mock_evaluate.run.return_value = Mock(
+            instance_id="v-1", resolved=False, feedback="Bad",
+        )
+
+        loop = ExperimentLoop(
+            predict_phase=mock_predict, evaluate_phase=mock_evaluate,
+            learn_phase=Mock(), output_dir=tmp_path, run_name="t",
+            max_attempts=1,
+        )
+        real_book = Skillbook()
+        real_book._skills["s1"] = Skill(id="s1", section="debugging", content="use me")
+
+        instance = {"instance_id": "v-1", "repo": "django/django"}
+        loop.run_instance(
+            instance, initial_skillbook=real_book, frozen_skillbook=True,
+            phase="val", max_attempts_override=1,
+        )
+
+        pred_sb = mock_predict.run.call_args.kwargs["skillbook"]
+        assert len(pred_sb.skills()) == 1  # the real book, not empty
+
+    def test_val_baseline_empty_and_global_book_not_mutated(self, tmp_path):
+        """val_baseline: predict gets the empty book passed in (not global_skillbook),
+        and global_skillbook is not mutated by frozen val passes."""
+        from ace import Skillbook, Skill
+        from runners.main_loop import ExperimentLoop
+
+        mock_predict = Mock()
+        mock_predict.prepare_skillbook.side_effect = (
+            lambda instance, skillbook, phase=None: (skillbook, None)
+        )
+        mock_predict.run.return_value = Mock(
+            instance_id="vb-1", exit_status="submitted", patch="p", trajectory=[],
+        )
+        mock_evaluate = Mock()
+        mock_evaluate.run.return_value = Mock(
+            instance_id="vb-1", resolved=False, feedback="Bad",
+        )
+        loop = ExperimentLoop(
+            predict_phase=mock_predict, evaluate_phase=mock_evaluate,
+            learn_phase=Mock(), output_dir=tmp_path, run_name="t",
+            max_attempts=1,
+        )
+        # Seed global book; val_baseline must NOT see or mutate it.
+        loop.global_skillbook._skills["seed"] = Skill(
+            id="seed", section="debugging", content="x"
+        )
+        before = len(loop.global_skillbook.skills())
+
+        instance = {"instance_id": "vb-1", "repo": "django/django"}
+        loop.run_instance(
+            instance, initial_skillbook=Skillbook(), frozen_skillbook=True,
+            phase="val_baseline", max_attempts_override=1,
+        )
+
+        pred_sb = mock_predict.run.call_args.kwargs["skillbook"]
+        assert len(pred_sb.skills()) == 0                 # empty baseline book
+        assert len(loop.global_skillbook.skills()) == before  # global untouched
