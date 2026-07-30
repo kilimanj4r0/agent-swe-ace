@@ -17,10 +17,11 @@ experiment:
       enabled: false
     retrieval:
       enabled: true
+      llm:
+        preset: qwen3-coder-30b-local-8800
+        overrides:
+          max_tokens: 2048
       type: "llm"                 # Two-stage LLM filter + rank (default retriever)
-      model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
-      api_base: "http://localhost:8800/v1"
-      api_key_env: "HOSTED_VLLM_API_KEY"
       top_k: 1                    # Retrieve 1 skill (forces a real filter)
       skip_threshold: 0           # Fire as soon as ≥1 skill exists on iter_1
 
@@ -33,16 +34,9 @@ agent:
   cost_limit: 0.0
 
 llm:
-  agent:
-    provider: "hosted_vllm"
-    api_key_env: "HOSTED_VLLM_API_KEY"
-    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
-    api_base: "http://localhost:8800/v1"
-  ace:
-    provider: "hosted_vllm"
-    api_key_env: "HOSTED_VLLM_API_KEY"
-    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
-    api_base: "http://localhost:8800/v1"
+  agent: qwen3-coder-30b-local-8800
+
+  ace: qwen3-coder-30b-local-8800
 
 output:
   dir: "_data"

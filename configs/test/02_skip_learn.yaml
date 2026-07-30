@@ -20,16 +20,9 @@ agent:
   cost_limit: 0.0
 
 llm:
-  agent:
-    provider: "hosted_vllm"
-    api_key_env: "HOSTED_VLLM_API_KEY"
-    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
-    api_base: "http://localhost:8800/v1"
-  ace:
-    provider: "hosted_vllm"
-    api_key_env: "HOSTED_VLLM_API_KEY"
-    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
-    api_base: "http://localhost:8800/v1"
+  agent: qwen3-coder-30b-local-8800
+
+  ace: qwen3-coder-30b-local-8800
 
 output:
   dir: "_data"

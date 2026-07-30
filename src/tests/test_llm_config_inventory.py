@@ -1,11 +1,18 @@
 """Golden-inventory checks for the LLM preset migration."""
 
 import json
+import sys
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
 SNAPSHOT = ROOT / "src/tests/fixtures/llm_config_legacy_snapshot.json"
+sys.path.insert(0, str(ROOT / "scripts"))
+
+from llm_config_inventory import (  # noqa: E402
+    compare_current_to_golden,
+    validate_commented_aliases,
+)
 
 
 def _snapshot() -> dict:
@@ -68,3 +75,18 @@ def test_legacy_snapshot_records_mixed_agent_ace_configs():
         "configs/princeton-nlp__SWE-bench_Verified/"
         "agent-qwen3-ace-qwen3next-full-4a-default.yaml",
     ]
+
+
+def test_migrated_test_configs_match_legacy_snapshot():
+    compare_current_to_golden(
+        ROOT,
+        SNAPSHOT,
+        include_prefixes=("configs/test.yaml", "configs/test/"),
+    )
+
+
+def test_migrated_test_config_comments_use_catalog_aliases():
+    validate_commented_aliases(
+        ROOT,
+        include_prefixes=("configs/test.yaml", "configs/test/"),
+    )
