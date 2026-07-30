@@ -13,10 +13,8 @@ To the expected run format:
 """
 
 import json
-import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 
 def get_instance_id_from_path(filename: str) -> str:
@@ -259,7 +257,7 @@ def main():
         run_name=args.run_name,
     )
 
-    print(f"\nTransformation complete!")
+    print("\nTransformation complete!")
     print(f"Total: {stats['total_instances']}")
     print(f"Resolved: {stats['resolved_count']} ({stats['resolution_rate']:.1%})")
     print(f"Unresolved: {stats['unresolved_count']}")

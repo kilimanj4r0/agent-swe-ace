@@ -310,8 +310,9 @@ def _load_mini_swe_config() -> dict:
     if _MINI_SWE_CONFIG is not None:
         return _MINI_SWE_CONFIG
 
-    import yaml
     from pathlib import Path
+
+    import yaml
 
     # Try to find the swebench config in minisweagent package
     try:

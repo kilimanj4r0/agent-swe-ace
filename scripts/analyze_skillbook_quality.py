@@ -24,8 +24,6 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-import numpy as np
-
 # ---------------------------------------------------------------------------
 # Configurable definitions
 # ---------------------------------------------------------------------------
@@ -2381,16 +2379,16 @@ def main():
         sys.exit(1)
 
     # Header
-    print(f"Skillbook Quality Analysis")
+    print("Skillbook Quality Analysis")
     print(f"  Tokenizer: {TOKEN_METHOD}")
     print(f"  Runs processed: {len(runs)}, skipped: {skipped}")
     print(f"  Definitions: explicit ref = skill ID cited selectively (below dump threshold); "
           f"dumped = IDs from list-dump messages (>=max({DUMP_MIN_IDS},min(presented,{DUMP_CAP_IDS})) IDs/message, agent echoing the list)")
-    print(f"  prose ref = agent refers to the skillbook by words (skill/skillbook, e.g. "
-          f"\"Based on the skill\", \"the skillbook suggests\") without citing an ID; "
-          f"any ref = explicit ∪ prose, deduplicated (data/skill_prose_phrasings.json)")
-    print(f"  general = process advice; specific = mentions concrete identifiers")
-    print(f"  General/specific classification: by content analysis (NOT by AVOID/VERIFIED/CONSIDER prefix)")
+    print("  prose ref = agent refers to the skillbook by words (skill/skillbook, e.g. "
+          "\"Based on the skill\", \"the skillbook suggests\") without citing an ID; "
+          "any ref = explicit ∪ prose, deduplicated (data/skill_prose_phrasings.json)")
+    print("  general = process advice; specific = mentions concrete identifiers")
+    print("  General/specific classification: by content analysis (NOT by AVOID/VERIFIED/CONSIDER prefix)")
     print()
 
     # Outputs

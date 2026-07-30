@@ -224,7 +224,7 @@ ax.grid(False)
 savefig(fig, "05_per_repo_heatmap.png")
 """),
 
-    ("md", f"""\
+    ("md", """\
 ## 6. Per-repo bars (avg / p@5 / p@10 / p@max)
 
 Repos sorted by pass@max (solvable ceiling). The gap between avg and pass@max

@@ -1,8 +1,7 @@
 """SWEBenchEnvironment - TaskEnvironment for SWE-bench evaluation."""
 
-from typing import Optional
 
-from ace import TaskEnvironment, EnvironmentResult, Sample
+from ace import EnvironmentResult, Sample, TaskEnvironment
 from ace.core.outputs import AgentOutput
 from loguru import logger
 

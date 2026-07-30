@@ -3,9 +3,10 @@
 
 import json
 import sys
-import pytest
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -225,8 +226,8 @@ class TestPredictPhaseWithRetriever:
 
     def test_retrieval_on_val_phase(self, tmp_path):
         """Retrieval triggers on phase='val' (val skillbook pass)."""
-        from phases.predict import PredictPhase
         from agents.miniswe_agent import AgentResult
+        from phases.predict import PredictPhase
 
         mock_skillbook = Mock()
         skills = [_make_skill(f"s{i}", f"Sec{i}", f"Content {i}") for i in range(15)]
@@ -254,8 +255,8 @@ class TestPredictPhaseWithRetriever:
 
     def test_retrieval_on_single_phase(self, tmp_path):
         """Retrieval triggers when phase=None (single-phase / per_instance)."""
-        from phases.predict import PredictPhase
         from agents.miniswe_agent import AgentResult
+        from phases.predict import PredictPhase
 
         mock_skillbook = Mock()
         skills = [_make_skill(f"s{i}") for i in range(15)]
@@ -282,8 +283,8 @@ class TestPredictPhaseWithRetriever:
 
     def test_retrieval_skipped_on_train_phase(self, tmp_path):
         """Retrieval skipped on phase='train'."""
-        from phases.predict import PredictPhase
         from agents.miniswe_agent import AgentResult
+        from phases.predict import PredictPhase
 
         mock_skillbook = Mock()
         skills = [_make_skill(f"s{i}") for i in range(15)]
@@ -306,8 +307,8 @@ class TestPredictPhaseWithRetriever:
 
     def test_retrieval_skipped_on_val_baseline_phase(self, tmp_path):
         """Retrieval skipped on phase='val_baseline'."""
-        from phases.predict import PredictPhase
         from agents.miniswe_agent import AgentResult
+        from phases.predict import PredictPhase
 
         mock_skillbook = Mock()
         skills = [_make_skill(f"s{i}") for i in range(15)]
@@ -329,8 +330,8 @@ class TestPredictPhaseWithRetriever:
         mock_retriever.retrieve.assert_not_called()
 
     def test_no_retriever_passes_through(self, tmp_path):
-        from phases.predict import PredictPhase
         from agents.miniswe_agent import AgentResult
+        from phases.predict import PredictPhase
 
         mock_skillbook = Mock()
         skills = [_make_skill(f"s{i}") for i in range(5)]

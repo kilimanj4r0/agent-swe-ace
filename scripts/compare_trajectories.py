@@ -331,7 +331,7 @@ def print_trajectory_comparison(runs_data: dict[str, dict[str, dict]]):
         print(f"  Avg cmd count diff:          {sum(cmd_diffs) / len(cmd_diffs):.1f}")
 
         # Largest structural outliers
-        print(f"\n  Top structural outliers (by msg count diff):")
+        print("\n  Top structural outliers (by msg count diff):")
         diffs = [(abs(a_trajs[i]["msg_count"] - b_trajs[i]["msg_count"]), i) for i in common]
         diffs.sort(reverse=True)
         print(f"    {'Instance':<45s} {'MsgDiff':>8s} {'CmdDiff':>8s} {'PatchA':>14s} {'PatchB':>14s} {'ResA':>8s} {'ResB':>8s}")

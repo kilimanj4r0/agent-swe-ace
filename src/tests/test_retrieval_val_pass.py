@@ -26,8 +26,8 @@ def _big_skillbook(n=20):
 
 class TestRetrievalOncePerInstance:
     def test_frozen_val_pass_retrieves_once_across_k_attempts(self, tmp_path):
-        from runners.main_loop import ExperimentLoop
         from phases.predict import PredictPhase
+        from runners.main_loop import ExperimentLoop
 
         sb = _big_skillbook(20)
 
@@ -93,8 +93,8 @@ class TestWorkerPredictForwardsRetriever:
     """
 
     def test_make_worker_predict_forwards_skill_retriever(self, tmp_path):
-        from runners.main_loop import ExperimentLoop
         from phases.predict import PredictPhase
+        from runners.main_loop import ExperimentLoop
 
         retriever = Mock()
         retriever.skip_threshold = 0

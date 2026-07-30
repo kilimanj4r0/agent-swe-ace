@@ -9,8 +9,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from agents.context_manager import (
     estimate_tokens,
-    truncate_message_content,
     is_format_error,
+    truncate_message_content,
     truncate_messages,
 )
 

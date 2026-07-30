@@ -2,8 +2,8 @@
 
 from typing import List
 
-from pydantic import BaseModel, Field, model_validator
 from ace.core.outputs import ExtractedLearning, ReflectorOutput
+from pydantic import BaseModel, Field, model_validator
 
 
 class AntiPattern(BaseModel):

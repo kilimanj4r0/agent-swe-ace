@@ -329,7 +329,7 @@ def render_report(
     parts.append(fmt_failure_table(lite_default_mixes, LITE_BACKBONES))
     parts.append("")
     parts.append(
-        f"*pass@4 context: "
+        "*pass@4 context: "
         + " · ".join(
             f"{bb} pass@1={lite_default_pk[bb]['pass1']:.1f}% "
             f"pass@4={lite_default_pk[bb]['passK']:.1f}% "
@@ -382,7 +382,7 @@ def render_report(
     parts.append(fmt_failure_table(sv_valbl_global_mixes, SV_BACKBONES))
     parts.append("")
     parts.append(
-        f"*pass@5 context: "
+        "*pass@5 context: "
         + " · ".join(
             f"{bb} pass@1={sv_valbl_global_pk[bb]['pass1']:.1f}% "
             f"pass@5={sv_valbl_global_pk[bb]['passK']:.1f}% "
@@ -423,7 +423,7 @@ def render_report(
     parts.append(fmt_failure_table(sv_val_global_mixes, SV_BACKBONES))
     parts.append("")
     parts.append(
-        f"*pass@5 context (val / skillbook): "
+        "*pass@5 context (val / skillbook): "
         + " · ".join(
             f"{bb} pass@1={sv_val_global_pk[bb]['pass1']:.1f}% "
             f"pass@5={sv_val_global_pk[bb]['passK']:.1f}%"
@@ -504,12 +504,12 @@ def render_report(
         f"non-submissions into resolutions, it just reshuffles them.\n"
     )
     parts.append(
-        f"- **Design implication.** The right knob differs per backbone: Q30 "
-        f"benefits from anything that raises submission rate (skillbook guidance, "
-        f"lower step limit forcing commitment, format guards); QNext benefits "
-        f"from crash-recovery (the existing retry budget) and a larger context "
-        f"window / earlier-submit heuristic on Verified. GLM is the stable middle "
-        f"— low crash rate, low no_patch, failures are genuine test failures.\n"
+        "- **Design implication.** The right knob differs per backbone: Q30 "
+        "benefits from anything that raises submission rate (skillbook guidance, "
+        "lower step limit forcing commitment, format guards); QNext benefits "
+        "from crash-recovery (the existing retry budget) and a larger context "
+        "window / earlier-submit heuristic on Verified. GLM is the stable middle "
+        "— low crash rate, low no_patch, failures are genuine test failures.\n"
     )
 
     return "\n".join(parts) + "\n"

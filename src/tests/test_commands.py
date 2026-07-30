@@ -11,12 +11,12 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from cli.commands import (
+    _load_split_manifest,
+    _persist_per_repo_skillbook,
+    _split_from_manifest,
     _strict_exit_code,
     deep_merge,
-    _load_split_manifest,
-    _split_from_manifest,
     split_instances,
-    _persist_per_repo_skillbook,
 )
 
 
@@ -445,6 +445,7 @@ class TestResolveIterateReposConcurrency:
 
     def test_legacy_concurrency_of_one_does_not_warn(self, caplog):
         import logging
+
         from cli.commands import _resolve_iterate_repos_concurrency
         with caplog.at_level(logging.WARNING):
             assert _resolve_iterate_repos_concurrency({"concurrency": 1}) == 1
@@ -465,7 +466,7 @@ class TestPersistPerRepoSkillbook:
     """
 
     def test_writes_sources_and_correct_path(self, tmp_path):
-        from ace import Skillbook, Skill
+        from ace import Skill, Skillbook
 
         sb = Skillbook()
         sb._skills["debugging-00001"] = Skill(
@@ -499,7 +500,7 @@ class TestPersistPerRepoSkillbook:
 
     def test_every_skill_carries_sources_key(self, tmp_path):
         """Skills with empty sources still get the key — no field drift."""
-        from ace import Skillbook, Skill
+        from ace import Skill, Skillbook
 
         sb = Skillbook()
         for i in range(3):

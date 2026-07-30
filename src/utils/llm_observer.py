@@ -82,7 +82,7 @@ def enable_observability(
 
     except ImportError as e:
         logger.warning(f"Opik/LiteLLM integration not available: {e}")
-        print(f"Install with: pip install opik litellm")
+        print("Install with: pip install opik litellm")
         print(f"   Error: {e}")
         _enabled = False
     except Exception as e:

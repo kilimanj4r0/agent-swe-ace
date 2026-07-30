@@ -37,7 +37,6 @@ import os
 import sys
 
 import numpy as np
-
 from q1_stat_tests import (
     bh_fdr,
     boot_ci,
@@ -48,7 +47,6 @@ from q1_stat_tests import (
     ttest_paired,
     wilcoxon,
 )
-
 
 # ---------- data loading ----------
 
@@ -500,9 +498,9 @@ def write_report(rows_60v5, rows_5v5, args):
              f"byte-identical to the source `[orig]` run) instead of running it fresh, "
              f"so they have no independent BL5 and no fair 5v5. The {n_orig} `[orig]` "
              f"runs ran val_baseline fresh (12 distinct baselines) and get both designs.")
-    L.append(f"- **valBL60 is shared**: identical in every 60v5 row, so 60v5 significance "
-             f"reflects each run's skillbook, not baseline noise. valBL5 in the 5v5 rows "
-             f"is per-run (each run's own 5 attempts) — no longer a shared control.")
+    L.append("- **valBL60 is shared**: identical in every 60v5 row, so 60v5 significance "
+             "reflects each run's skillbook, not baseline noise. valBL5 in the 5v5 rows "
+             "is per-run (each run's own 5 attempts) — no longer a shared control.")
     L.append(f"- **valSB has only {sbn} attempts** → coarse per-instance rates "
              f"(multiples of 1/{sbn}): many ties/zeros in the Wilcoxon (handled, "
              f"n_pairs reported) and a coarse signal for the t-test.")

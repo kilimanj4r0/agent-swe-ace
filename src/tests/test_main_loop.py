@@ -299,8 +299,9 @@ class TestSkillbookModes:
 
     def test_per_instance_mode(self, tmp_path):
         """Test per-instance skillbook mode (default)."""
-        from runners.main_loop import ExperimentLoop
         from ace import Skillbook
+
+        from runners.main_loop import ExperimentLoop
 
         mock_predict = Mock()
         mock_evaluate = Mock()
@@ -321,8 +322,9 @@ class TestSkillbookModes:
 
     def test_global_mode(self, tmp_path):
         """Test global skillbook mode."""
+        from ace import Skill
+
         from runners.main_loop import ExperimentLoop
-        from ace import Skillbook, Skill
 
         mock_predict = Mock()
         mock_evaluate = Mock()
@@ -353,8 +355,8 @@ class TestResumeSupport:
 
     def test_resume_skips_complete_instance(self, tmp_path):
         """Fully complete instances should be skipped (start_iteration=-1)."""
-        from runners.main_loop import ExperimentLoop
         from data_io.resume_scanner import ResumePoint
+        from runners.main_loop import ExperimentLoop
 
         mock_predict = Mock()
         mock_evaluate = Mock()
@@ -381,8 +383,8 @@ class TestResumeSupport:
 
     def test_resume_continues_partial_instance(self, tmp_path):
         """Partial instances should continue from last_complete_iter + 1."""
-        from runners.main_loop import ExperimentLoop
         from data_io.resume_scanner import ResumePoint
+        from runners.main_loop import ExperimentLoop
 
         mock_predict = Mock()
         mock_evaluate = Mock()
@@ -410,9 +412,10 @@ class TestResumeSupport:
 
     def test_resume_copies_artifacts(self, tmp_path):
         """Partial resume should copy artifacts from source directory."""
-        from runners.main_loop import ExperimentLoop
-        from data_io.resume_scanner import ResumePoint
         import json
+
+        from data_io.resume_scanner import ResumePoint
+        from runners.main_loop import ExperimentLoop
 
         # Create source directory with artifacts
         source_dir = tmp_path / "source"
@@ -681,8 +684,8 @@ class TestPerRepoMode:
 
     def test_per_repo_mode(self, tmp_path):
         """Skillbook accumulates across instances from the same repo."""
+
         from runners.main_loop import ExperimentLoop
-        from ace import Skillbook
 
         loop = ExperimentLoop(
             predict_phase=Mock(),
@@ -982,8 +985,9 @@ class TestTrainBaselineReuse:
 
     def test_two_phase_with_baseline_reuse_stats(self, tmp_path):
         """Full two-phase run with baseline reuse produces correct statistics."""
-        from runners.main_loop import ExperimentLoop
         import json
+
+        from runners.main_loop import ExperimentLoop
 
         # Setup baseline dir with one train instance that has valid data
         baseline_dir = tmp_path / "baseline"
@@ -1124,6 +1128,7 @@ class TestPredictPhaseInjection:
 
     def test_injected_predict_phase_is_used(self, tmp_path):
         from ace import Skillbook
+
         from runners.main_loop import ExperimentLoop
 
         injected = Mock()
@@ -1185,7 +1190,9 @@ class TestTrainSequentialInTwoPhase:
     def test_train_runs_one_at_a_time(self, tmp_path):
         import threading
         import time
+
         from ace import Skillbook
+
         from runners.main_loop import ExperimentLoop
 
         active = [0]
@@ -1279,6 +1286,7 @@ class TestConcurrentValPass:
 
     def test_concurrent_matches_sequential(self, tmp_path):
         from ace import Skillbook
+
         from runners.main_loop import InstanceResult
 
         def fake_run_instance(inst, **kw):
@@ -1303,6 +1311,7 @@ class TestConcurrentValPass:
 
     def test_worker_exception_recorded_as_infrastructure_error(self, tmp_path):
         from ace import Skillbook
+
         from runners.main_loop import InstanceResult
 
         def fake_run_instance(inst, **kw):
@@ -1329,7 +1338,9 @@ class TestConcurrentValPass:
     def test_instances_actually_run_in_parallel(self, tmp_path):
         import threading
         import time
+
         from ace import Skillbook
+
         from runners.main_loop import InstanceResult
 
         active = [0]
@@ -1396,8 +1407,8 @@ class TestConcurrentValPass:
     def test_eval_on_train_runs_two_train_passes_and_skips_val(self, tmp_path):
         """eval_on_train=True: _run_val_pass called twice on TRAIN instances
         (train_eval_baseline empty, train_eval learned) and NOT on val."""
+
         from runners.main_loop import ExperimentLoop
-        from ace import Skillbook
 
         mock_predict = Mock()
         mock_predict.prepare_skillbook.side_effect = (
@@ -1447,8 +1458,8 @@ class TestConcurrentValPass:
     def test_eval_on_train_statistics_blocks(self, tmp_path):
         """Returned stats carry train_eval_phase + train_eval_baseline_phase and
         a train summary; val_*_phase absent; top-level mirrors TrainSB."""
+
         from runners.main_loop import ExperimentLoop
-        from ace import Skillbook
 
         mock_predict = Mock()
         mock_predict.prepare_skillbook.side_effect = (
@@ -1523,8 +1534,9 @@ class TestConcurrentValPass:
     def test_train_eval_baseline_reuses_baseline_train_results(self, tmp_path):
         """TrainBL reuses empty-skillbook results from baseline_dir/results/train
         when present, instead of re-executing."""
-        from runners.main_loop import ExperimentLoop
         from ace import Skillbook
+
+        from runners.main_loop import ExperimentLoop
 
         bench = "princeton-nlp__SWE-bench_Lite"
         baseline_dir = tmp_path / "baseline"
@@ -1564,7 +1576,8 @@ class TestTrainEmptySkillbook:
     def test_train_predict_receives_empty_skillbook(self, tmp_path):
         """run_instance(phase='train') hands predict an empty Skillbook even when
         the accumulated global book is non-empty; learn receives the accumulated one."""
-        from ace import Skillbook, Skill
+        from ace import Skill, Skillbook
+
         from runners.main_loop import ExperimentLoop
 
         mock_predict = Mock()
@@ -1606,7 +1619,8 @@ class TestTrainEmptySkillbook:
         """Two sequential train instances: each predict gets an empty book, but
         learn still accumulates into the real book (instance 2's learn sees
         instance 1's skill)."""
-        from ace import Skillbook, Skill
+        from ace import Skill
+
         from runners.main_loop import ExperimentLoop
 
         mock_predict = Mock()
@@ -1652,7 +1666,8 @@ class TestTrainEmptySkillbook:
 
     def test_val_predict_receives_real_skillbook(self, tmp_path):
         """val (skillbook) pass: predict gets the real book, not an empty one."""
-        from ace import Skillbook, Skill
+        from ace import Skill, Skillbook
+
         from runners.main_loop import ExperimentLoop
 
         mock_predict = Mock()
@@ -1687,7 +1702,8 @@ class TestTrainEmptySkillbook:
     def test_val_baseline_empty_and_global_book_not_mutated(self, tmp_path):
         """val_baseline: predict gets the empty book passed in (not global_skillbook),
         and global_skillbook is not mutated by frozen val passes."""
-        from ace import Skillbook, Skill
+        from ace import Skill, Skillbook
+
         from runners.main_loop import ExperimentLoop
 
         mock_predict = Mock()

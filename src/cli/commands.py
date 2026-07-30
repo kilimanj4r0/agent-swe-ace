@@ -10,7 +10,6 @@ from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import yaml
 from datasets import load_dataset
@@ -22,17 +21,17 @@ _src_dir = Path(__file__).parent.parent
 if str(_src_dir) not in sys.path:
     sys.path.insert(0, str(_src_dir))
 
-from config.llm import LLMConfig, create_model, create_ace_client, create_model_settings
 from agents.miniswe_agent import MiniSWEAgent
-from phases.predict import PredictPhase
+from config.llm import LLMConfig, create_ace_client, create_model, create_model_settings
+from data_io.readers import load_skillbook, load_trajectory
+from data_io.writers import get_run_dir, save_config, save_statistics, skill_to_dict
 from phases.evaluate import EvaluatePhase
 from phases.learn import LearnPhase
+from phases.predict import PredictPhase
+from retrieval import BM25Retriever, EmbeddingRetriever, RandomRetriever, SkillRetriever
 from runners.main_loop import ExperimentLoop
-from retrieval import SkillRetriever, RandomRetriever, EmbeddingRetriever, BM25Retriever
-from data_io.readers import load_skillbook, load_trajectory
-from data_io.writers import save_config, save_statistics, get_run_dir, skill_to_dict
-from utils.logging import setup_logging
 from utils.llm_observer import enable_observability
+from utils.logging import setup_logging
 
 load_dotenv(_src_dir.parent / ".env")
 
@@ -51,7 +50,6 @@ def apply_litellm_config(config: dict):
         litellm.suppress_debug_info = True
     level_name = litellm_settings.get("log_level", "WARNING")
     litellm.log_level = level_name
-    import logging
     litellm.verbose_logger.setLevel(level_name)
     for handler in litellm.verbose_logger.handlers:
         handler.setLevel(level_name)
@@ -509,7 +507,8 @@ def _build_ace_components(config: dict):
     ace_client = create_ace_client(ace_config.to_dict())
     ace_settings = create_model_settings(ace_config.to_dict())
 
-    from ace import SkillManager, Reflector as DefaultReflector
+    from ace import Reflector as DefaultReflector
+    from ace import SkillManager
     from pydantic_ai.settings import ModelSettings
 
     custom_swe_learn = config.get("experiment", {}).get("skillbook", {}).get("custom_swe_learn", False)
@@ -609,7 +608,7 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
     print(f"  Max attempts:      {max_attempts}")
     print(f"  Val pass K:        {val_pass_k}")
     if skip_learn:
-        print(f"  Skip learn:        True (Learn phase disabled)")
+        print("  Skip learn:        True (Learn phase disabled)")
     else:
         print(f"  Force learn:       {exp.get('force_learn', True)}")
     if dedup:
@@ -728,9 +727,9 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
 
         # Per-repo train source
         if skillbook_source_dir:
-            print(f"  Train:             SKIPPED (validation-only)")
+            print("  Train:             SKIPPED (validation-only)")
         elif train_trajs_dir:
-            print(f"  Train:             teacher distillation")
+            print("  Train:             teacher distillation")
         elif baseline_run_dir:
             print(f"  Train:             baseline reuse from {baseline_run_dir}")
 
@@ -741,7 +740,7 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
         train_instances, val_instances = split_instances(instances, config)
         is_two_phase = len(val_instances) > 0
 
-        print(f"\nSplit:")
+        print("\nSplit:")
         print(f"  Train:             {len(train_instances)} instances")
         print(f"  Val:               {len(val_instances)} instances")
         if is_two_phase:
@@ -758,7 +757,7 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
                 print(f"  Val ratio:         {actual_ratio} (from config)")
 
         # ── 6. Resume ────────────────────────────────────────────────────
-        print(f"\nResume:")
+        print("\nResume:")
         if resume_dirs:
             from data_io.resume_scanner import scan_resume_dirs
 
@@ -793,7 +792,7 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
                 print(f"  Val partial:       {len(val_partial)} (continue)")
                 print(f"  Val fresh:         {len(val_fresh)} (new)")
         else:
-            print(f"  None — all instances processed from scratch")
+            print("  None — all instances processed from scratch")
 
         # ── 7. Baseline / Teacher coverage ───────────────────────────────
         if baseline_run_dir and not is_two_phase:
@@ -805,12 +804,12 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
                     1 for iid in (i["instance_id"] for i in train_instances)
                     if (baseline_traj_dir / iid / "iter_0.json").exists()
                 )
-            print(f"\nBaseline reuse:")
+            print("\nBaseline reuse:")
             print(f"  Available:         {baseline_count}/{len(train_instances)} instances")
             print(f"  Remaining:         {len(train_instances) - baseline_count} will run from scratch")
 
         if baseline_run_dir and is_two_phase:
-            print(f"\nBaseline reuse:")
+            print("\nBaseline reuse:")
             print(f"  Reuse from:        {baseline_run_dir} (val baseline)")
 
         if train_trajs_dir and is_two_phase:
@@ -820,37 +819,37 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
                     1 for i in train_instances
                     if (_trajs_dir / i["instance_id"] / f"{i['instance_id']}.traj.json").exists()
                 )
-                print(f"\nTeacher trajectory coverage:")
+                print("\nTeacher trajectory coverage:")
                 print(f"  Available:         {_covered}/{len(train_instances)} train instances")
                 print(f"  Skipped:           {len(train_instances) - _covered} (no teacher traj)")
 
         if skillbook_source_dir:
-            print(f"\nValidation-only mode:")
+            print("\nValidation-only mode:")
             print(f"  Skillbook source:  {skillbook_source_dir}")
-            print(f"  Training:          SKIPPED entirely")
+            print("  Training:          SKIPPED entirely")
 
     # ── 8. Execution Plan ────────────────────────────────────────────────
-    print(f"\nExecution Plan:")
+    print("\nExecution Plan:")
     if iterate_repos_list:
         concurrency = _resolve_iterate_repos_concurrency(exp)
         if concurrency > 1:
             workers = min(concurrency, len(iterate_repos_list))
             print(f"  Mode:              iterate_repos ({workers} repos in parallel)")
         else:
-            print(f"  Mode:              iterate_repos (sequential)")
+            print("  Mode:              iterate_repos (sequential)")
         print(f"  Per repo:          train → val baseline ({val_pass_k} attempt(s)) → val skillbook ({val_pass_k} attempt(s))")
         if skillbook_source_dir:
-            print(f"  Train:             SKIPPED (validation-only)")
+            print("  Train:             SKIPPED (validation-only)")
         elif train_trajs_dir:
-            print(f"  Train:             learn-only from teacher trajectories")
+            print("  Train:             learn-only from teacher trajectories")
         else:
             print(f"  Train:             {max_attempts} attempt(s), force_learn=True")
         print(f"  Skillbook:         {sb.get('mode', 'per_instance')} mode")
         if dedup:
-            print(f"  Post-train dedup:  enabled")
+            print("  Post-train dedup:  enabled")
     elif is_two_phase:
-        print(f"  Mode:              Two-phase (train → val baseline → val skillbook)")
-        print(f"  Phase 1 - Train:")
+        print("  Mode:              Two-phase (train → val baseline → val skillbook)")
+        print("  Phase 1 - Train:")
         if skillbook_source_dir:
             print(f"    SKIPPED (validation-only, skillbook loaded from {skillbook_source_dir})")
         elif train_trajs_dir:
@@ -864,23 +863,23 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
         if not skillbook_source_dir:
             print(f"    Skillbook: {sb.get('mode', 'per_instance')} mode, accumulates across train")
             if dedup:
-                print(f"    Post-train dedup: enabled")
-        print(f"  Phase 2 - Val baseline:")
+                print("    Post-train dedup: enabled")
+        print("  Phase 2 - Val baseline:")
         print(f"    {len(val_instances)} instances × {val_pass_k} attempt(s), empty skillbook, frozen")
         if baseline_run_dir:
             print(f"    Reuse results from: {baseline_run_dir} (up to {val_pass_k} iterations)")
-        print(f"  Phase 3 - Val skillbook:")
+        print("  Phase 3 - Val skillbook:")
         print(f"    {len(val_instances)} instances × {val_pass_k} attempt(s), learned skillbook, frozen")
     else:
-        print(f"  Mode:              Single-phase")
+        print("  Mode:              Single-phase")
         print(f"  Instances:         {len(train_instances)} × up to {max_attempts} attempts")
         if baseline_run_dir:
-            print(f"  iter_0:            reuse predict+eval from baseline, then learn + continue")
+            print("  iter_0:            reuse predict+eval from baseline, then learn + continue")
         else:
             if skip_learn:
-                print(f"  Per instance:      predict → evaluate (no learning)")
+                print("  Per instance:      predict → evaluate (no learning)")
             else:
-                print(f"  Per instance:      predict → evaluate → (if unresolved) learn → retry")
+                print("  Per instance:      predict → evaluate → (if unresolved) learn → retry")
 
     concurrency = exp.get("concurrency", 1)
     if concurrency > 1:
@@ -890,7 +889,7 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
     # ── 9. Limits ────────────────────────────────────────────────────────
     ctx = agent_cfg.get("context", {})
     agent_llm = llm_cfg.get("agent", {})
-    print(f"\nLimits:")
+    print("\nLimits:")
     print(f"  Step limit:        {agent_cfg.get('step_limit', 100)}")
     print(f"  Cost limit:        ${agent_cfg.get('cost_limit', 5.0):.2f}")
     print(f"  Context window:    {ctx.get('context_window', 65536)}")
@@ -902,7 +901,7 @@ def _run_dry_run(config: dict, args, output_dir: Path, run_name: str):
     obs_cfg = config.get("observability", {})
     if args.observe or obs_cfg.get("enabled", False):
         project = obs_cfg.get("project_name", "agent-swe-ace")
-        print(f"\nObservability:")
+        print("\nObservability:")
         print(f"  Project:           {project}_{output_dir.name}")
 
     # ── 11. Instance IDs ─────────────────────────────────────────────────
@@ -943,7 +942,6 @@ def _run_single_repo_experiment(
 
     Returns the statistics dict from the experiment run.
     """
-    from ace import SkillManager, Reflector as DefaultReflector
 
     # Split repo instances into train/val
     train_instances, val_instances = split_instances(repo_instances, config, repo=repo)
@@ -1388,7 +1386,8 @@ def _run_iterate_repos(config: dict, args, output_dir: Path):
     # ACE reflector + skill manager (shared, stateless per call)
     ace_model = create_ace_client(ace_config.to_dict())
     ace_settings = create_model_settings(ace_config.to_dict())
-    from ace import SkillManager, Reflector as DefaultReflector
+    from ace import Reflector as DefaultReflector
+    from ace import SkillManager
     from pydantic_ai.settings import ModelSettings
 
     custom_swe_learn = config.get("experiment", {}).get("skillbook", {}).get("custom_swe_learn", False)
@@ -1582,7 +1581,8 @@ def run_full_experiment(config: dict, args):
 
     agent = agent_factory()
 
-    from ace import SkillManager, Reflector as DefaultReflector
+    from ace import Reflector as DefaultReflector
+    from ace import SkillManager
     from pydantic_ai.settings import ModelSettings
 
     # Check config for custom SWE learning (reflector + skill manager)
@@ -1769,7 +1769,7 @@ def run_predict_cmd(config: dict, args):
         agent_llm_cfg = config.get("llm", {}).get("agent", {})
         agent_cfg = config.get("agent", {})
         ctx = agent_cfg.get("context", {})
-        print(f"\n=== DRY RUN: predict ===")
+        print("\n=== DRY RUN: predict ===")
         print(f"  Run name:          {run_name}")
         print(f"  Output:            {output_dir}")
         print(f"  Instance:          {args.instance}")
@@ -1783,7 +1783,7 @@ def run_predict_cmd(config: dict, args):
         print(f"  Max tokens:        {agent_llm_cfg.get('max_tokens', 4096)}")
         print(f"  Keep recent msgs:  {ctx.get('keep_recent_messages', 6)}")
         print(f"  Truncate thresh:   {ctx.get('truncate_threshold', 0.85)}")
-        print(f"\n=== END DRY RUN ===")
+        print("\n=== END DRY RUN ===")
         sys.exit(0)
 
     # Create agent
@@ -1812,7 +1812,7 @@ def run_predict_cmd(config: dict, args):
     phase = PredictPhase(agent=agent, output_dir=output_dir, run_name=run_name, benchmark=benchmark, skill_retriever=_retriever)
     result = phase.run(instance=instance, skillbook=skillbook, iteration=args.iteration)
 
-    print(f"\nPredict result:")
+    print("\nPredict result:")
     print(f"  Exit status: {result.exit_status}")
     print(f"  Patch length: {len(result.patch)} chars")
     print(f"  Trajectory: {result.trajectory_path}")
@@ -1842,7 +1842,7 @@ def run_evaluate_cmd(config: dict, args):
             patch_source = f"(from --trajectory: {args.trajectory})"
         else:
             patch_source = "NOT SPECIFIED"
-        print(f"\n=== DRY RUN: evaluate ===")
+        print("\n=== DRY RUN: evaluate ===")
         print(f"  Run name:          {run_name}")
         print(f"  Output:            {output_dir}")
         print(f"  Instance:          {args.instance}")
@@ -1851,7 +1851,7 @@ def run_evaluate_cmd(config: dict, args):
         print(f"  Docker:            {eval_cfg.get('use_docker', True)}")
         print(f"  Timeout:           {eval_cfg.get('timeout', 1800)}s")
         print(f"  RM image:          {eval_cfg.get('rm_image', True)}")
-        print(f"\n=== END DRY RUN ===")
+        print("\n=== END DRY RUN ===")
         sys.exit(0)
 
     # Get patch
@@ -1877,7 +1877,7 @@ def run_evaluate_cmd(config: dict, args):
     )
     result = phase.run(instance=instance, patch=patch, iteration=args.iteration)
 
-    print(f"\nEvaluate result:")
+    print("\nEvaluate result:")
     print(f"  Resolved: {result.resolved}")
     print(f"  Feedback: {result.feedback}")
     print(f"  Result: {result.result_path}")
@@ -1905,7 +1905,7 @@ def run_learn_cmd(config: dict, args):
     if args.dry_run:
         ace_cfg = config.get("llm", {}).get("ace", {})
         custom_swe = config.get("experiment", {}).get("skillbook", {}).get("custom_swe_learn", False)
-        print(f"\n=== DRY RUN: learn ===")
+        print("\n=== DRY RUN: learn ===")
         print(f"  Run name:          {run_name}")
         print(f"  Output:            {output_dir}")
         print(f"  Instance:          {args.instance}")
@@ -1914,7 +1914,7 @@ def run_learn_cmd(config: dict, args):
         print(f"  ACE model:         {ace_cfg.get('model', 'not set')}")
         print(f"  Custom SWE:        {custom_swe}")
         print(f"  Skillbook mode:    {config.get('experiment', {}).get('skillbook', {}).get('mode', 'per_instance')}")
-        print(f"\n=== END DRY RUN ===")
+        print("\n=== END DRY RUN ===")
         sys.exit(0)
 
     # Load trajectory
@@ -1943,7 +1943,7 @@ def run_learn_cmd(config: dict, args):
         iteration=args.iteration,
     )
 
-    print(f"\nLearn result:")
+    print("\nLearn result:")
     print(f"  Skills added: {result.skills_added}")
     print(f"  Skills updated: {result.skills_updated}")
     print(f"  Skillbook: {result.skillbook_path}")
@@ -2085,6 +2085,7 @@ def run_learn_replay_cmd(config: dict, args, lr: dict):
     scratch_dir.mkdir(parents=True, exist_ok=True)
 
     from ace import Skillbook
+
     from runners.main_loop import _build_ground_truth
 
     def _replay_one_repo(repo):

@@ -66,8 +66,8 @@ def gather(args):
 
 
 def analyze(name, emb, contents, group, gname, thr, mink, maxk, cross=False):
-    from sklearn.cluster import KMeans, HDBSCAN
-    from sklearn.metrics import silhouette_score, adjusted_rand_score
+    from sklearn.cluster import HDBSCAN, KMeans
+    from sklearn.metrics import adjusted_rand_score, silhouette_score
 
     n = len(emb)
     sim = emb @ emb.T

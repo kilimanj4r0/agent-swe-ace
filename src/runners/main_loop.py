@@ -13,11 +13,10 @@ from typing import Any, Callable, Dict, List, Optional
 from ace import Skillbook
 from loguru import logger
 
+from data_io.resume_scanner import ResumePoint, copy_instance_artifacts
+from data_io.writers import save_config, save_statistics
 from phases.evaluate import EvaluateResult
 from phases.predict import PredictResult
-
-from data_io.resume_scanner import ResumePoint, copy_instance_artifacts
-from data_io.writers import save_statistics, save_config
 
 
 def _build_ground_truth(instance: Dict[str, Any], max_chars: int = 512) -> str:
@@ -39,7 +38,8 @@ def _build_ground_truth(instance: Dict[str, Any], max_chars: int = 512) -> str:
     if len(result) > max_chars:
         result = result[:max_chars] + f"\n... (truncated, {len(result)} total chars)"
     return result
-from utils.llm_observer import get_project_url, is_enabled as is_observability_enabled
+from utils.llm_observer import get_project_url
+from utils.llm_observer import is_enabled as is_observability_enabled
 from utils.logging import instance_context
 
 
@@ -869,7 +869,7 @@ class ExperimentLoop:
                     final_skillbook = preloaded_skillbook
                     skill_count = len(final_skillbook.skills())
                     logger.info(f"\n{'='*60}")
-                    logger.info(f"VALIDATION-ONLY MODE (training skipped)")
+                    logger.info("VALIDATION-ONLY MODE (training skipped)")
                     logger.info(f"Loaded skillbook: {skill_count} skills")
                     logger.info(f"{'='*60}")
                 else:
@@ -884,7 +884,7 @@ class ExperimentLoop:
 
                     skill_count = len(final_skillbook.skills())
                     logger.info(f"\n{'='*60}")
-                    logger.info(f"TRAIN PHASE COMPLETE")
+                    logger.info("TRAIN PHASE COMPLETE")
                     logger.info(f"Skills learned: {skill_count}")
                     logger.info(f"{'='*60}")
 

@@ -58,7 +58,7 @@ def load_skillbook(source: Optional[Union[Path, str, Dict]]) -> "Skillbook":
     Returns:
         Skillbook instance
     """
-    from ace import Skillbook, Skill
+    from ace import Skill, Skillbook
 
     skillbook = Skillbook()
 

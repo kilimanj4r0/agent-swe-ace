@@ -12,7 +12,7 @@ class TestSWEReflectorOutput:
 
     def test_extracted_learnings_includes_anti_pattern_prefix(self):
         """Anti-patterns should have [ANTI-PATTERN] prefix in learning field."""
-        from prompts import SWEReflectorOutput, AntiPattern
+        from prompts import AntiPattern, SWEReflectorOutput
 
         output = SWEReflectorOutput(
             reasoning="test",
@@ -39,7 +39,7 @@ class TestSWEReflectorOutput:
 
     def test_extracted_learnings_includes_discovery_prefix(self):
         """Discoveries should have [DISCOVERY] prefix in learning field."""
-        from prompts import SWEReflectorOutput, Discovery
+        from prompts import Discovery, SWEReflectorOutput
 
         output = SWEReflectorOutput(
             reasoning="test",
@@ -92,7 +92,7 @@ class TestSWEReflectorOutput:
 
     def test_extracted_learnings_combines_all_types(self):
         """All learning types should be combined in extracted_learnings."""
-        from prompts import SWEReflectorOutput, AntiPattern, Discovery, UnvalidatedHypothesis
+        from prompts import AntiPattern, Discovery, SWEReflectorOutput, UnvalidatedHypothesis
 
         output = SWEReflectorOutput(
             reasoning="test",
@@ -121,7 +121,7 @@ class TestSWEReflectorOutput:
 
     def test_get_all_learnings_as_dicts(self):
         """get_all_learnings_as_dicts should return flat list with type info."""
-        from prompts import SWEReflectorOutput, AntiPattern, Discovery
+        from prompts import AntiPattern, Discovery, SWEReflectorOutput
 
         output = SWEReflectorOutput(
             reasoning="test",

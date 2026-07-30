@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from typing import Any
 
 from pydantic_ai import Agent as PydanticAgent
 from pydantic_ai.settings import ModelSettings

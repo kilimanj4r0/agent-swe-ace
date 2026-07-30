@@ -23,7 +23,6 @@ import functools
 import json
 import re
 import sys
-from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 

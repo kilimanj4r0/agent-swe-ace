@@ -16,7 +16,6 @@ import json
 import os
 import signal
 import subprocess
-import sys
 import time
 import urllib.error
 import urllib.request
@@ -1124,7 +1123,7 @@ STATUS_COLORS = {
 
 
 def render(entries, term_width: int):
-    print(f"\033[H\033[2J", end="")
+    print("\033[H\033[2J", end="")
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"{BOLD}  agent-swe-ace experiment dashboard{RESET}  {now}")
     print()

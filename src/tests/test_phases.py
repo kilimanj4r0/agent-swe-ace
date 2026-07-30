@@ -455,10 +455,11 @@ class TestLearnPhase:
 
     def test_learn_phase_creates_skill(self, tmp_path):
         """Test that learn phase creates a skill from failure."""
-        from phases.learn import LearnPhase
         from ace import Skillbook
         from ace.core.outputs import SkillManagerOutput, UpdateBatch
         from ace.core.skillbook import UpdateOperation
+
+        from phases.learn import LearnPhase
 
         # Mock ACE components
         mock_reflector = Mock()
@@ -516,8 +517,9 @@ class TestLearnPhase:
 
     def test_learn_phase_handles_reflection_failure(self, tmp_path):
         """Test that learn phase handles reflection failures gracefully."""
-        from phases.learn import LearnPhase
         from ace import Skillbook
+
+        from phases.learn import LearnPhase
 
         mock_reflector = Mock()
         mock_reflector.reflect.side_effect = Exception("Reflection failed")
@@ -548,8 +550,9 @@ class TestLearnPhase:
 
     def test_learn_phase_no_update_batch(self, tmp_path):
         """Test that learn phase handles SkillManager output with no .update attribute."""
-        from phases.learn import LearnPhase
         from ace import Skillbook
+
+        from phases.learn import LearnPhase
 
         mock_reflector = Mock()
         mock_reflector.reflect.return_value = Mock(
