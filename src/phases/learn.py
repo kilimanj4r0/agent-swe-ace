@@ -88,10 +88,14 @@ class LearnPhase:
         self.benchmark = benchmark
         self.skillbook_mode = skillbook_mode
 
-        # Setup deduplication manager
-        if dedup_config:
-            embedding_device = dedup_config.pop("embedding_device", "cpu")
-            cfg = DeduplicationConfig(**dedup_config)
+        # Treat ``enabled`` as the authoritative switch and never mutate the
+        # resolved experiment config shared by other phases/repo workers.
+        raw_dedup_config = dict(dedup_config or {})
+        dedup_enabled = bool(raw_dedup_config.pop("enabled", False))
+
+        if dedup_enabled:
+            embedding_device = raw_dedup_config.pop("embedding_device", "cpu")
+            cfg = DeduplicationConfig(**raw_dedup_config)
             self.dedup_manager = DeduplicationManager(cfg)
             _detector = self.dedup_manager.detector
             model_name = cfg.local_model_name

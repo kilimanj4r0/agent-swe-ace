@@ -2,8 +2,10 @@
 """Tests for phase scripts."""
 import json
 import sys
+import threading
 import pytest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock, patch, MagicMock
 
 # Add parent directory to path for imports
@@ -365,6 +367,65 @@ class TestEvaluatePhase:
 
 class TestLearnPhase:
     """Test the learn phase."""
+
+    def test_dedup_disabled_does_not_initialize_or_mutate_config(self, tmp_path):
+        """An explicit disabled switch must avoid all dedup setup."""
+        from phases.learn import LearnPhase
+
+        source = {"enabled": False, "embedding_device": "cuda"}
+
+        with patch("phases.learn.DeduplicationManager") as manager, \
+             patch("phases.learn._get_shared_st_model") as load_model:
+            phase = LearnPhase(
+                reflector=Mock(),
+                skill_manager=Mock(),
+                output_dir=tmp_path,
+                dedup_config=source,
+            )
+
+        assert phase.dedup_manager is None
+        manager.assert_not_called()
+        load_model.assert_not_called()
+        assert source == {"enabled": False, "embedding_device": "cuda"}
+
+    def test_dedup_enabled_uses_clean_copy_and_preserves_source(self, tmp_path):
+        """Control keys stay outside ACE config and the caller mapping is unchanged."""
+        from phases.learn import LearnPhase
+
+        source = {
+            "enabled": True,
+            "embedding_device": "cuda",
+            "similarity_threshold": 0.9,
+        }
+        detector = SimpleNamespace(_model_lock=threading.Lock(), _model=None)
+        manager = SimpleNamespace(detector=detector)
+        ace_config = SimpleNamespace(
+            local_model_name="all-MiniLM-L6-v2",
+            similarity_threshold=0.9,
+        )
+
+        with patch(
+            "phases.learn.DeduplicationConfig", return_value=ace_config
+        ) as config_cls, patch(
+            "phases.learn.DeduplicationManager", return_value=manager
+        ), patch(
+            "phases.learn._get_shared_st_model", return_value=object()
+        ) as load_model:
+            phase = LearnPhase(
+                reflector=Mock(),
+                skill_manager=Mock(),
+                output_dir=tmp_path,
+                dedup_config=source,
+            )
+
+        assert phase.dedup_manager is manager
+        config_cls.assert_called_once_with(similarity_threshold=0.9)
+        load_model.assert_called_once_with("all-MiniLM-L6-v2", "cuda")
+        assert source == {
+            "enabled": True,
+            "embedding_device": "cuda",
+            "similarity_threshold": 0.9,
+        }
 
     def test_learn_phase_creates_skill(self, tmp_path):
         """Test that learn phase creates a skill from failure."""
