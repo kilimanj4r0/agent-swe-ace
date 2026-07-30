@@ -449,13 +449,11 @@ def render_report(
     glm_lite_re_n = lite_default_mixes["GLM"]["runtime_error"]["count"]
     q30_sv_ctx = sv_valbl_global_mixes["Q30"]["context_window_exceeded"]["count"]
     qnext_sv_ctx = sv_valbl_global_mixes["QNext"]["context_window_exceeded"]["count"]
-    qnext_sv_ctx_val = sv_val_global_mixes["QNext"]["context_window_exceeded"]["count"]
     q30_valbl_pk = sv_valbl_global_pk["Q30"]["passK"]
     qnext_valbl_pk = sv_valbl_global_pk["QNext"]["passK"]
     q30_val_pk = sv_val_global_pk["Q30"]["passK"]
     qnext_val_pk = sv_val_global_pk["QNext"]["passK"]
     q30_valbl_np_n = sv_valbl_global_mixes["Q30"]["no_patch"]["count"]
-    qnext_valbl_np_n = sv_valbl_global_mixes["QNext"]["no_patch"]["count"]
     qnext_lite_stf = lite_default_mixes["QNext"]["submitted_tests_failed"]["pct"]
     glm_lite_stf = lite_default_mixes["GLM"]["submitted_tests_failed"]["pct"]
 

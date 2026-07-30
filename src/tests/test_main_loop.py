@@ -83,7 +83,7 @@ class TestMainLoop:
         )
 
         instance = {"instance_id": "test__repo-123", "problem_statement": "Fix"}
-        results = loop.run_instance(instance)
+        loop.run_instance(instance)
 
         # Should run twice (fail→learn→resolve→break since max_attempts=2)
         assert mock_predict.run.call_count == 2
@@ -909,7 +909,7 @@ class TestTrainBaselineReuse:
         )
 
         instance = {"instance_id": instance_id, "repo": "django/django"}
-        result = loop._run_train_instance_reusing_baseline(instance, baseline_dir)
+        loop._run_train_instance_reusing_baseline(instance, baseline_dir)
 
         mock_learn.run.assert_called_once()
         mock_predict.run.assert_not_called()
@@ -942,7 +942,7 @@ class TestTrainBaselineReuse:
         )
 
         instance = {"instance_id": instance_id, "repo": "django/django"}
-        result = loop._run_train_instance_reusing_baseline(instance, baseline_dir)
+        loop._run_train_instance_reusing_baseline(instance, baseline_dir)
 
         # Falls back to full predict→eval→learn
         mock_predict.run.assert_called_once()
@@ -979,7 +979,7 @@ class TestTrainBaselineReuse:
         )
 
         instance = {"instance_id": instance_id, "repo": "django/django"}
-        result = loop._run_train_instance_reusing_baseline(instance, baseline_dir)
+        loop._run_train_instance_reusing_baseline(instance, baseline_dir)
 
         mock_predict.run.assert_called_once()
 

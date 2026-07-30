@@ -1099,7 +1099,8 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
         a, b = model_short(r["agent_llm"]), model_short(r["ace_llm"])
         return a if a == b else f"{a}/{b}"
 
-    rate_str = lambda r: f"{r['resolution_rate'] * 100:.1f}%"
+    def rate_str(r):
+        return f"{r['resolution_rate'] * 100:.1f}%"
 
     # Partition into flat and split runs
     flat_runs = [r for r in runs if not r["is_split"]]

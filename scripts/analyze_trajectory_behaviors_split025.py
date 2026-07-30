@@ -146,8 +146,8 @@ outcome = {}
 for bb in BACKBONES:
     g = prim_glbl[prim_glbl["backbone"] == bb]
     outcome[bb] = {
-        "res": behavior_row(g[g["resolved"] == True], f"{bb}-resolved"),
-        "unres": behavior_row(g[g["resolved"] == False], f"{bb}-unresolved"),
+        "res": behavior_row(g[g["resolved"].eq(True)], f"{bb}-resolved"),
+        "unres": behavior_row(g[g["resolved"].eq(False)], f"{bb}-unresolved"),
     }
 
 # Length-vs-repeat correlation (global val_baseline, merged with attempts).

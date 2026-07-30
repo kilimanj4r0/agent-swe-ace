@@ -1242,8 +1242,6 @@ def render(entries, term_width: int):
         # Per-repo breakdown for iterate_repos
         irp = e.get("iterate_repos_progress")
         if irp:
-            repo_total = irp["repo_total"]
-            repo_done = irp["repo_completed"]
             # Count how many repos are in each phase
             phase_counts = {"train": 0, "vb": 0, "val": 0, "done": 0, "pending": 0}
             for rp in irp["repo_progress"]:

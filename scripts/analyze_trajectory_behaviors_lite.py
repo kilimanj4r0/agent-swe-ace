@@ -146,8 +146,14 @@ def fig_cycle(beh_def: pd.DataFrame) -> Path:
     fig, ax = plt.subplots(figsize=(5.6, 4.2))
     x = np.arange(len(BB_ORDER))
     cycle = [100.0 * beh_def[beh_def["backbone"] == bb]["has_cycle"].mean() for bb in BB_ORDER]
-    bars = ax.bar(x, cycle, color=[BB_COLOR[bb] for bb in BB_ORDER], alpha=0.8,
-                  edgecolor="black", linewidth=0.6)
+    ax.bar(
+        x,
+        cycle,
+        color=[BB_COLOR[bb] for bb in BB_ORDER],
+        alpha=0.8,
+        edgecolor="black",
+        linewidth=0.6,
+    )
     for xi, v in zip(x, cycle):
         ax.text(xi, v + 0.5, f"{v:.1f}%", ha="center", va="bottom", fontsize=10, fontweight="bold")
     ax.set_xticks(x)

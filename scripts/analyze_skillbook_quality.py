@@ -693,8 +693,6 @@ def compute_presented_skill_specificity(run: dict) -> dict:
 
         # For per-instance counts, each instance sees all skills
         if all_skills and trajectories:
-            gen_pct = total_gen / total if total > 0 else 0
-            spec_pct = total_spec / total if total > 0 else 0
             for inst_id, trajs in trajectories.items():
                 for it in trajs:
                     per_instance_counts.append({"general": total_gen, "specific": total_spec, "total": total})
@@ -1489,7 +1487,6 @@ def print_growth_chart(runs: list[dict], run_filter: list[str] | None = None):
         if not iter_data:
             continue
 
-        max_iter = max(iter_data.keys())
         # Build chart data
         iterations = sorted(iter_data.keys())
         avgs = []
@@ -1507,7 +1504,6 @@ def print_growth_chart(runs: list[dict], run_filter: list[str] | None = None):
         # ASCII chart
         max_avg = max(avgs) if avgs else 1
         chart_height = 15
-        chart_width = max(50, len(iterations) * 8)
 
         ret_tag = f" [{_retrieval_label(r)}]" if r.get("retrieval", {}).get("enabled") else ""
         print(f"  {_short_run(r['run_name'], 50)} [{r['learn_mode']}]{ret_tag}")
@@ -1531,8 +1527,7 @@ def print_growth_chart(runs: list[dict], run_filter: list[str] | None = None):
 
         # Annotations
         annot = "        "
-        for i, it in enumerate(iterations):
-            delta_str = f"Δ{deltas[i]:+.1f}" if deltas[i] is not None else ""
+        for i, _ in enumerate(iterations):
             annot += f"n={ns[i]:>2} "
         print(f"  {annot}")
         annot2 = "        "

@@ -972,7 +972,6 @@ def _run_single_repo_experiment(
     force_learn = config["experiment"].get("force_learn", True)
     resume_state = {}
     val_resume_state = {}
-    cli_resume_dirs = None
     config_resume_dirs = config.get("experiment", {}).get("resume_dirs")
     # Resume not typically used with iterate_repos but support it
     resume_dirs = [Path(p) for p in config_resume_dirs] if config_resume_dirs else None
@@ -983,7 +982,6 @@ def _run_single_repo_experiment(
         instance_ids = [i["instance_id"] for i in train_instances]
         resume_state = scan_resume_dirs(resume_dirs, benchmark, instance_ids, max_attempts, skip_learn=skip_learn)
         complete_ids = {iid for iid, rp in resume_state.items() if rp.is_fully_complete}
-        before = len(train_instances)
         train_instances = [i for i in train_instances if i["instance_id"] not in complete_ids]
         logger.info(f"[{repo}] Resume: {len(complete_ids)} complete, {len(train_instances)} to process")
 
@@ -1109,9 +1107,6 @@ def _aggregate_iterate_stats(repo_stats: dict[str, dict], config: dict, run_dir:
         train_resolved += tp.get("resolved_count", 0)
         train_total += tp.get("total_instances", 0)
         total_skills += tp.get("total_skills_learned", 0)
-        # Reused baseline
-        reused = tp.get("reused_from_baseline", 0)
-        train_fresh = tp.get("freshly_run", 0)
 
         # Val baseline
         vbp = stats.get("val_baseline_phase", {})

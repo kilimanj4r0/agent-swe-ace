@@ -1639,7 +1639,6 @@ class ExperimentLoop:
                         pass
                 loaded_ids[iid] = resolved
             # Remove complete instances from run list
-            before = len(instances_to_run)
             instances_to_run = [
                 inst for inst in instances_to_run
                 if inst["instance_id"] not in resume_complete_ids
