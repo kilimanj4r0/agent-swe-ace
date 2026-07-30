@@ -203,6 +203,53 @@ class TestMainLoop:
         mock_evaluate.run.assert_not_called()
         mock_learn.run.assert_not_called()
 
+    def test_statistics_keep_infrastructure_errors_disjoint(self, tmp_path):
+        """Infrastructure failures are reported separately from task outcomes."""
+        from runners.main_loop import ExperimentLoop, InstanceResult
+
+        outcomes = {
+            "resolved": InstanceResult(
+                instance_id="resolved", final_resolved=True, total_attempts=1
+            ),
+            "unresolved": InstanceResult(
+                instance_id="unresolved", final_resolved=False, total_attempts=1
+            ),
+            "infra": InstanceResult(
+                instance_id="infra",
+                status="infrastructure_error",
+                infrastructure_error="docker unavailable",
+                total_attempts=1,
+            ),
+        }
+        mock_predict = Mock()
+        mock_predict.get_retrieval_summary.return_value = None
+        loop = ExperimentLoop(
+            predict_phase=mock_predict,
+            evaluate_phase=Mock(),
+            learn_phase=Mock(),
+            output_dir=tmp_path,
+            max_attempts=1,
+        )
+        loop.run_instance = Mock(
+            side_effect=lambda instance, **kwargs: outcomes[instance["instance_id"]]
+        )
+
+        statistics = loop.run(
+            [{"instance_id": instance_id} for instance_id in outcomes]
+        )
+
+        assert statistics["resolved_ids"] == ["resolved"]
+        assert statistics["unresolved_ids"] == ["unresolved"]
+        assert statistics["infrastructure_error_ids"] == ["infra"]
+        assert statistics["infrastructure_error_count"] == 1
+        assert statistics["status"] == "degraded"
+        assert set(statistics["resolved_ids"]).isdisjoint(
+            statistics["infrastructure_error_ids"]
+        )
+        assert set(statistics["unresolved_ids"]).isdisjoint(
+            statistics["infrastructure_error_ids"]
+        )
+
 
 class TestSkillbookModes:
     """Test skillbook mode handling."""
@@ -1211,7 +1258,7 @@ class TestConcurrentValPass:
             assert set(stats["resolved_ids"]) == {f"r__i-{i}" for i in range(6) if i % 2 == 0}
             assert loop.run_instance.call_count == 6
 
-    def test_worker_exception_recorded_unresolved(self, tmp_path):
+    def test_worker_exception_recorded_as_infrastructure_error(self, tmp_path):
         from ace import Skillbook
         from runners.main_loop import InstanceResult
 
@@ -1230,7 +1277,10 @@ class TestConcurrentValPass:
             Skillbook(), phase="val", max_attempts=1,
         )
         assert set(stats["resolved_ids"]) == {"r__i-0", "r__i-2", "r__i-3"}
-        assert "r__i-1" in stats["unresolved_ids"]
+        assert stats["unresolved_ids"] == []
+        assert stats["infrastructure_error_ids"] == ["r__i-1"]
+        assert stats["infrastructure_error_count"] == 1
+        assert stats["status"] == "degraded"
         assert stats["resolved_count"] == 3
 
     def test_instances_actually_run_in_parallel(self, tmp_path):

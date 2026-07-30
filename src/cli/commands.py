@@ -328,6 +328,13 @@ def _print_split(train: list, val: list):
         print(f"    - {inst['instance_id']}")
 
 
+def _strict_exit_code(statistics: dict, strict: bool) -> int:
+    """Return a failing exit code for non-complete full runs in strict mode."""
+    if not strict:
+        return 0
+    return 0 if statistics.get("status") == "completed" else 1
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -350,6 +357,11 @@ def main():
     parser.add_argument("--patch", help="Patch string (for evaluate)")
     parser.add_argument("--log-level", default="INFO", help="Log level")
     parser.add_argument("--observe", action="store_true", help="Enable Opik observability")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit non-zero after saving outputs when the run is degraded or interrupted.",
+    )
     parser.add_argument(
         "--resume-dir",
         nargs="+",
@@ -449,7 +461,10 @@ def main():
     # Run appropriate phase
     # Note: Observability is enabled inside run_full_experiment with run_id as project name
     if args.phase == "all":
-        run_full_experiment(config, args)
+        statistics = run_full_experiment(config, args)
+        exit_code = _strict_exit_code(statistics, args.strict)
+        if exit_code:
+            raise SystemExit(exit_code)
     elif args.phase == "predict":
         run_predict_cmd(config, args)
     elif args.phase == "evaluate":
@@ -1079,6 +1094,7 @@ def _aggregate_iterate_stats(repo_stats: dict[str, dict], config: dict, run_dir:
 
     # Aggregate
     total_resolved = 0
+    total_unresolved = 0
     total_processed = 0
     total_instances = 0
     val_baseline_resolved = 0
@@ -1111,13 +1127,27 @@ def _aggregate_iterate_stats(repo_stats: dict[str, dict], config: dict, run_dir:
 
         # Overall
         total_resolved += stats.get("resolved_count", 0)
+        total_unresolved += stats.get("unresolved_count", 0)
         total_processed += stats.get("processed_instances", 0)
         total_instances += stats.get("total_instances", 0)
 
-    # Determine overall status
-    all_completed = all(
-        s.get("status") == "completed" for s in repo_stats.values()
-    )
+    # Determine overall status without collapsing degraded runs into a generic
+    # partial/error state.
+    repo_statuses = {s.get("status") for s in repo_stats.values()}
+    if repo_statuses & {"interrupted", "error"}:
+        aggregate_status = "interrupted"
+    elif repo_statuses & {"degraded", "infrastructure_error"}:
+        aggregate_status = "degraded"
+    elif repo_stats and repo_statuses == {"completed"}:
+        aggregate_status = "completed"
+    else:
+        aggregate_status = "interrupted"
+
+    infrastructure_error_ids = sorted({
+        instance_id
+        for stats in repo_stats.values()
+        for instance_id in stats.get("infrastructure_error_ids", [])
+    })
 
     vb_rate = val_baseline_resolved / val_baseline_total if val_baseline_total else 0.0
     vs_rate = val_skillbook_resolved / val_skillbook_total if val_skillbook_total else 0.0
@@ -1137,15 +1167,24 @@ def _aggregate_iterate_stats(repo_stats: dict[str, dict], config: dict, run_dir:
         }
 
     combined = {
-        "status": "completed" if all_completed else "partial",
+        "status": aggregate_status,
         "mode": "iterate_repos",
         "run_name": config.get("experiment", {}).get("name", ""),
         "repos": list(repo_stats.keys()),
-        "start_time": min(s.get("start_time", "") for s in repo_stats.values()),
-        "end_time": max(s.get("end_time", "") for s in repo_stats.values() if s.get("end_time")),
+        "start_time": min(
+            (s.get("start_time", "") for s in repo_stats.values()),
+            default="",
+        ),
+        "end_time": max(
+            (s.get("end_time", "") for s in repo_stats.values() if s.get("end_time")),
+            default="",
+        ),
         "total_instances": total_instances,
         "processed_instances": total_processed,
         "resolved_count": total_resolved,
+        "unresolved_count": total_unresolved,
+        "infrastructure_error_count": len(infrastructure_error_ids),
+        "infrastructure_error_ids": infrastructure_error_ids,
         "resolution_rate": total_resolved / total_processed if total_processed else 0.0,
         "train_phase": {
             "total_instances": train_total,
@@ -1323,7 +1362,12 @@ def _run_iterate_repos(config: dict, args, output_dir: Path):
 
     if not repos_to_run:
         logger.error("No valid repos to run")
-        return
+        statistics = {
+            "status": "interrupted",
+            "error": "No valid repos to run",
+        }
+        save_statistics(statistics=statistics, run_dir=output_dir)
+        return statistics
 
     # Create shared components
     agent_config = LLMConfig.from_dict(config["llm"]["agent"])
@@ -1454,6 +1498,7 @@ def _run_iterate_repos(config: dict, args, output_dir: Path):
     for repo, imp in summary.get("per_repo", {}).items():
         logger.info(f"  {repo}: {imp.get('improvement', 'N/A')}")
     logger.info(f"{'='*60}")
+    return combined
 
 
 def _get_instances_no_filter(config: dict) -> list:
@@ -1513,8 +1558,7 @@ def run_full_experiment(config: dict, args):
     # Check for iterate_repos mode
     iterate_repos = config.get("benchmark", {}).get("iterate_repos")
     if iterate_repos:
-        _run_iterate_repos(config, args, output_dir)
-        return
+        return _run_iterate_repos(config, args, output_dir)
 
     # Enable observability with run_id as project name (if enabled)
     # This creates a unique Opik project per run for better traceability
@@ -1680,21 +1724,29 @@ def run_full_experiment(config: dict, args):
             f"Validation-only mode: loaded {len(preloaded_skillbook.skills())} skills "
             f"from {sb_path}, val_pass_k={val_pass_k}"
         )
-        loop.run(train_instances if eval_on_train else [], config,
-                 val_instances=val_instances if val_instances else None,
-                 baseline_run_dir=baseline_run_dir,
-                 preloaded_skillbook=preloaded_skillbook,
-                 val_pass_k=val_pass_k,
-                 eval_on_train=eval_on_train,
-                 eval_on_train_pass_k=eval_on_train_pass_k)
+        statistics = loop.run(
+            train_instances if eval_on_train else [],
+            config,
+            val_instances=val_instances if val_instances else None,
+            baseline_run_dir=baseline_run_dir,
+            preloaded_skillbook=preloaded_skillbook,
+            val_pass_k=val_pass_k,
+            eval_on_train=eval_on_train,
+            eval_on_train_pass_k=eval_on_train_pass_k,
+        )
     else:
-        loop.run(train_instances, config,
-                 val_instances=val_instances if val_instances else None,
-                 baseline_run_dir=baseline_run_dir,
-                 train_trajs_dir=train_trajs_dir,
-                 val_pass_k=val_pass_k,
-                 eval_on_train=eval_on_train,
-                 eval_on_train_pass_k=eval_on_train_pass_k)
+        statistics = loop.run(
+            train_instances,
+            config,
+            val_instances=val_instances if val_instances else None,
+            baseline_run_dir=baseline_run_dir,
+            train_trajs_dir=train_trajs_dir,
+            val_pass_k=val_pass_k,
+            eval_on_train=eval_on_train,
+            eval_on_train_pass_k=eval_on_train_pass_k,
+        )
+
+    return statistics
 
 
 def run_predict_cmd(config: dict, args):

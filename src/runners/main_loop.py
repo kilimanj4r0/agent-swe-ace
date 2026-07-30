@@ -94,6 +94,22 @@ def _record_infrastructure_error(
     )
 
 
+def _append_outcome(
+    result: InstanceResult,
+    instance_id: str,
+    resolved_ids: List[str],
+    unresolved_ids: List[str],
+    infrastructure_error_ids: List[str],
+) -> None:
+    """Classify an instance into exactly one experiment outcome bucket."""
+    if result.status == "infrastructure_error":
+        infrastructure_error_ids.append(instance_id)
+    elif result.final_resolved:
+        resolved_ids.append(instance_id)
+    else:
+        unresolved_ids.append(instance_id)
+
+
 class ExperimentLoop:
     """
     Main experiment loop: Predict → Evaluate → Learn.
@@ -715,6 +731,7 @@ class ExperimentLoop:
         all_results: Dict[str, InstanceResult] = {}
         resolved_ids: List[str] = []
         unresolved_ids: List[str] = []
+        infrastructure_error_ids: List[str] = []
         error_info: Optional[str] = None
         skill_count = 0  # For two-phase stats
         reused_from_baseline = 0  # Count of train instances reused from baseline
@@ -788,10 +805,13 @@ class ExperimentLoop:
                         all_results[instance_id] = result
                         instance_durations.append((datetime.now() - inst_start).total_seconds())
 
-                        if result.final_resolved:
-                            resolved_ids.append(instance_id)
-                        else:
-                            unresolved_ids.append(instance_id)
+                        _append_outcome(
+                            result,
+                            instance_id,
+                            resolved_ids,
+                            unresolved_ids,
+                            infrastructure_error_ids,
+                        )
                 else:
                     # Concurrent mode — per_instance only (two-phase train is always
                     # sequential; see the branch above). Each per_instance instance gets
@@ -806,20 +826,25 @@ class ExperimentLoop:
                             with results_lock:
                                 all_results[instance_id] = result
                                 instance_durations.append((datetime.now() - inst_start).total_seconds())
-                                if result.final_resolved:
-                                    resolved_ids.append(instance_id)
-                                else:
-                                    unresolved_ids.append(instance_id)
+                                _append_outcome(
+                                    result,
+                                    instance_id,
+                                    resolved_ids,
+                                    unresolved_ids,
+                                    infrastructure_error_ids,
+                                )
                             return result
                         except Exception as e:
                             logger.error(f"[{instance_id}] Worker failed: {e}")
                             with results_lock:
                                 instance_durations.append((datetime.now() - inst_start).total_seconds())
-                                unresolved_ids.append(instance_id)
+                                infrastructure_error_ids.append(instance_id)
                                 all_results[instance_id] = InstanceResult(
                                     instance_id=instance_id,
                                     final_resolved=False,
                                     total_attempts=0,
+                                    status="infrastructure_error",
+                                    infrastructure_error=str(e),
                                 )
                             return None
 
@@ -975,9 +1000,11 @@ class ExperimentLoop:
                 "processed_instances": total_processed,
                 "resolved_count": resolved_count,
                 "unresolved_count": len(unresolved_ids),
+                "infrastructure_error_count": len(infrastructure_error_ids),
                 "resolution_rate": resolution_rate,
                 "resolved_ids": resolved_ids,
                 "unresolved_ids": unresolved_ids,
+                "infrastructure_error_ids": infrastructure_error_ids,
                 "config": {
                     "max_attempts": self.max_attempts,
                     "skillbook_mode": self.skillbook_mode,
@@ -989,6 +1016,8 @@ class ExperimentLoop:
             if error_info:
                 statistics["status"] = "interrupted"
                 statistics["error"] = error_info
+            elif infrastructure_error_ids:
+                statistics["status"] = "degraded"
             else:
                 statistics["status"] = "completed"
 
@@ -1002,15 +1031,22 @@ class ExperimentLoop:
             if two_phase:
                 train_resolved = [iid for iid in resolved_ids if iid not in resumed_resolved]
                 train_unresolved = [iid for iid in unresolved_ids if iid not in resumed_unresolved]
-                train_total = len(train_resolved) + len(train_unresolved)
+                train_infrastructure_errors = list(infrastructure_error_ids)
+                train_total = (
+                    len(train_resolved)
+                    + len(train_unresolved)
+                    + len(train_infrastructure_errors)
+                )
 
                 statistics["train_phase"] = {
                     "total_instances": train_total,
                     "resolved_count": len(train_resolved),
                     "unresolved_count": len(train_unresolved),
+                    "infrastructure_error_count": len(train_infrastructure_errors),
                     "resolution_rate": len(train_resolved) / train_total if train_total > 0 else 0.0,
                     "resolved_ids": train_resolved,
                     "unresolved_ids": train_unresolved,
+                    "infrastructure_error_ids": train_infrastructure_errors,
                     "total_skills_learned": skill_count if two_phase else 0,
                     "reused_from_baseline": reused_from_baseline,
                     "freshly_run": train_total - reused_from_baseline,
@@ -1130,6 +1166,53 @@ class ExperimentLoop:
                     "ids": skillbook_assisted_ids,
                     "by_iteration": skillbook_by_iteration,
                 }
+
+            phase_infrastructure_ids = set(statistics["infrastructure_error_ids"])
+            for phase_key in (
+                "train_phase",
+                "val_baseline_phase",
+                "val_skillbook_phase",
+                "train_eval_baseline_phase",
+                "train_eval_phase",
+            ):
+                phase_infrastructure_ids.update(
+                    statistics.get(phase_key, {}).get(
+                        "infrastructure_error_ids", []
+                    )
+                )
+
+            # Keep the top-level outcome collections mutually exclusive even when
+            # the same instance appears in more than one two-phase pass.
+            statistics["infrastructure_error_ids"] = sorted(
+                phase_infrastructure_ids
+            )
+            statistics["infrastructure_error_count"] = len(
+                phase_infrastructure_ids
+            )
+            statistics["resolved_ids"] = [
+                iid
+                for iid in statistics["resolved_ids"]
+                if iid not in phase_infrastructure_ids
+            ]
+            statistics["unresolved_ids"] = [
+                iid
+                for iid in statistics["unresolved_ids"]
+                if iid not in phase_infrastructure_ids
+            ]
+            statistics["resolved_count"] = len(statistics["resolved_ids"])
+            statistics["unresolved_count"] = len(statistics["unresolved_ids"])
+            accounted = (
+                statistics["resolved_count"]
+                + statistics["unresolved_count"]
+                + statistics["infrastructure_error_count"]
+            )
+            statistics["resolution_rate"] = (
+                statistics["resolved_count"] / accounted if accounted else 0.0
+            )
+            resolved_count = statistics["resolved_count"]
+            resolution_rate = statistics["resolution_rate"]
+            if not error_info and phase_infrastructure_ids:
+                statistics["status"] = "degraded"
 
             # Add observability project URL if available
             if observability_project_url:
@@ -1514,6 +1597,7 @@ class ExperimentLoop:
 
         resolved_ids = []
         unresolved_ids = []
+        infrastructure_error_ids = []
         results = {}
 
         # For val_baseline with baseline_run_dir, try loading existing results first
@@ -1588,19 +1672,24 @@ class ExperimentLoop:
                         )
                     with results_lock:
                         results[instance_id] = result
-                        if result.final_resolved:
-                            resolved_ids.append(instance_id)
-                        else:
-                            unresolved_ids.append(instance_id)
+                        _append_outcome(
+                            result,
+                            instance_id,
+                            resolved_ids,
+                            unresolved_ids,
+                            infrastructure_error_ids,
+                        )
                     return result
                 except Exception as e:
                     logger.error(f"[{phase.upper()}] {instance_id} worker failed: {e}")
                     with results_lock:
-                        unresolved_ids.append(instance_id)
+                        infrastructure_error_ids.append(instance_id)
                         results[instance_id] = InstanceResult(
                             instance_id=instance_id,
                             final_resolved=False,
                             total_attempts=0,
+                            status="infrastructure_error",
+                            infrastructure_error=str(e),
                         )
                     return None
 
@@ -1632,10 +1721,13 @@ class ExperimentLoop:
                 )
                 results[instance_id] = result
 
-                if result.final_resolved:
-                    resolved_ids.append(instance_id)
-                else:
-                    unresolved_ids.append(instance_id)
+                _append_outcome(
+                    result,
+                    instance_id,
+                    resolved_ids,
+                    unresolved_ids,
+                    infrastructure_error_ids,
+                )
 
         # Merge loaded results
         for iid, was_resolved in loaded_ids.items():
@@ -1648,7 +1740,11 @@ class ExperimentLoop:
 
         # Ensure all val instances are accounted for (crashed/errored instances
         # that never reached resolved/unresolved classification go to unresolved)
-        classified = set(resolved_ids) | set(unresolved_ids)
+        classified = (
+            set(resolved_ids)
+            | set(unresolved_ids)
+            | set(infrastructure_error_ids)
+        )
         val_id_set = {inst["instance_id"] for inst in val_instances}
         missing = sorted(val_id_set - classified)
         if missing:
@@ -1664,9 +1760,12 @@ class ExperimentLoop:
             "total_instances": total,
             "resolved_count": resolved_count,
             "unresolved_count": len(unresolved_ids),
+            "infrastructure_error_count": len(infrastructure_error_ids),
             "resolution_rate": resolved_count / total if total > 0 else 0.0,
             "resolved_ids": resolved_ids,
             "unresolved_ids": unresolved_ids,
+            "infrastructure_error_ids": infrastructure_error_ids,
+            "status": "degraded" if infrastructure_error_ids else "completed",
             "skillbook_skills": len(skillbook.skills()),
         }
 
