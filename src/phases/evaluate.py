@@ -6,9 +6,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from evaluation import validate_patch
 from loguru import logger
+
 from data_io.writers import save_result
+from evaluation import validate_patch
 
 
 def _is_valid_patch(patch: str) -> bool:

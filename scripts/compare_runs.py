@@ -25,7 +25,7 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 
-from config.llm_catalog import get_effective_llm
+from config.llm_catalog import get_effective_llm  # noqa: E402
 
 # Reuse the CANONICAL combinatorial pass@k estimator from
 # collect_val_baseline_aggregated.py so the pass@k reported here is computed with
@@ -34,7 +34,7 @@ from config.llm_catalog import get_effective_llm
 # sys.path when run as `python scripts/compare_runs.py`; insert it explicitly so the
 # import also resolves when this module is imported from elsewhere.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from collect_val_baseline_aggregated import pass_at_k as _pass_at_k_combinatorial
+from collect_val_baseline_aggregated import pass_at_k as _pass_at_k_combinatorial  # noqa: E402
 
 # Aggregated val-baseline reference for qwen3 split025 experiments. Built across
 # 12 runs x 5 attempts = 60 attempts per instance (113 val instances) under a
@@ -1112,7 +1112,8 @@ def print_table(runs: list[dict], iteration: int | None = None, run_paths: list[
         a, b = model_short(r["agent_llm"]), model_short(r["ace_llm"])
         return a if a == b else f"{a}/{b}"
 
-    rate_str = lambda r: f"{r['resolution_rate'] * 100:.1f}%"
+    def rate_str(r):
+        return f"{r['resolution_rate'] * 100:.1f}%"
 
     # Partition into flat and split runs
     flat_runs = [r for r in runs if not r["is_split"]]

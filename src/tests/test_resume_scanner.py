@@ -5,16 +5,13 @@ import json
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from data_io.resume_scanner import (
-    ResumePoint,
     _detect_resume_phase,
-    scan_resume_state,
-    scan_resume_dirs,
     copy_instance_artifacts,
+    scan_resume_dirs,
+    scan_resume_state,
 )
 
 BENCHMARK = "princeton-nlp__SWE-bench_Lite"

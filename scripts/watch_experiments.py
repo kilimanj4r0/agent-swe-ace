@@ -27,7 +27,7 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 DATA_DIRS = [DATA_DIR, Path(__file__).resolve().parent.parent / "_data"]
 sys.path.insert(0, str(DATA_DIR.parent / "src"))
 
-from config.llm_catalog import get_effective_llm
+from config.llm_catalog import get_effective_llm  # noqa: E402
 
 # ── helpers ──────────────────────────────────────────────────────────────
 
@@ -233,7 +233,7 @@ def get_active_run_dirs() -> set[str]:
             ["pgrep", "-af", "src.cli.commands"],
             capture_output=True, text=True, timeout=5,
         )
-        pids = [l.split()[0] for l in result.stdout.strip().split("\n") if l.strip()]
+        pids = [line.split()[0] for line in result.stdout.strip().split("\n") if line.strip()]
     except Exception:
         return active
 
@@ -1136,7 +1136,7 @@ STATUS_COLORS = {
 
 
 def render(entries, term_width: int):
-    print(f"\033[H\033[2J", end="")
+    print("\033[H\033[2J", end="")
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"{BOLD}  agent-swe-ace experiment dashboard{RESET}  {now}")
     print()
@@ -1255,8 +1255,6 @@ def render(entries, term_width: int):
         # Per-repo breakdown for iterate_repos
         irp = e.get("iterate_repos_progress")
         if irp:
-            repo_total = irp["repo_total"]
-            repo_done = irp["repo_completed"]
             # Count how many repos are in each phase
             phase_counts = {"train": 0, "vb": 0, "val": 0, "done": 0, "pending": 0}
             for rp in irp["repo_progress"]:

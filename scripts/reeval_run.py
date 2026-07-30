@@ -22,7 +22,6 @@ from datetime import datetime
 from pathlib import Path
 
 import yaml
-
 from loguru import logger
 
 # Ensure src/ is on the path for evaluation imports
@@ -298,7 +297,6 @@ def audit_run(bench_dir: Path) -> dict:
             resolved = result.get("resolved", False)
 
             patch = load_patch(bench_dir, instance_id, iter_0, phase=phase) or ""
-            phase_label = phase or "default"
             if not patch.strip():
                 categories["correct_skip"].append((instance_id, iter_0, "empty_patch", phase))
             elif not _is_valid_patch(patch):

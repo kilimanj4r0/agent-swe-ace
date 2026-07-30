@@ -2,9 +2,12 @@
 """Tests for phase scripts."""
 import json
 import sys
-import pytest
+import threading
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
+
+import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -69,6 +72,31 @@ class TestPredictPhase:
         # Check trajectory file was created
         traj_file = tmp_path / "swebench-lite" / "trajectories" / "test__repo-123" / "iter_0.json"
         assert traj_file.exists()
+
+    def test_predict_phase_persists_infrastructure_error(self, tmp_path):
+        """Infrastructure classification survives the AgentResult boundary."""
+        from phases.predict import PredictPhase
+
+        mock_agent = Mock()
+        mock_agent.run.return_value = AgentResult(
+            exit_status="error",
+            patch="",
+            trajectory=[],
+            error="docker create failed",
+            error_kind="infrastructure",
+        )
+        instance = {"instance_id": "test__repo-123", "problem_statement": "Fix"}
+
+        result = PredictPhase(agent=mock_agent, output_dir=tmp_path).run(
+            instance=instance,
+            skillbook=None,
+            iteration=0,
+        )
+
+        assert result.error_kind == "infrastructure"
+        trajectory = json.loads(result.trajectory_path.read_text())
+        assert trajectory["info"]["error_kind"] == "infrastructure"
+        assert trajectory["info"]["error"] == "docker create failed"
 
 
 class TestSkillbookInjection:
@@ -366,12 +394,72 @@ class TestEvaluatePhase:
 class TestLearnPhase:
     """Test the learn phase."""
 
+    def test_dedup_disabled_does_not_initialize_or_mutate_config(self, tmp_path):
+        """An explicit disabled switch must avoid all dedup setup."""
+        from phases.learn import LearnPhase
+
+        source = {"enabled": False, "embedding_device": "cuda"}
+
+        with patch("phases.learn.DeduplicationManager") as manager, \
+             patch("phases.learn._get_shared_st_model") as load_model:
+            phase = LearnPhase(
+                reflector=Mock(),
+                skill_manager=Mock(),
+                output_dir=tmp_path,
+                dedup_config=source,
+            )
+
+        assert phase.dedup_manager is None
+        manager.assert_not_called()
+        load_model.assert_not_called()
+        assert source == {"enabled": False, "embedding_device": "cuda"}
+
+    def test_dedup_enabled_uses_clean_copy_and_preserves_source(self, tmp_path):
+        """Control keys stay outside ACE config and the caller mapping is unchanged."""
+        from phases.learn import LearnPhase
+
+        source = {
+            "enabled": True,
+            "embedding_device": "cuda",
+            "similarity_threshold": 0.9,
+        }
+        detector = SimpleNamespace(_model_lock=threading.Lock(), _model=None)
+        manager = SimpleNamespace(detector=detector)
+        ace_config = SimpleNamespace(
+            local_model_name="all-MiniLM-L6-v2",
+            similarity_threshold=0.9,
+        )
+
+        with patch(
+            "phases.learn.DeduplicationConfig", return_value=ace_config
+        ) as config_cls, patch(
+            "phases.learn.DeduplicationManager", return_value=manager
+        ), patch(
+            "phases.learn._get_shared_st_model", return_value=object()
+        ) as load_model:
+            phase = LearnPhase(
+                reflector=Mock(),
+                skill_manager=Mock(),
+                output_dir=tmp_path,
+                dedup_config=source,
+            )
+
+        assert phase.dedup_manager is manager
+        config_cls.assert_called_once_with(similarity_threshold=0.9)
+        load_model.assert_called_once_with("all-MiniLM-L6-v2", "cuda")
+        assert source == {
+            "enabled": True,
+            "embedding_device": "cuda",
+            "similarity_threshold": 0.9,
+        }
+
     def test_learn_phase_creates_skill(self, tmp_path):
         """Test that learn phase creates a skill from failure."""
-        from phases.learn import LearnPhase
         from ace import Skillbook
         from ace.core.outputs import SkillManagerOutput, UpdateBatch
         from ace.core.skillbook import UpdateOperation
+
+        from phases.learn import LearnPhase
 
         # Mock ACE components
         mock_reflector = Mock()
@@ -429,8 +517,9 @@ class TestLearnPhase:
 
     def test_learn_phase_handles_reflection_failure(self, tmp_path):
         """Test that learn phase handles reflection failures gracefully."""
-        from phases.learn import LearnPhase
         from ace import Skillbook
+
+        from phases.learn import LearnPhase
 
         mock_reflector = Mock()
         mock_reflector.reflect.side_effect = Exception("Reflection failed")
@@ -461,8 +550,9 @@ class TestLearnPhase:
 
     def test_learn_phase_no_update_batch(self, tmp_path):
         """Test that learn phase handles SkillManager output with no .update attribute."""
-        from phases.learn import LearnPhase
         from ace import Skillbook
+
+        from phases.learn import LearnPhase
 
         mock_reflector = Mock()
         mock_reflector.reflect.return_value = Mock(

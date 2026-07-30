@@ -31,7 +31,6 @@ import os
 import sys
 
 import numpy as np
-
 from q1_stat_tests import (
     bh_fdr,
     boot_ci,

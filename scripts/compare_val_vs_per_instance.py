@@ -17,7 +17,6 @@ import json
 import sys
 from pathlib import Path
 
-
 # ---------------------------------------------------------------------------
 # Helpers reused / adapted from compare_runs.py
 # ---------------------------------------------------------------------------
@@ -520,7 +519,7 @@ def generate_report(
         all_runs_resolved_sets.append({iid for iid, v in data.items() if v is True})
 
     n = len(all_runs_labels)
-    lines.append(f"Number of resolved val instances per run and pairwise overlaps:")
+    lines.append("Number of resolved val instances per run and pairwise overlaps:")
     lines.append("")
     for i in range(n):
         s_i = all_runs_resolved_sets[i]

@@ -33,9 +33,9 @@ def validate_patch_docker(
     Returns:
         True if patch resolves all tests
     """
+    import swebench.harness.constants as constants
     from swebench.harness.run_evaluation import run_instance
     from swebench.harness.test_spec.test_spec import make_test_spec
-    import swebench.harness.constants as constants
 
     instance_id = instance["instance_id"]
 
@@ -48,8 +48,8 @@ def validate_patch_docker(
         original_reporting_log_dir = None
         if output_dir:
             target_dir = Path(output_dir) / "eval_logs"
-            from swebench.harness import run_evaluation as _run_eval
             from swebench.harness import reporting as _reporting
+            from swebench.harness import run_evaluation as _run_eval
 
             original_log_dir = constants.RUN_EVALUATION_LOG_DIR
             original_run_eval_log_dir = _run_eval.RUN_EVALUATION_LOG_DIR
@@ -94,8 +94,8 @@ def validate_patch_docker(
         finally:
             # Restore original log directory in all patched modules
             if original_log_dir is not None:
-                from swebench.harness import run_evaluation as _run_eval
                 from swebench.harness import reporting as _reporting
+                from swebench.harness import run_evaluation as _run_eval
                 constants.RUN_EVALUATION_LOG_DIR = original_log_dir
                 _run_eval.RUN_EVALUATION_LOG_DIR = original_run_eval_log_dir
                 _reporting.RUN_EVALUATION_LOG_DIR = original_reporting_log_dir

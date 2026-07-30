@@ -4,7 +4,6 @@ import json
 import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 SNAPSHOT = ROOT / "src/tests/fixtures/llm_config_legacy_snapshot.json"
 sys.path.insert(0, str(ROOT / "scripts"))

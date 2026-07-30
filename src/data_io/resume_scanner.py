@@ -12,7 +12,7 @@ Usage:
 import json
 import shutil
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -22,7 +22,7 @@ _SRC_ROOT = Path(__file__).resolve().parents[1]
 if str(_SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(_SRC_ROOT))
 
-from config.loader import load_experiment_config
+from config.loader import load_experiment_config  # noqa: E402
 
 
 @dataclass

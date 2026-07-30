@@ -1,7 +1,6 @@
 # src/retrieval/base.py
 """Shared base mixin and helpers for skill retrievers."""
 
-from ace.core.skillbook import Skill
 
 
 class SkillRetrieverBase:

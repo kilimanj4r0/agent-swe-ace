@@ -10,18 +10,18 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
+import litellm
 import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config.llm_catalog import get_effective_llm
-from config.loader import load_experiment_config
 from dotenv import load_dotenv
 
-load_dotenv()
+from config.llm_catalog import get_effective_llm
+from config.loader import load_experiment_config
 
-import litellm
+load_dotenv()
 
 litellm.suppress_debug_info = True
 litellm.request_timeout = 10  # Fail fast if server unreachable
@@ -212,61 +212,3 @@ class TestLLMConfigHelpers:
         model_kwargs = model_config.call_args.kwargs["model_kwargs"]
         assert model_kwargs["api_base"] == api_base
         assert model_kwargs["top_p"] == 0.9
-
-
-@pytest.mark.integration
-class TestAgentLLMCall:
-    """Tests for agent LLM with real API calls."""
-
-    def test_agent_llm_returns_response(self, agent_config):
-        """Test that agent LLM returns a non-empty response."""
-        from config.llm import create_model_from_yaml
-
-        model = create_model_from_yaml(agent_config)
-        messages = [{"role": "user", "content": "Say exactly 'OK' and nothing else."}]
-
-        response = model.query(messages)
-
-        assert response is not None, "Agent LLM returned empty response"
-
-    def test_agent_llm_response_has_content(self, agent_config):
-        """Test that agent LLM response has content."""
-        from config.llm import create_model_from_yaml
-
-        model = create_model_from_yaml(agent_config)
-        messages = [{"role": "user", "content": "Say exactly 'OK' and nothing else."}]
-
-        response = model.query(messages)
-
-        # Extract response content
-        content = response.get("content", str(response)) if isinstance(response, dict) else str(response)
-        assert len(content) > 0, "Agent LLM returned empty content"
-
-
-@pytest.mark.integration
-class TestACELLMCall:
-    """Tests for ACE LLM with real API calls."""
-
-    def test_ace_llm_returns_response(self, ace_config):
-        """Test that ACE LLM returns a non-empty response."""
-        from config.llm import create_model_from_yaml
-
-        model = create_model_from_yaml(ace_config)
-        messages = [{"role": "user", "content": "Say exactly 'OK' and nothing else."}]
-
-        response = model.query(messages)
-
-        assert response is not None, "ACE LLM returned empty response"
-
-    def test_ace_llm_response_has_content(self, ace_config):
-        """Test that ACE LLM response has content."""
-        from config.llm import create_model_from_yaml
-
-        model = create_model_from_yaml(ace_config)
-        messages = [{"role": "user", "content": "Say exactly 'OK' and nothing else."}]
-
-        response = model.query(messages)
-
-        # Extract response content
-        content = response.get("content", str(response)) if isinstance(response, dict) else str(response)
-        assert len(content) > 0, "ACE LLM returned empty content"

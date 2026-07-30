@@ -498,7 +498,7 @@ def _print_prose_summary(report: RunSkillReport) -> None:
 
         print(f"\n  Phase: {phase_label} — prose skill-ID references: {len(refs)} "
               f"({len(instances)} instances)")
-        print(f"  by class: " + ", ".join(f"{by_cls[c]} {c}" for c in PROSE_REF_CLASSES if by_cls[c]))
+        print("  by class: " + ", ".join(f"{by_cls[c]} {c}" for c in PROSE_REF_CLASSES if by_cls[c]))
 
         # Detail tables for genuine skill references only.
         labels = {"presented": "Presented (injected + referenced)",
@@ -531,7 +531,7 @@ def _print_prose_summary(report: RunSkillReport) -> None:
         # Sample contexts from genuine skill references.
         samples = [r for r in refs if r.classification != "lookalike"][:6]
         if samples:
-            print(f"  Sample contexts:")
+            print("  Sample contexts:")
             for r in samples:
                 snippet = r.context if len(r.context) <= 140 else r.context[:140] + "..."
                 print(f"    iter {r.iteration} [{r.classification}]: ...{snippet}...")

@@ -7,8 +7,8 @@ from ace import Reflector
 from loguru import logger
 
 from .model_utils import make_pydantic_agent
-from .reflector_prompt import CUSTOM_REFLECTOR_PROMPT
 from .outputs import SWEReflectorOutput
+from .reflector_prompt import CUSTOM_REFLECTOR_PROMPT
 
 
 class SWEReflector(Reflector):

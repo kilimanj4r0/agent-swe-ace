@@ -136,8 +136,8 @@ def main() -> None:
         print(f"  [{es}]  n={len(sub)}  resolved_any={sum(1 for r in sub if r['resolved'])}")
         summary["by_exit_status"][es] = {
             "n": len(sub),
-            "total_tokens": describe([r["total_tokens"] for r in sub], f"  total tokens"),
-            "wall_seconds": describe([r["wall_seconds"] for r in sub], f"  wall seconds"),
+            "total_tokens": describe([r["total_tokens"] for r in sub], "  total tokens"),
+            "wall_seconds": describe([r["wall_seconds"] for r in sub], "  wall seconds"),
         }
 
     print("\n=== by resolved ===")
@@ -147,9 +147,9 @@ def main() -> None:
         print(f"  [{label}]  n={len(sub)}")
         summary["by_resolved"][label] = {
             "n": len(sub),
-            "total_tokens": describe([r["total_tokens"] for r in sub], f"  total tokens"),
-            "wall_seconds": describe([r["wall_seconds"] for r in sub], f"  wall seconds"),
-            "n_steps": describe([r["n_steps"] for r in sub], f"  agent steps"),
+            "total_tokens": describe([r["total_tokens"] for r in sub], "  total tokens"),
+            "wall_seconds": describe([r["wall_seconds"] for r in sub], "  wall seconds"),
+            "n_steps": describe([r["n_steps"] for r in sub], "  agent steps"),
         }
 
     (out_dir / "compute_summary.json").write_text(json.dumps(summary, indent=2))

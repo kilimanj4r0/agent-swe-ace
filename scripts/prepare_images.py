@@ -4,11 +4,12 @@
 Wraps swebench.harness.prepare_images with project config.
 """
 
+import argparse
 import subprocess
 import sys
-import argparse
-import yaml
 from pathlib import Path
+
+import yaml
 
 
 def main():

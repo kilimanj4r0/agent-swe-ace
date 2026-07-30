@@ -146,8 +146,8 @@ outcome = {}
 for bb in BACKBONES:
     g = prim_glbl[prim_glbl["backbone"] == bb]
     outcome[bb] = {
-        "res": behavior_row(g[g["resolved"] == True], f"{bb}-resolved"),
-        "unres": behavior_row(g[g["resolved"] == False], f"{bb}-unresolved"),
+        "res": behavior_row(g[g["resolved"].eq(True)], f"{bb}-resolved"),
+        "unres": behavior_row(g[g["resolved"].eq(False)], f"{bb}-unresolved"),
     }
 
 # Length-vs-repeat correlation (global val_baseline, merged with attempts).
@@ -188,7 +188,8 @@ data = [prim_glbl[prim_glbl["backbone"] == bb]["cmd_repeat_ratio"].clip(0, 1).va
 bp = ax.boxplot(data, tick_labels=BACKBONES, patch_artist=True, widths=0.5,
                 showfliers=False, medianprops=dict(color="black", linewidth=1.5))
 for patch, bb in zip(bp["boxes"], BACKBONES):
-    patch.set_facecolor(BACKBONE_COLOR[bb]); patch.set_alpha(0.55)
+    patch.set_facecolor(BACKBONE_COLOR[bb])
+    patch.set_alpha(0.55)
 rng = np.random.default_rng(0)
 for i, bb in enumerate(BACKBONES, start=1):
     vals = prim_glbl[prim_glbl["backbone"] == bb]["cmd_repeat_ratio"].clip(0, 1).values
@@ -214,7 +215,8 @@ b2 = ax.bar(x + w / 2, trap_val, w, label="val (skillbook)",
 for bar in list(b1) + list(b2):
     ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.2,
             f"{bar.get_height():.0f}%", ha="center", va="bottom", fontsize=9)
-ax.set_xticks(x); ax.set_xticklabels(BACKBONES)
+ax.set_xticks(x)
+ax.set_xticklabels(BACKBONES)
 ax.set_ylabel("% attempts with ≥1 multi-action rejection")
 ax.set_title("Format-trap (one-action rejection) — split025 (global)", fontsize=10)
 ax.set_ylim(0, max(max(trap_valbl), max(trap_val)) * 1.22)
@@ -233,7 +235,8 @@ b2 = ax.bar(x + w / 2, cyc_val, w, label="val (skillbook)",
 for bar in list(b1) + list(b2):
     ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.4,
             f"{bar.get_height():.0f}%", ha="center", va="bottom", fontsize=9)
-ax.set_xticks(x); ax.set_xticklabels(BACKBONES)
+ax.set_xticks(x)
+ax.set_xticklabels(BACKBONES)
 ax.set_ylabel("% attempts with a period-2–4 command cycle")
 ax.set_title("Command cycling — split025 (global)", fontsize=10)
 ax.set_ylim(0, max(max(cyc_valbl), max(cyc_val)) * 1.25)

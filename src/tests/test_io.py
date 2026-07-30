@@ -2,7 +2,6 @@
 """Tests for IO module."""
 import json
 import sys
-import pytest
 from pathlib import Path
 
 # Add parent directory to path for imports
@@ -142,7 +141,7 @@ class TestWriters:
 
     def test_save_skillbook_per_instance(self, tmp_path):
         """Test saving a skillbook in per-instance mode."""
-        from ace import Skillbook, Skill
+        from ace import Skill, Skillbook
 
         skillbook = Skillbook()
         skillbook._skills["skill-1"] = Skill(
@@ -167,7 +166,7 @@ class TestWriters:
 
     def test_save_skillbook_per_run(self, tmp_path):
         """Test saving a skillbook in per-run mode."""
-        from ace import Skillbook, Skill
+        from ace import Skill, Skillbook
 
         skillbook = Skillbook()
         skillbook._skills["skill-1"] = Skill(
@@ -227,7 +226,7 @@ class TestWriters:
 
     def test_save_skillbook_writes_sources(self, tmp_path):
         """Saved skillbook JSON must carry `sources` for every skill on disk."""
-        from ace import Skillbook, Skill
+        from ace import Skill, Skillbook
 
         skillbook = Skillbook()
         skillbook._skills["skill-1"] = Skill(
@@ -348,7 +347,6 @@ class TestLoadSkillbookForRepo:
 
     def test_per_repo_found(self, tmp_path):
         """Per-repo skillbook file is loaded when it exists."""
-        from ace import Skillbook, Skill
 
         benchmark = "princeton-nlp__SWE-bench_Verified"
         repo = "django/django"

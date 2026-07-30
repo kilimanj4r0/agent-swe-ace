@@ -2,18 +2,18 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, List, Any
+from typing import List, Optional
 
 from ace import Skillbook
 from loguru import logger
 
+from environments.docker_env import create_docker_environment, create_local_environment
 from phases.predict import (
-    build_system_template,
-    build_instance_template,
     build_action_observation_template,
     build_format_error_template,
+    build_instance_template,
+    build_system_template,
 )
-from environments.docker_env import create_docker_environment, create_local_environment
 from utils.platform import get_platform_info
 
 
@@ -25,6 +25,7 @@ class AgentResult:
     patch: str
     trajectory: List[dict]
     error: Optional[str] = None
+    error_kind: Optional[str] = None
 
 
 class MiniSWEAgent:
@@ -96,13 +97,14 @@ class MiniSWEAgent:
             AgentResult with exit_status, patch, trajectory, and error
         """
         try:
-            from minisweagent.agents.default import DefaultAgent, AgentConfig
+            from minisweagent.agents.default import AgentConfig, DefaultAgent
         except ImportError:
             return AgentResult(
                 exit_status="error",
                 patch="",
                 trajectory=[],
                 error="mini-swe-agent not installed",
+                error_kind="infrastructure",
             )
 
         try:
@@ -222,4 +224,5 @@ class MiniSWEAgent:
                 patch="",
                 trajectory=trajectory,
                 error=str(e),
+                error_kind="infrastructure",
             )

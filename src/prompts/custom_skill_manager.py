@@ -70,7 +70,7 @@ class SWESkillManager(SkillManager):
                 "correct_approach": r.correct_approach,
                 "key_insight": r.key_insight,
                 "extracted_learnings": [
-                    l.model_dump() for l in r.extracted_learnings
+                    learning.model_dump() for learning in r.extracted_learnings
                 ],
             }
             # SWE-specific fields (only present on SWEReflectorOutput)

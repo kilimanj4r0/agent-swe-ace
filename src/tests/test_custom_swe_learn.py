@@ -12,7 +12,7 @@ class TestSWEReflectorOutput:
 
     def test_extracted_learnings_includes_anti_pattern_prefix(self):
         """Anti-patterns should have [ANTI-PATTERN] prefix in learning field."""
-        from prompts import SWEReflectorOutput, AntiPattern
+        from prompts import AntiPattern, SWEReflectorOutput
 
         output = SWEReflectorOutput(
             reasoning="test",
@@ -39,7 +39,7 @@ class TestSWEReflectorOutput:
 
     def test_extracted_learnings_includes_discovery_prefix(self):
         """Discoveries should have [DISCOVERY] prefix in learning field."""
-        from prompts import SWEReflectorOutput, Discovery
+        from prompts import Discovery, SWEReflectorOutput
 
         output = SWEReflectorOutput(
             reasoning="test",
@@ -92,7 +92,7 @@ class TestSWEReflectorOutput:
 
     def test_extracted_learnings_combines_all_types(self):
         """All learning types should be combined in extracted_learnings."""
-        from prompts import SWEReflectorOutput, AntiPattern, Discovery, UnvalidatedHypothesis
+        from prompts import AntiPattern, Discovery, SWEReflectorOutput, UnvalidatedHypothesis
 
         output = SWEReflectorOutput(
             reasoning="test",
@@ -114,14 +114,14 @@ class TestSWEReflectorOutput:
         learnings = output.extracted_learnings
         assert len(learnings) == 3
 
-        learning_texts = [l.learning for l in learnings]
+        learning_texts = [learning.learning for learning in learnings]
         assert any("[ANTI-PATTERN]" in t for t in learning_texts)
         assert any("[DISCOVERY]" in t for t in learning_texts)
         assert any("[HYPOTHESIS]" in t for t in learning_texts)
 
     def test_get_all_learnings_as_dicts(self):
         """get_all_learnings_as_dicts should return flat list with type info."""
-        from prompts import SWEReflectorOutput, AntiPattern, Discovery
+        from prompts import AntiPattern, Discovery, SWEReflectorOutput
 
         output = SWEReflectorOutput(
             reasoning="test",
@@ -141,11 +141,15 @@ class TestSWEReflectorOutput:
         learnings = output.get_all_learnings_as_dicts()
         assert len(learnings) == 2
 
-        ap_learning = next(l for l in learnings if l["type"] == "anti_pattern")
+        ap_learning = next(
+            learning for learning in learnings if learning["type"] == "anti_pattern"
+        )
         assert ap_learning["learning"] == "AP1"
         assert ap_learning["why_harmful"] == "h1"
 
-        disc_learning = next(l for l in learnings if l["type"] == "discovery")
+        disc_learning = next(
+            learning for learning in learnings if learning["type"] == "discovery"
+        )
         assert disc_learning["learning"] == "D1"
 
 

@@ -20,8 +20,6 @@ import importlib.util
 import json
 from pathlib import Path
 
-import pytest
-
 # The analysis script lives in scripts/ (not a package), so load it by path.
 _SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "analyze_skillbook_quality.py"
 _spec = importlib.util.spec_from_file_location("analyze_skillbook_quality", _SCRIPT)

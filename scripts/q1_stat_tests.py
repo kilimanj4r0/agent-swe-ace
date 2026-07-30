@@ -32,7 +32,6 @@ from scipy import stats
 from statsmodels.stats.contingency_tables import mcnemar
 from statsmodels.stats.multitest import multipletests
 
-
 # ---------- helpers ----------
 
 def short_label(run_dir: str) -> str:

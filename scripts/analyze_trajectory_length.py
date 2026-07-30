@@ -112,7 +112,6 @@ def length_rows(df: pd.DataFrame, metric: str, backbones: list[str]) -> list[lis
 
 
 def length_headers(metric: str) -> list[str]:
-    unit = "" if metric == "steps" else ""
     return ["Backbone", "n", "mean", "median", "p25", "p75", "min", "max"]
 
 

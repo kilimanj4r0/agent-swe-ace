@@ -252,10 +252,10 @@ def plot_failure_breakdown(
     # De-duplicate legend entries (one per category, in canonical order)
     handles, labels = ax.get_legend_handles_labels()
     seen = {}
-    for h, l in zip(handles, labels):
-        seen.setdefault(l, h)
+    for handle, legend_label in zip(handles, labels):
+        seen.setdefault(legend_label, handle)
     ordered = [(seen[c], c) for c in FAILURE_CATEGORIES if c in seen]
-    ax.legend([h for h, _ in ordered], [l for _, l in ordered],
+    ax.legend([handle for handle, _ in ordered], [legend_label for _, legend_label in ordered],
               bbox_to_anchor=(1.01, 1), loc="upper left", fontsize=8,
               frameon=False, title="failure category")
 
@@ -329,7 +329,7 @@ def render_report(
     parts.append(fmt_failure_table(lite_default_mixes, LITE_BACKBONES))
     parts.append("")
     parts.append(
-        f"*pass@4 context: "
+        "*pass@4 context: "
         + " · ".join(
             f"{bb} pass@1={lite_default_pk[bb]['pass1']:.1f}% "
             f"pass@4={lite_default_pk[bb]['passK']:.1f}% "
@@ -382,7 +382,7 @@ def render_report(
     parts.append(fmt_failure_table(sv_valbl_global_mixes, SV_BACKBONES))
     parts.append("")
     parts.append(
-        f"*pass@5 context: "
+        "*pass@5 context: "
         + " · ".join(
             f"{bb} pass@1={sv_valbl_global_pk[bb]['pass1']:.1f}% "
             f"pass@5={sv_valbl_global_pk[bb]['passK']:.1f}% "
@@ -423,7 +423,7 @@ def render_report(
     parts.append(fmt_failure_table(sv_val_global_mixes, SV_BACKBONES))
     parts.append("")
     parts.append(
-        f"*pass@5 context (val / skillbook): "
+        "*pass@5 context (val / skillbook): "
         + " · ".join(
             f"{bb} pass@1={sv_val_global_pk[bb]['pass1']:.1f}% "
             f"pass@5={sv_val_global_pk[bb]['passK']:.1f}%"
@@ -449,13 +449,11 @@ def render_report(
     glm_lite_re_n = lite_default_mixes["GLM"]["runtime_error"]["count"]
     q30_sv_ctx = sv_valbl_global_mixes["Q30"]["context_window_exceeded"]["count"]
     qnext_sv_ctx = sv_valbl_global_mixes["QNext"]["context_window_exceeded"]["count"]
-    qnext_sv_ctx_val = sv_val_global_mixes["QNext"]["context_window_exceeded"]["count"]
     q30_valbl_pk = sv_valbl_global_pk["Q30"]["passK"]
     qnext_valbl_pk = sv_valbl_global_pk["QNext"]["passK"]
     q30_val_pk = sv_val_global_pk["Q30"]["passK"]
     qnext_val_pk = sv_val_global_pk["QNext"]["passK"]
     q30_valbl_np_n = sv_valbl_global_mixes["Q30"]["no_patch"]["count"]
-    qnext_valbl_np_n = sv_valbl_global_mixes["QNext"]["no_patch"]["count"]
     qnext_lite_stf = lite_default_mixes["QNext"]["submitted_tests_failed"]["pct"]
     glm_lite_stf = lite_default_mixes["GLM"]["submitted_tests_failed"]["pct"]
 
@@ -504,12 +502,12 @@ def render_report(
         f"non-submissions into resolutions, it just reshuffles them.\n"
     )
     parts.append(
-        f"- **Design implication.** The right knob differs per backbone: Q30 "
-        f"benefits from anything that raises submission rate (skillbook guidance, "
-        f"lower step limit forcing commitment, format guards); QNext benefits "
-        f"from crash-recovery (the existing retry budget) and a larger context "
-        f"window / earlier-submit heuristic on Verified. GLM is the stable middle "
-        f"— low crash rate, low no_patch, failures are genuine test failures.\n"
+        "- **Design implication.** The right knob differs per backbone: Q30 "
+        "benefits from anything that raises submission rate (skillbook guidance, "
+        "lower step limit forcing commitment, format guards); QNext benefits "
+        "from crash-recovery (the existing retry budget) and a larger context "
+        "window / earlier-submit heuristic on Verified. GLM is the stable middle "
+        "— low crash rate, low no_patch, failures are genuine test failures.\n"
     )
 
     return "\n".join(parts) + "\n"

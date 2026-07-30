@@ -21,6 +21,7 @@ class PredictResult:
     patch: str
     trajectory: list
     error: Optional[str] = None
+    error_kind: Optional[str] = None
     trajectory_path: Optional[Path] = None
 
 
@@ -119,6 +120,7 @@ class PredictPhase:
             "iteration": iteration,
             "instance_id": instance_id,
             "model": self.model_name,
+            "error_kind": result.error_kind,
             "message_count": len(result.trajectory),
             "assistant_message_count": sum(
                 1 for m in result.trajectory if m.get("role") == "assistant"
@@ -126,6 +128,8 @@ class PredictPhase:
         }
         if retrieval_stats:
             info["retrieval_stats"] = retrieval_stats
+        if result.error:
+            info["error"] = result.error
         trajectory = {"info": info, "messages": result.trajectory}
 
         # Save trajectory
@@ -151,6 +155,7 @@ class PredictPhase:
             patch=result.patch,
             trajectory=result.trajectory,
             error=result.error,
+            error_kind=result.error_kind,
             trajectory_path=trajectory_path,
         )
 
@@ -305,8 +310,9 @@ def _load_mini_swe_config() -> dict:
     if _MINI_SWE_CONFIG is not None:
         return _MINI_SWE_CONFIG
 
-    import yaml
     from pathlib import Path
+
+    import yaml
 
     # Try to find the swebench config in minisweagent package
     try:

@@ -1,9 +1,8 @@
 # src/tests/test_main_loop.py
 """Tests for main loop runner."""
 import sys
-import pytest
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -84,7 +83,7 @@ class TestMainLoop:
         )
 
         instance = {"instance_id": "test__repo-123", "problem_statement": "Fix"}
-        results = loop.run_instance(instance)
+        loop.run_instance(instance)
 
         # Should run twice (fail→learn→resolve→break since max_attempts=2)
         assert mock_predict.run.call_count == 2
@@ -128,14 +127,181 @@ class TestMainLoop:
         assert mock_predict.run.call_count == 2
         assert results.final_resolved is False
 
+    def test_infrastructure_error_skips_evaluate_and_learn(self, tmp_path):
+        """A broken runner stops only this instance before evaluation."""
+        from runners.main_loop import ExperimentLoop
+
+        mock_predict = Mock()
+        mock_predict.run.return_value = Mock(
+            instance_id="test__repo-123",
+            exit_status="error",
+            error="docker exit 125",
+            error_kind="infrastructure",
+            patch="",
+            trajectory=[],
+        )
+        mock_evaluate = Mock()
+        mock_learn = Mock()
+        loop = ExperimentLoop(
+            predict_phase=mock_predict,
+            evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn,
+            output_dir=tmp_path,
+            max_attempts=3,
+        )
+
+        result = loop.run_instance(
+            {"instance_id": "test__repo-123", "problem_statement": "Fix"}
+        )
+
+        assert result.status == "infrastructure_error"
+        assert result.infrastructure_error == "docker exit 125"
+        assert result.total_attempts == 1
+        assert len(result.iterations) == 1
+        assert result.iterations[0].evaluate_result is None
+        mock_predict.run.assert_called_once()
+        mock_evaluate.run.assert_not_called()
+        mock_learn.run.assert_not_called()
+
+    def test_concurrent_infrastructure_error_skips_evaluate_and_learn(self, tmp_path):
+        """Concurrent workers apply the same infrastructure-error boundary."""
+        from runners.main_loop import ExperimentLoop
+
+        worker_predict = Mock()
+        worker_predict.run.return_value = Mock(
+            instance_id="test__repo-123",
+            exit_status="error",
+            error="docker daemon unavailable",
+            error_kind="infrastructure",
+            patch="",
+            trajectory=[],
+        )
+        mock_evaluate = Mock()
+        mock_learn = Mock()
+        loop = ExperimentLoop(
+            predict_phase=Mock(),
+            evaluate_phase=mock_evaluate,
+            learn_phase=mock_learn,
+            output_dir=tmp_path,
+            max_attempts=3,
+            concurrency=2,
+            agent_factory=Mock(),
+        )
+        loop._make_worker_predict = Mock(return_value=worker_predict)
+
+        result = loop._run_instance_concurrent_inner(
+            {"instance_id": "test__repo-123", "repo": "test/repo"}
+        )
+
+        assert result.status == "infrastructure_error"
+        assert result.infrastructure_error == "docker daemon unavailable"
+        assert result.total_attempts == 1
+        assert len(result.iterations) == 1
+        assert result.iterations[0].evaluate_result is None
+        worker_predict.run.assert_called_once()
+        mock_evaluate.run.assert_not_called()
+        mock_learn.run.assert_not_called()
+
+    def test_concurrent_partial_resume_copies_flat_artifacts(self, tmp_path):
+        """Concurrent resume must not reference a nonexistent phase variable."""
+        from data_io.resume_scanner import ResumePoint
+        from runners.main_loop import ExperimentLoop
+
+        worker_predict = Mock()
+        worker_predict.run.return_value = Mock(
+            exit_status="submitted",
+            error_kind=None,
+            patch="patch",
+            trajectory=[],
+        )
+        mock_evaluate = Mock()
+        mock_evaluate.run.return_value = Mock(
+            resolved=True,
+            feedback="ok",
+        )
+        resume_state = {
+            "test__repo-123": ResumePoint(
+                resume_dir=tmp_path,
+                last_complete_iter=0,
+                is_fully_complete=False,
+            )
+        }
+        loop = ExperimentLoop(
+            predict_phase=Mock(),
+            evaluate_phase=mock_evaluate,
+            learn_phase=Mock(),
+            output_dir=tmp_path,
+            max_attempts=2,
+            concurrency=2,
+            agent_factory=Mock(),
+            resume_state=resume_state,
+        )
+        loop._make_worker_predict = Mock(return_value=worker_predict)
+        loop._copy_resume_artifacts = Mock()
+
+        result = loop._run_instance_concurrent_inner(
+            {"instance_id": "test__repo-123", "repo": "test/repo"}
+        )
+
+        loop._copy_resume_artifacts.assert_called_once_with("test__repo-123")
+        assert result.final_resolved is True
+
+    def test_statistics_keep_infrastructure_errors_disjoint(self, tmp_path):
+        """Infrastructure failures are reported separately from task outcomes."""
+        from runners.main_loop import ExperimentLoop, InstanceResult
+
+        outcomes = {
+            "resolved": InstanceResult(
+                instance_id="resolved", final_resolved=True, total_attempts=1
+            ),
+            "unresolved": InstanceResult(
+                instance_id="unresolved", final_resolved=False, total_attempts=1
+            ),
+            "infra": InstanceResult(
+                instance_id="infra",
+                status="infrastructure_error",
+                infrastructure_error="docker unavailable",
+                total_attempts=1,
+            ),
+        }
+        mock_predict = Mock()
+        mock_predict.get_retrieval_summary.return_value = None
+        loop = ExperimentLoop(
+            predict_phase=mock_predict,
+            evaluate_phase=Mock(),
+            learn_phase=Mock(),
+            output_dir=tmp_path,
+            max_attempts=1,
+        )
+        loop.run_instance = Mock(
+            side_effect=lambda instance, **kwargs: outcomes[instance["instance_id"]]
+        )
+
+        statistics = loop.run(
+            [{"instance_id": instance_id} for instance_id in outcomes]
+        )
+
+        assert statistics["resolved_ids"] == ["resolved"]
+        assert statistics["unresolved_ids"] == ["unresolved"]
+        assert statistics["infrastructure_error_ids"] == ["infra"]
+        assert statistics["infrastructure_error_count"] == 1
+        assert statistics["status"] == "degraded"
+        assert set(statistics["resolved_ids"]).isdisjoint(
+            statistics["infrastructure_error_ids"]
+        )
+        assert set(statistics["unresolved_ids"]).isdisjoint(
+            statistics["infrastructure_error_ids"]
+        )
+
 
 class TestSkillbookModes:
     """Test skillbook mode handling."""
 
     def test_per_instance_mode(self, tmp_path):
         """Test per-instance skillbook mode (default)."""
-        from runners.main_loop import ExperimentLoop
         from ace import Skillbook
+
+        from runners.main_loop import ExperimentLoop
 
         mock_predict = Mock()
         mock_evaluate = Mock()
@@ -156,8 +322,9 @@ class TestSkillbookModes:
 
     def test_global_mode(self, tmp_path):
         """Test global skillbook mode."""
+        from ace import Skill
+
         from runners.main_loop import ExperimentLoop
-        from ace import Skillbook, Skill
 
         mock_predict = Mock()
         mock_evaluate = Mock()
@@ -188,8 +355,8 @@ class TestResumeSupport:
 
     def test_resume_skips_complete_instance(self, tmp_path):
         """Fully complete instances should be skipped (start_iteration=-1)."""
-        from runners.main_loop import ExperimentLoop
         from data_io.resume_scanner import ResumePoint
+        from runners.main_loop import ExperimentLoop
 
         mock_predict = Mock()
         mock_evaluate = Mock()
@@ -216,8 +383,8 @@ class TestResumeSupport:
 
     def test_resume_continues_partial_instance(self, tmp_path):
         """Partial instances should continue from last_complete_iter + 1."""
-        from runners.main_loop import ExperimentLoop
         from data_io.resume_scanner import ResumePoint
+        from runners.main_loop import ExperimentLoop
 
         mock_predict = Mock()
         mock_evaluate = Mock()
@@ -245,9 +412,10 @@ class TestResumeSupport:
 
     def test_resume_copies_artifacts(self, tmp_path):
         """Partial resume should copy artifacts from source directory."""
-        from runners.main_loop import ExperimentLoop
-        from data_io.resume_scanner import ResumePoint
         import json
+
+        from data_io.resume_scanner import ResumePoint
+        from runners.main_loop import ExperimentLoop
 
         # Create source directory with artifacts
         source_dir = tmp_path / "source"
@@ -516,8 +684,8 @@ class TestPerRepoMode:
 
     def test_per_repo_mode(self, tmp_path):
         """Skillbook accumulates across instances from the same repo."""
+
         from runners.main_loop import ExperimentLoop
-        from ace import Skillbook
 
         loop = ExperimentLoop(
             predict_phase=Mock(),
@@ -741,7 +909,7 @@ class TestTrainBaselineReuse:
         )
 
         instance = {"instance_id": instance_id, "repo": "django/django"}
-        result = loop._run_train_instance_reusing_baseline(instance, baseline_dir)
+        loop._run_train_instance_reusing_baseline(instance, baseline_dir)
 
         mock_learn.run.assert_called_once()
         mock_predict.run.assert_not_called()
@@ -774,7 +942,7 @@ class TestTrainBaselineReuse:
         )
 
         instance = {"instance_id": instance_id, "repo": "django/django"}
-        result = loop._run_train_instance_reusing_baseline(instance, baseline_dir)
+        loop._run_train_instance_reusing_baseline(instance, baseline_dir)
 
         # Falls back to full predict→eval→learn
         mock_predict.run.assert_called_once()
@@ -811,14 +979,15 @@ class TestTrainBaselineReuse:
         )
 
         instance = {"instance_id": instance_id, "repo": "django/django"}
-        result = loop._run_train_instance_reusing_baseline(instance, baseline_dir)
+        loop._run_train_instance_reusing_baseline(instance, baseline_dir)
 
         mock_predict.run.assert_called_once()
 
     def test_two_phase_with_baseline_reuse_stats(self, tmp_path):
         """Full two-phase run with baseline reuse produces correct statistics."""
-        from runners.main_loop import ExperimentLoop
         import json
+
+        from runners.main_loop import ExperimentLoop
 
         # Setup baseline dir with one train instance that has valid data
         baseline_dir = tmp_path / "baseline"
@@ -959,6 +1128,7 @@ class TestPredictPhaseInjection:
 
     def test_injected_predict_phase_is_used(self, tmp_path):
         from ace import Skillbook
+
         from runners.main_loop import ExperimentLoop
 
         injected = Mock()
@@ -1020,7 +1190,9 @@ class TestTrainSequentialInTwoPhase:
     def test_train_runs_one_at_a_time(self, tmp_path):
         import threading
         import time
+
         from ace import Skillbook
+
         from runners.main_loop import ExperimentLoop
 
         active = [0]
@@ -1114,6 +1286,7 @@ class TestConcurrentValPass:
 
     def test_concurrent_matches_sequential(self, tmp_path):
         from ace import Skillbook
+
         from runners.main_loop import InstanceResult
 
         def fake_run_instance(inst, **kw):
@@ -1136,8 +1309,9 @@ class TestConcurrentValPass:
             assert set(stats["resolved_ids"]) == {f"r__i-{i}" for i in range(6) if i % 2 == 0}
             assert loop.run_instance.call_count == 6
 
-    def test_worker_exception_recorded_unresolved(self, tmp_path):
+    def test_worker_exception_recorded_as_infrastructure_error(self, tmp_path):
         from ace import Skillbook
+
         from runners.main_loop import InstanceResult
 
         def fake_run_instance(inst, **kw):
@@ -1155,13 +1329,18 @@ class TestConcurrentValPass:
             Skillbook(), phase="val", max_attempts=1,
         )
         assert set(stats["resolved_ids"]) == {"r__i-0", "r__i-2", "r__i-3"}
-        assert "r__i-1" in stats["unresolved_ids"]
+        assert stats["unresolved_ids"] == []
+        assert stats["infrastructure_error_ids"] == ["r__i-1"]
+        assert stats["infrastructure_error_count"] == 1
+        assert stats["status"] == "degraded"
         assert stats["resolved_count"] == 3
 
     def test_instances_actually_run_in_parallel(self, tmp_path):
         import threading
         import time
+
         from ace import Skillbook
+
         from runners.main_loop import InstanceResult
 
         active = [0]
@@ -1228,8 +1407,8 @@ class TestConcurrentValPass:
     def test_eval_on_train_runs_two_train_passes_and_skips_val(self, tmp_path):
         """eval_on_train=True: _run_val_pass called twice on TRAIN instances
         (train_eval_baseline empty, train_eval learned) and NOT on val."""
+
         from runners.main_loop import ExperimentLoop
-        from ace import Skillbook
 
         mock_predict = Mock()
         mock_predict.prepare_skillbook.side_effect = (
@@ -1279,8 +1458,8 @@ class TestConcurrentValPass:
     def test_eval_on_train_statistics_blocks(self, tmp_path):
         """Returned stats carry train_eval_phase + train_eval_baseline_phase and
         a train summary; val_*_phase absent; top-level mirrors TrainSB."""
+
         from runners.main_loop import ExperimentLoop
-        from ace import Skillbook
 
         mock_predict = Mock()
         mock_predict.prepare_skillbook.side_effect = (
@@ -1355,8 +1534,9 @@ class TestConcurrentValPass:
     def test_train_eval_baseline_reuses_baseline_train_results(self, tmp_path):
         """TrainBL reuses empty-skillbook results from baseline_dir/results/train
         when present, instead of re-executing."""
-        from runners.main_loop import ExperimentLoop
         from ace import Skillbook
+
+        from runners.main_loop import ExperimentLoop
 
         bench = "princeton-nlp__SWE-bench_Lite"
         baseline_dir = tmp_path / "baseline"
@@ -1396,7 +1576,8 @@ class TestTrainEmptySkillbook:
     def test_train_predict_receives_empty_skillbook(self, tmp_path):
         """run_instance(phase='train') hands predict an empty Skillbook even when
         the accumulated global book is non-empty; learn receives the accumulated one."""
-        from ace import Skillbook, Skill
+        from ace import Skill, Skillbook
+
         from runners.main_loop import ExperimentLoop
 
         mock_predict = Mock()
@@ -1438,7 +1619,8 @@ class TestTrainEmptySkillbook:
         """Two sequential train instances: each predict gets an empty book, but
         learn still accumulates into the real book (instance 2's learn sees
         instance 1's skill)."""
-        from ace import Skillbook, Skill
+        from ace import Skill
+
         from runners.main_loop import ExperimentLoop
 
         mock_predict = Mock()
@@ -1484,7 +1666,8 @@ class TestTrainEmptySkillbook:
 
     def test_val_predict_receives_real_skillbook(self, tmp_path):
         """val (skillbook) pass: predict gets the real book, not an empty one."""
-        from ace import Skillbook, Skill
+        from ace import Skill, Skillbook
+
         from runners.main_loop import ExperimentLoop
 
         mock_predict = Mock()
@@ -1519,7 +1702,8 @@ class TestTrainEmptySkillbook:
     def test_val_baseline_empty_and_global_book_not_mutated(self, tmp_path):
         """val_baseline: predict gets the empty book passed in (not global_skillbook),
         and global_skillbook is not mutated by frozen val passes."""
-        from ace import Skillbook, Skill
+        from ace import Skill, Skillbook
+
         from runners.main_loop import ExperimentLoop
 
         mock_predict = Mock()

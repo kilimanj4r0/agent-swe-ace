@@ -3,9 +3,12 @@
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 from loguru import logger
+
+if TYPE_CHECKING:
+    from ace import Skillbook
 
 
 def extract_benchmark_name(dataset: str) -> str:
@@ -58,7 +61,7 @@ def load_skillbook(source: Optional[Union[Path, str, Dict]]) -> "Skillbook":
     Returns:
         Skillbook instance
     """
-    from ace import Skillbook, Skill
+    from ace import Skill, Skillbook
 
     skillbook = Skillbook()
 

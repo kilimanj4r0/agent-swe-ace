@@ -4,16 +4,116 @@ import json
 import sys
 import types
 from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config.loader import deep_merge
 from cli.commands import (
     _load_split_manifest,
-    _split_from_manifest,
-    split_instances,
     _persist_per_repo_skillbook,
+    _split_from_manifest,
+    _strict_exit_code,
+    split_instances,
 )
+from config.loader import deep_merge
+
+
+class TestStrictExit:
+    @pytest.mark.parametrize(
+        ("status", "strict", "expected"),
+        [
+            ("completed", False, 0),
+            ("degraded", False, 0),
+            ("interrupted", False, 0),
+            ("completed", True, 0),
+            ("degraded", True, 1),
+            ("interrupted", True, 1),
+        ],
+    )
+    def test_strict_exit_code(self, status, strict, expected):
+        assert _strict_exit_code({"status": status}, strict) == expected
+
+    def test_main_exits_after_degraded_run_returns(self):
+        from cli.commands import main
+
+        events = []
+
+        def fake_run(config, args):
+            events.append("run-returned")
+            return {"status": "degraded"}
+
+        with (
+            patch.object(sys, "argv", ["agent-swe-ace", "--strict"]),
+            patch("cli.commands._setup_console_logging"),
+            patch("cli.commands.load_experiment_config", return_value={}),
+            patch("cli.commands.apply_litellm_config"),
+            patch("cli.commands.run_full_experiment", side_effect=fake_run) as run,
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            main()
+
+        assert exc_info.value.code == 1
+        assert events == ["run-returned"]
+        run.assert_called_once()
+
+    def test_main_non_strict_keeps_degraded_run_successful(self):
+        from cli.commands import main
+
+        with (
+            patch.object(sys, "argv", ["agent-swe-ace"]),
+            patch("cli.commands._setup_console_logging"),
+            patch("cli.commands.load_experiment_config", return_value={}),
+            patch("cli.commands.apply_litellm_config"),
+            patch(
+                "cli.commands.run_full_experiment",
+                return_value={"status": "degraded"},
+            ) as run,
+        ):
+            main()
+
+        run.assert_called_once()
+
+
+class TestAggregateIterateStatus:
+    @pytest.mark.parametrize(
+        ("repo_statuses", "expected"),
+        [
+            (["completed", "completed"], "completed"),
+            (["completed", "degraded"], "degraded"),
+            (["completed", "interrupted"], "interrupted"),
+        ],
+    )
+    def test_aggregate_preserves_run_severity(
+        self, tmp_path, repo_statuses, expected
+    ):
+        from cli.commands import _aggregate_iterate_stats
+
+        repo_stats = {
+            f"org/repo-{index}": {
+                "status": status,
+                "start_time": f"2026-07-30T10:0{index}:00",
+                "end_time": f"2026-07-30T10:0{index}:30",
+                "total_instances": 1,
+                "processed_instances": 1,
+                "resolved_count": 0,
+                "infrastructure_error_ids": (
+                    [f"instance-{index}"] if status == "degraded" else []
+                ),
+            }
+            for index, status in enumerate(repo_statuses)
+        }
+        config = {
+            "benchmark": {"dataset": "org/benchmark"},
+            "experiment": {"name": "test"},
+        }
+
+        combined = _aggregate_iterate_stats(repo_stats, config, tmp_path)
+
+        assert combined["status"] == expected
+        if expected == "degraded":
+            assert combined["infrastructure_error_ids"] == ["instance-1"]
 
 
 # ---------------------------------------------------------------------------
@@ -345,6 +445,7 @@ class TestResolveIterateReposConcurrency:
 
     def test_legacy_concurrency_of_one_does_not_warn(self, caplog):
         import logging
+
         from cli.commands import _resolve_iterate_repos_concurrency
         with caplog.at_level(logging.WARNING):
             assert _resolve_iterate_repos_concurrency({"concurrency": 1}) == 1
@@ -365,7 +466,7 @@ class TestPersistPerRepoSkillbook:
     """
 
     def test_writes_sources_and_correct_path(self, tmp_path):
-        from ace import Skillbook, Skill
+        from ace import Skill, Skillbook
 
         sb = Skillbook()
         sb._skills["debugging-00001"] = Skill(
@@ -399,7 +500,7 @@ class TestPersistPerRepoSkillbook:
 
     def test_every_skill_carries_sources_key(self, tmp_path):
         """Skills with empty sources still get the key — no field drift."""
-        from ace import Skillbook, Skill
+        from ace import Skill, Skillbook
 
         sb = Skillbook()
         for i in range(3):
