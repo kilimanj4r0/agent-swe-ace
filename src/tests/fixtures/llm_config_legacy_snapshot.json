@@ -1,0 +1,3333 @@
+{
+  "base_config": "config.yaml",
+  "commented_raw_fields": {
+    "config.yaml": [
+      {
+        "field": "model",
+        "line": 63,
+        "value": "Qwen/Qwen3-Embedding-4B"
+      },
+      {
+        "field": "model",
+        "line": 116,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 117,
+        "value": "http://localhost:8800/v1"
+      },
+      {
+        "field": "api_base",
+        "line": 118,
+        "value": "http://10.100.30.241:8800/v1"
+      },
+      {
+        "field": "model",
+        "line": 126,
+        "value": "glm-4.7-flash"
+      },
+      {
+        "field": "api_base",
+        "line": 127,
+        "value": "https://api.z.ai/api/coding/paas/v4"
+      },
+      {
+        "field": "api_base",
+        "line": 128,
+        "value": "https://open.bigmodel.cn/api/coding/paas/v4"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Lite/agent-glm-ace-glm-full-4a-default.yaml": [],
+    "configs/princeton-nlp__SWE-bench_Lite/agent-glm-ace-glm-full-4a-swe.yaml": [],
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-full-1a-baseline.yaml": [
+      {
+        "field": "model",
+        "line": 25,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 27,
+        "value": "http://10.100.30.241:8800/v1"
+      },
+      {
+        "field": "model",
+        "line": 32,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 34,
+        "value": "http://10.100.30.241:8800/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-full-4a-default.yaml": [
+      {
+        "field": "model",
+        "line": 23,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 25,
+        "value": "http://10.100.30.241:8800/v1"
+      },
+      {
+        "field": "model",
+        "line": 30,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 32,
+        "value": "http://10.100.30.241:8800/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-full-4a-swe.yaml": [
+      {
+        "field": "model",
+        "line": 24,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 26,
+        "value": "http://10.100.30.241:8800/v1"
+      },
+      {
+        "field": "model",
+        "line": 31,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 33,
+        "value": "http://10.100.30.241:8800/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-full-global-split-default.yaml": [
+      {
+        "field": "model",
+        "line": 25,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 27,
+        "value": "http://10.100.30.241:8800/v1"
+      },
+      {
+        "field": "model",
+        "line": 32,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 34,
+        "value": "http://10.100.30.241:8800/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-repos-split-default.yaml": [],
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-repos-split-swe.yaml": [],
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3next-full-4a-default.yaml": [],
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-full-4a-no-skillbook.yaml": [
+      {
+        "field": "model",
+        "line": 18,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 20,
+        "value": "http://10.100.30.241:8801/v1"
+      },
+      {
+        "field": "model",
+        "line": 25,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 27,
+        "value": "http://10.100.30.241:8801/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-ace-qwen3-16opus45-distil-repos-split-default.yaml": [],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-ace-qwen3-16opus45-distil-repos-split-swe.yaml": [],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-4a-default.yaml": [
+      {
+        "field": "model",
+        "line": 25,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 27,
+        "value": "http://10.100.30.241:8800/v1"
+      },
+      {
+        "field": "model",
+        "line": 32,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 34,
+        "value": "http://10.100.30.241:8800/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-4a-swe.yaml": [
+      {
+        "field": "model",
+        "line": 24,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 26,
+        "value": "http://10.100.30.241:8800/v1"
+      },
+      {
+        "field": "model",
+        "line": 31,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 33,
+        "value": "http://10.100.30.241:8800/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default-025-ret-bm25.yaml": [
+      {
+        "field": "model",
+        "line": 29,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 31,
+        "value": "http://10.100.30.241:8801/v1"
+      },
+      {
+        "field": "model",
+        "line": 36,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 38,
+        "value": "http://10.100.30.241:8801/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default-025-ret-embedding.yaml": [
+      {
+        "field": "model",
+        "line": 30,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 32,
+        "value": "http://10.100.30.241:8801/v1"
+      },
+      {
+        "field": "model",
+        "line": 37,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 39,
+        "value": "http://10.100.30.241:8801/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default-025-ret-random.yaml": [
+      {
+        "field": "model",
+        "line": 30,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 32,
+        "value": "http://10.100.30.241:8801/v1"
+      },
+      {
+        "field": "model",
+        "line": 37,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 39,
+        "value": "http://10.100.30.241:8801/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default-025-ret.yaml": [
+      {
+        "field": "model",
+        "line": 32,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 34,
+        "value": "http://10.100.30.241:8801/v1"
+      },
+      {
+        "field": "model",
+        "line": 39,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 41,
+        "value": "http://10.100.30.241:8801/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default-025.yaml": [
+      {
+        "field": "model",
+        "line": 26,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 28,
+        "value": "http://10.100.30.241:8800/v1"
+      },
+      {
+        "field": "model",
+        "line": 33,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 35,
+        "value": "http://10.100.30.241:8800/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default.yaml": [
+      {
+        "field": "model",
+        "line": 25,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 27,
+        "value": "http://10.100.30.241:8800/v1"
+      },
+      {
+        "field": "model",
+        "line": 32,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 34,
+        "value": "http://10.100.30.241:8800/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-swe-025-ret-bm25.yaml": [
+      {
+        "field": "model",
+        "line": 29,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 31,
+        "value": "http://10.100.30.241:8801/v1"
+      },
+      {
+        "field": "model",
+        "line": 36,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 38,
+        "value": "http://10.100.30.241:8801/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-swe-025-ret-embedding.yaml": [
+      {
+        "field": "model",
+        "line": 30,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 32,
+        "value": "http://10.100.30.241:8801/v1"
+      },
+      {
+        "field": "model",
+        "line": 37,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 39,
+        "value": "http://10.100.30.241:8801/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-swe-025-ret-random.yaml": [
+      {
+        "field": "model",
+        "line": 30,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 32,
+        "value": "http://10.100.30.241:8801/v1"
+      },
+      {
+        "field": "model",
+        "line": 37,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 39,
+        "value": "http://10.100.30.241:8801/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-swe-025-ret.yaml": [
+      {
+        "field": "model",
+        "line": 32,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 34,
+        "value": "http://10.100.30.241:8801/v1"
+      },
+      {
+        "field": "model",
+        "line": 39,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 41,
+        "value": "http://10.100.30.241:8801/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-swe-025.yaml": [
+      {
+        "field": "model",
+        "line": 28,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 30,
+        "value": "http://10.100.30.241:8800/v1"
+      },
+      {
+        "field": "model",
+        "line": 36,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 38,
+        "value": "http://10.100.30.241:8800/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default-025-ret-bm25.yaml": [],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default-025-ret-embedding.yaml": [],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default-025-ret-random.yaml": [],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default-025-ret.yaml": [],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default-025.yaml": [],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default.yaml": [],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe-025-ret-bm25.yaml": [],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe-025-ret-embedding.yaml": [],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe-025-ret-random.yaml": [],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe-025-ret.yaml": [],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe-025.yaml": [],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe.yaml": [],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3next-4a-retrieval-verified.yaml": [],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3next-full-4a-default.yaml": [],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-full-4a-no-skillbook.yaml": [
+      {
+        "field": "model",
+        "line": 18,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 21,
+        "value": "http://localhost:8800/v1"
+      },
+      {
+        "field": "model",
+        "line": 25,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 28,
+        "value": "http://localhost:8800/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-eval-on-train-noret.yaml": [
+      {
+        "field": "model",
+        "line": 38,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 40,
+        "value": "http://localhost:8800/v1"
+      },
+      {
+        "field": "temperature",
+        "line": 42,
+        "value": 1.0
+      },
+      {
+        "field": "model",
+        "line": 46,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 48,
+        "value": "http://localhost:8800/v1"
+      },
+      {
+        "field": "temperature",
+        "line": 50,
+        "value": 1.0
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-eval-on-train-ret-bm25.yaml": [
+      {
+        "field": "model",
+        "line": 39,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 40,
+        "value": "http://10.100.30.241:8801/v1"
+      },
+      {
+        "field": "model",
+        "line": 46,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 47,
+        "value": "http://10.100.30.241:8801/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-ret-bm25.yaml": [
+      {
+        "field": "model",
+        "line": 32,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 34,
+        "value": "http://localhost:8800/v1"
+      },
+      {
+        "field": "model",
+        "line": 40,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 42,
+        "value": "http://localhost:8800/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-ret-embedding.yaml": [
+      {
+        "field": "model",
+        "line": 33,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 34,
+        "value": "http://10.100.30.241:8802/v1"
+      },
+      {
+        "field": "model",
+        "line": 40,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 41,
+        "value": "http://10.100.30.241:8802/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-ret-llm.yaml": [
+      {
+        "field": "model",
+        "line": 33,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 35,
+        "value": "http://localhost:8800/v1"
+      },
+      {
+        "field": "model",
+        "line": 40,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 42,
+        "value": "http://localhost:8800/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-ret-random.yaml": [
+      {
+        "field": "model",
+        "line": 33,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 35,
+        "value": "http://localhost:8800/v1"
+      },
+      {
+        "field": "model",
+        "line": 40,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 42,
+        "value": "http://localhost:8800/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025.yaml": [
+      {
+        "field": "model",
+        "line": 32,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 34,
+        "value": "http://localhost:8800/v1"
+      },
+      {
+        "field": "model",
+        "line": 39,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 41,
+        "value": "http://localhost:8800/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-repos-split-default-025-ret-bm25.yaml": [
+      {
+        "field": "model",
+        "line": 33,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 35,
+        "value": "http://localhost:8800/v1"
+      },
+      {
+        "field": "model",
+        "line": 40,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 42,
+        "value": "http://localhost:8800/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-repos-split-default-025-ret-embedding.yaml": [
+      {
+        "field": "model",
+        "line": 34,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 36,
+        "value": "http://localhost:8800/v1"
+      },
+      {
+        "field": "model",
+        "line": 41,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 43,
+        "value": "http://localhost:8800/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-repos-split-default-025-ret-llm.yaml": [
+      {
+        "field": "model",
+        "line": 34,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 36,
+        "value": "http://localhost:8800/v1"
+      },
+      {
+        "field": "model",
+        "line": 41,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 43,
+        "value": "http://localhost:8800/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-repos-split-default-025-ret-random.yaml": [
+      {
+        "field": "model",
+        "line": 34,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 36,
+        "value": "http://localhost:8800/v1"
+      },
+      {
+        "field": "model",
+        "line": 41,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 43,
+        "value": "http://localhost:8800/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-repos-split-default-025.yaml": [
+      {
+        "field": "model",
+        "line": 28,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 30,
+        "value": "http://localhost:8800/v1"
+      },
+      {
+        "field": "model",
+        "line": 35,
+        "value": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+      },
+      {
+        "field": "api_base",
+        "line": 37,
+        "value": "http://localhost:8800/v1"
+      }
+    ],
+    "configs/princeton-nlp__SWE-bench_Verified/val-retrieval-distil-repos-split.yaml": [],
+    "configs/test.yaml": [
+      {
+        "field": "provider",
+        "line": 43,
+        "value": "zai"
+      },
+      {
+        "field": "model",
+        "line": 44,
+        "value": "glm-4.5-flash"
+      },
+      {
+        "field": "api_key_env",
+        "line": 45,
+        "value": "ZAI_API_KEY"
+      },
+      {
+        "field": "api_base",
+        "line": 46,
+        "value": "https://open.bigmodel.cn/api/coding/paas/v4"
+      },
+      {
+        "field": "model",
+        "line": 49,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 50,
+        "value": "http://10.100.30.241:8800/v1"
+      },
+      {
+        "field": "provider",
+        "line": 54,
+        "value": "zai"
+      },
+      {
+        "field": "model",
+        "line": 55,
+        "value": "glm-4.5-flash"
+      },
+      {
+        "field": "api_key_env",
+        "line": 56,
+        "value": "ZAI_API_KEY"
+      },
+      {
+        "field": "api_base",
+        "line": 57,
+        "value": "https://open.bigmodel.cn/api/coding/paas/v4"
+      },
+      {
+        "field": "model",
+        "line": 60,
+        "value": "Qwen/Qwen3-Coder-Next-FP8"
+      },
+      {
+        "field": "api_base",
+        "line": 61,
+        "value": "http://10.100.30.241:8800/v1"
+      }
+    ],
+    "configs/test/01_basic.yaml": [],
+    "configs/test/02_skip_learn.yaml": [],
+    "configs/test/03_concurrent.yaml": [],
+    "configs/test/04_two_phase.yaml": [],
+    "configs/test/05_two_phase_global.yaml": [],
+    "configs/test/06_iterate_repos.yaml": [],
+    "configs/test/07_resume.yaml": [],
+    "configs/test/08_baseline_reuse.yaml": [],
+    "configs/test/09_distillation.yaml": [],
+    "configs/test/10_validation_only.yaml": [],
+    "configs/test/11_retrieval_bm25.yaml": [],
+    "configs/test/11_retrieval_embedding.yaml": [],
+    "configs/test/11_retrieval_llm.yaml": [],
+    "configs/test/11_retrieval_random.yaml": []
+  },
+  "effective_by_config": {
+    "config.yaml": {
+      "llm.ace": {
+        "api_base": "https://api.z.ai/api/paas/v4",
+        "api_key_env": "ZAI_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "glm-4.5-flash",
+        "provider": "zai",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8000/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Lite/agent-glm-ace-glm-full-4a-default.yaml": {
+      "llm.ace": {
+        "api_base": "https://api.z.ai/api/coding/paas/v4",
+        "api_key_env": "ZAI_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "glm-4.5-flash",
+        "provider": "zai",
+        "temperature": 0.7
+      },
+      "llm.agent": {
+        "api_base": "https://api.z.ai/api/coding/paas/v4",
+        "api_key_env": "ZAI_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "glm-4.5-flash",
+        "provider": "zai",
+        "temperature": 0.7
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Lite/agent-glm-ace-glm-full-4a-swe.yaml": {
+      "llm.ace": {
+        "api_base": "https://api.z.ai/api/coding/paas/v4",
+        "api_key_env": "ZAI_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "glm-4.7-flash",
+        "provider": "zai",
+        "temperature": 0.7
+      },
+      "llm.agent": {
+        "api_base": "https://api.z.ai/api/coding/paas/v4",
+        "api_key_env": "ZAI_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "glm-4.7-flash",
+        "provider": "zai",
+        "temperature": 0.7
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-full-1a-baseline.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-full-4a-default.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-full-4a-swe.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-full-global-split-default.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-repos-split-default.yaml": {
+      "llm.ace": {
+        "api_base": "http://10.100.30.241:8801/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://10.100.30.241:8801/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-repos-split-swe.yaml": {
+      "llm.ace": {
+        "api_base": "http://10.100.30.241:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://10.100.30.241:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3next-full-4a-default.yaml": {
+      "llm.ace": {
+        "api_base": "http://10.100.30.241:8801/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-full-4a-no-skillbook.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-ace-qwen3-16opus45-distil-repos-split-default.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-ace-qwen3-16opus45-distil-repos-split-swe.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-4a-default.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-4a-swe.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default-025-ret-bm25.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "bm25"
+      },
+      "retrieval.llm": null
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default-025-ret-embedding.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "model": "Qwen/Qwen3-Embedding-4B",
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "embedding"
+      },
+      "retrieval.llm": null
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default-025-ret-random.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "seed": 42,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "random"
+      },
+      "retrieval.llm": null
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default-025-ret.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default-025.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-swe-025-ret-bm25.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "bm25"
+      },
+      "retrieval.llm": null
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-swe-025-ret-embedding.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "model": "Qwen/Qwen3-Embedding-4B",
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "embedding"
+      },
+      "retrieval.llm": null
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-swe-025-ret-random.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "seed": 42,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "random"
+      },
+      "retrieval.llm": null
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-swe-025-ret.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-swe-025.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.7
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.7
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default-025-ret-bm25.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "bm25"
+      },
+      "retrieval.llm": null
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default-025-ret-embedding.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "model": "Qwen/Qwen3-Embedding-4B",
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "embedding"
+      },
+      "retrieval.llm": null
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default-025-ret-random.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "seed": 42,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "random"
+      },
+      "retrieval.llm": null
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default-025-ret.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default-025.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe-025-ret-bm25.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "bm25"
+      },
+      "retrieval.llm": null
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe-025-ret-embedding.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "model": "Qwen/Qwen3-Embedding-4B",
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "embedding"
+      },
+      "retrieval.llm": null
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe-025-ret-random.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "seed": 42,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "random"
+      },
+      "retrieval.llm": null
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe-025-ret.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe-025.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3next-4a-retrieval-verified.yaml": {
+      "llm.ace": {
+        "api_base": "http://10.100.30.241:8801/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3next-full-4a-default.yaml": {
+      "llm.ace": {
+        "api_base": "http://10.100.30.241:8801/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-full-4a-no-skillbook.yaml": {
+      "llm.ace": {
+        "api_base": "http://10.100.30.241:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://10.100.30.241:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-eval-on-train-noret.yaml": {
+      "llm.ace": {
+        "api_base": "http://10.100.30.241:8801/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://10.100.30.241:8801/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-eval-on-train-ret-bm25.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "bm25"
+      },
+      "retrieval.llm": null
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-ret-bm25.yaml": {
+      "llm.ace": {
+        "api_base": "http://10.100.30.241:8801/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 1.0
+      },
+      "llm.agent": {
+        "api_base": "http://10.100.30.241:8801/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 1.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "bm25"
+      },
+      "retrieval.llm": null
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-ret-embedding.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "model": "Qwen/Qwen3-Embedding-4B",
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "embedding"
+      },
+      "retrieval.llm": null
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-ret-llm.yaml": {
+      "llm.ace": {
+        "api_base": "http://10.100.30.241:8801/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://10.100.30.241:8801/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://10.100.30.241:8801/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-ret-random.yaml": {
+      "llm.ace": {
+        "api_base": "http://10.100.30.241:8801/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://10.100.30.241:8801/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "seed": 42,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "random"
+      },
+      "retrieval.llm": null
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025.yaml": {
+      "llm.ace": {
+        "api_base": "http://10.100.30.241:8801/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://10.100.30.241:8801/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-repos-split-default-025-ret-bm25.yaml": {
+      "llm.ace": {
+        "api_base": "http://10.100.30.241:8802/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://10.100.30.241:8802/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "bm25"
+      },
+      "retrieval.llm": null
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-repos-split-default-025-ret-embedding.yaml": {
+      "llm.ace": {
+        "api_base": "http://10.100.30.241:8801/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://10.100.30.241:8801/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "model": "Qwen/Qwen3-Embedding-4B",
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "embedding"
+      },
+      "retrieval.llm": null
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-repos-split-default-025-ret-llm.yaml": {
+      "llm.ace": {
+        "api_base": "http://10.100.30.241:8802/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://10.100.30.241:8802/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://10.100.30.241:8802/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-repos-split-default-025-ret-random.yaml": {
+      "llm.ace": {
+        "api_base": "http://10.100.30.241:8802/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://10.100.30.241:8802/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "seed": 42,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "random"
+      },
+      "retrieval.llm": null
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-repos-split-default-025.yaml": {
+      "llm.ace": {
+        "api_base": "http://10.100.30.241:8801/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://10.100.30.241:8801/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/princeton-nlp__SWE-bench_Verified/val-retrieval-distil-repos-split.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/test.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/test/01_basic.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/test/02_skip_learn.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/test/03_concurrent.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/test/04_two_phase.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/test/05_two_phase_global.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/test/06_iterate_repos.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/test/07_resume.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/test/08_baseline_reuse.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/test/09_distillation.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/test/10_validation_only.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": false,
+        "filter_target": 100,
+        "skip_threshold": 10,
+        "top_k": 5,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/test/11_retrieval_bm25.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "b": 0.75,
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "include_section": false,
+        "k1": 1.5,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "skip_threshold": 0,
+        "top_k": 1,
+        "type": "bm25"
+      },
+      "retrieval.llm": null
+    },
+    "configs/test/11_retrieval_embedding.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "device": "cuda",
+        "enabled": true,
+        "filter_target": 100,
+        "model": "Qwen/Qwen3-Embedding-4B",
+        "skip_threshold": 0,
+        "top_k": 1,
+        "type": "embedding"
+      },
+      "retrieval.llm": null
+    },
+    "configs/test/11_retrieval_llm.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "skip_threshold": 0,
+        "top_k": 1,
+        "type": "llm"
+      },
+      "retrieval.llm": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 2048,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      }
+    },
+    "configs/test/11_retrieval_random.yaml": {
+      "llm.ace": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "llm.agent": {
+        "api_base": "http://localhost:8800/v1",
+        "api_key_env": "HOSTED_VLLM_API_KEY",
+        "extra_kwargs": {},
+        "max_tokens": 4096,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "provider": "hosted_vllm",
+        "temperature": 0.0
+      },
+      "retrieval": {
+        "chunk_size": 200,
+        "enabled": true,
+        "filter_target": 100,
+        "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        "seed": 42,
+        "skip_threshold": 0,
+        "top_k": 1,
+        "type": "random"
+      },
+      "retrieval.llm": null
+    }
+  },
+  "group_counts": {
+    "configs/princeton-nlp__SWE-bench_Lite": 10,
+    "configs/princeton-nlp__SWE-bench_Verified": 43,
+    "configs/test": 14,
+    "configs/test.yaml": 1
+  },
+  "mixed_agent_ace_configs": [
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3next-full-4a-default.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3next-4a-retrieval-verified.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3next-full-4a-default.yaml"
+  ],
+  "override_configs": [
+    "configs/princeton-nlp__SWE-bench_Lite/agent-glm-ace-glm-full-4a-default.yaml",
+    "configs/princeton-nlp__SWE-bench_Lite/agent-glm-ace-glm-full-4a-swe.yaml",
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-full-1a-baseline.yaml",
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-full-4a-default.yaml",
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-full-4a-swe.yaml",
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-full-global-split-default.yaml",
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-repos-split-default.yaml",
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3-repos-split-swe.yaml",
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-ace-qwen3next-full-4a-default.yaml",
+    "configs/princeton-nlp__SWE-bench_Lite/agent-qwen3-full-4a-no-skillbook.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-ace-qwen3-16opus45-distil-repos-split-default.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-ace-qwen3-16opus45-distil-repos-split-swe.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-4a-default.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-4a-swe.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default-025-ret-bm25.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default-025-ret-embedding.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default-025-ret-random.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default-025-ret.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default-025.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-default.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-swe-025-ret-bm25.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-swe-025-ret-embedding.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-swe-025-ret-random.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-swe-025-ret.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-full-global-split-swe-025.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default-025-ret-bm25.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default-025-ret-embedding.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default-025-ret-random.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default-025-ret.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default-025.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-default.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe-025-ret-bm25.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe-025-ret-embedding.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe-025-ret-random.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe-025-ret.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe-025.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3-repos-split-swe.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3next-4a-retrieval-verified.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-ace-qwen3next-full-4a-default.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3-full-4a-no-skillbook.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-eval-on-train-noret.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-eval-on-train-ret-bm25.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-ret-bm25.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-ret-embedding.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-ret-llm.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025-ret-random.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-global-split-default-025.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-repos-split-default-025-ret-bm25.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-repos-split-default-025-ret-embedding.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-repos-split-default-025-ret-llm.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-repos-split-default-025-ret-random.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/agent-qwen3next-ace-qwen3next-full-repos-split-default-025.yaml",
+    "configs/princeton-nlp__SWE-bench_Verified/val-retrieval-distil-repos-split.yaml",
+    "configs/test/01_basic.yaml",
+    "configs/test/02_skip_learn.yaml",
+    "configs/test/03_concurrent.yaml",
+    "configs/test/04_two_phase.yaml",
+    "configs/test/05_two_phase_global.yaml",
+    "configs/test/06_iterate_repos.yaml",
+    "configs/test/07_resume.yaml",
+    "configs/test/08_baseline_reuse.yaml",
+    "configs/test/09_distillation.yaml",
+    "configs/test/10_validation_only.yaml",
+    "configs/test/11_retrieval_bm25.yaml",
+    "configs/test/11_retrieval_embedding.yaml",
+    "configs/test/11_retrieval_llm.yaml",
+    "configs/test/11_retrieval_random.yaml",
+    "configs/test.yaml"
+  ],
+  "retrieval_counts": {
+    "disabled_llm": 37,
+    "enabled_bm25": 8,
+    "enabled_embedding": 7,
+    "enabled_llm": 9,
+    "enabled_random": 7
+  },
+  "schema_version": 1
+}
