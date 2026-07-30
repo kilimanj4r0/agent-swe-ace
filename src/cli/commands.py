@@ -1827,7 +1827,8 @@ def run_learn_cmd(config: dict, args):
     run_name = config["experiment"].get("name", "experiment")
 
     if args.dry_run:
-        ace_cfg = config.get("llm", {}).get("ace", {})
+        ace_ref = config.get("llm", {}).get("ace", {})
+        ace_cfg = get_effective_llm(ace_ref)
         custom_swe = config.get("experiment", {}).get("skillbook", {}).get("custom_swe_learn", False)
         print(f"\n=== DRY RUN: learn ===")
         print(f"  Run name:          {run_name}")
@@ -1835,6 +1836,7 @@ def run_learn_cmd(config: dict, args):
         print(f"  Instance:          {args.instance}")
         print(f"  Trajectory:        {args.trajectory}")
         print(f"  Iteration:         {args.iteration}")
+        print(f"  ACE preset:        {ace_ref.get('preset', 'legacy')}")
         print(f"  ACE model:         {ace_cfg.get('model', 'not set')}")
         print(f"  Custom SWE:        {custom_swe}")
         print(f"  Skillbook mode:    {config.get('experiment', {}).get('skillbook', {}).get('mode', 'per_instance')}")

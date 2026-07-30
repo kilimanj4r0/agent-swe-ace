@@ -26,6 +26,11 @@ from pathlib import Path
 
 import numpy as np
 
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_REPO_ROOT / "src"))
+
+from config.llm_catalog import get_effective_llm
+
 # ---------------------------------------------------------------------------
 # Configurable definitions
 # ---------------------------------------------------------------------------
@@ -456,8 +461,19 @@ def load_run(run_dir: Path) -> dict | None:
                 total_instances = vsb.get("total_instances", 0)
 
     # Extract model names
-    agent_llm = config.get("llm", {}).get("agent", {}).get("model", "N/A")
-    ace_llm = config.get("llm", {}).get("ace", {}).get("model", "N/A")
+    llm = config.get("llm", {})
+    agent_section = llm.get("agent", {})
+    ace_section = llm.get("ace", {})
+    agent_llm = (
+        get_effective_llm(agent_section).get("model", "N/A")
+        if agent_section
+        else "N/A"
+    )
+    ace_llm = (
+        get_effective_llm(ace_section).get("model", "N/A")
+        if ace_section
+        else "N/A"
+    )
 
     return {
         "run_dir": run_dir,

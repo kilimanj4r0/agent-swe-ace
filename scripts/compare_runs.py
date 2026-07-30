@@ -23,6 +23,9 @@ from datetime import datetime
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_REPO_ROOT / "src"))
+
+from config.llm_catalog import get_effective_llm
 
 # Reuse the CANONICAL combinatorial pass@k estimator from
 # collect_val_baseline_aggregated.py so the pass@k reported here is computed with
@@ -574,8 +577,18 @@ def load_run(run_dir: Path, iteration: int | None = None, phase: str | None = No
 
     exp = config.get("experiment", {})
     llm = config.get("llm", {})
-    agent_llm = llm.get("agent", {}).get("model", "N/A")
-    ace_llm = llm.get("ace", {}).get("model", "N/A")
+    agent_section = llm.get("agent", {})
+    ace_section = llm.get("ace", {})
+    agent_llm = (
+        get_effective_llm(agent_section).get("model", "N/A")
+        if agent_section
+        else "N/A"
+    )
+    ace_llm = (
+        get_effective_llm(ace_section).get("model", "N/A")
+        if ace_section
+        else "N/A"
+    )
 
     baseline_dir = stats.get("baseline_dir", None)
     has_baseline = baseline_dir is not None

@@ -21,11 +21,12 @@ import time
 from pathlib import Path
 
 import pytest
-import yaml
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from config.llm_catalog import get_effective_llm
+from config.loader import load_experiment_config
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -37,35 +38,17 @@ litellm.request_timeout = 10  # Fail fast if server unreachable
 
 
 def load_merged_config(config_override_path: str | None) -> dict:
-    """Load base config.yaml, optionally deep-merged with an override config."""
+    """Load base config plus an optional strict preset-aware override."""
     project_root = Path(__file__).parent.parent.parent
     base_path = project_root / "config.yaml"
-
-    with open(base_path) as f:
-        config = yaml.safe_load(f)
-
+    override_path = None
     if config_override_path:
         override_path = Path(config_override_path)
         if not override_path.is_absolute():
             override_path = project_root / override_path
         if not override_path.exists():
             pytest.exit(f"Config file not found: {override_path}")
-        with open(override_path) as f:
-            override = yaml.safe_load(f)
-        config = deep_merge(config, override)
-
-    return config
-
-
-def deep_merge(base: dict, override: dict) -> dict:
-    """Deep merge override into base dict."""
-    result = base.copy()
-    for key, value in override.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge(result[key], value)
-        else:
-            result[key] = value
-    return result
+    return load_experiment_config(base_path, override_path)
 
 
 @pytest.fixture(scope="module")
@@ -77,12 +60,12 @@ def merged_config(request):
 
 @pytest.fixture(scope="module")
 def agent_llm_config(merged_config):
-    return merged_config["llm"]["agent"]
+    return get_effective_llm(merged_config["llm"]["agent"])
 
 
 @pytest.fixture(scope="module")
 def ace_llm_config(merged_config):
-    return merged_config["llm"]["ace"]
+    return get_effective_llm(merged_config["llm"]["ace"])
 
 
 # ---------------------------------------------------------------------------

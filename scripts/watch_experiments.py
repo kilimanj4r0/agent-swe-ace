@@ -25,8 +25,20 @@ from pathlib import Path
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 DATA_DIRS = [DATA_DIR, Path(__file__).resolve().parent.parent / "_data"]
+sys.path.insert(0, str(DATA_DIR.parent / "src"))
+
+from config.llm_catalog import get_effective_llm
 
 # ── helpers ──────────────────────────────────────────────────────────────
+
+
+def _effective_llm_roles(config: dict) -> dict:
+    """Normalize new saved wrappers and historical flat LLM mappings."""
+    llm = config.get("llm", {})
+    return {
+        role: get_effective_llm(llm[role]) if llm.get(role) else {}
+        for role in ("agent", "ace")
+    }
 
 def _all_run_dirs(reverse: bool = False):
     """Yield (dir_path, dir_name, test_slug) from all data directories, sorted.
@@ -926,9 +938,9 @@ def collect_runs(show_all: bool, only_running: bool, only_tests: bool = False):
                 continue
 
         exp = cfg.get("experiment", {})
-        llm = cfg.get("llm", {})
-        agent_llm = llm.get("agent", {})
-        ace_llm = llm.get("ace", {})
+        llm = _effective_llm_roles(cfg)
+        agent_llm = llm["agent"]
+        ace_llm = llm["ace"]
         sb_cfg = exp.get("skillbook", {})
         attempts = exp.get("max_attempts", "?")
 
@@ -1064,7 +1076,7 @@ def collect_endpoints(entries: list[dict]) -> list[dict]:
     for e in entries:
         if e["status"] != "RUNNING":
             continue
-        llm = e.get("llm_config", {})
+        llm = _effective_llm_roles({"llm": e.get("llm_config", {})})
         for role in ("agent", "ace"):
             rcfg = llm.get(role, {})
             if not rcfg:

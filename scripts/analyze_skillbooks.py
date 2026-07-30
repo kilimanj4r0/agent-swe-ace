@@ -30,6 +30,11 @@ from pathlib import Path
 
 import numpy as np
 
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_REPO_ROOT / "src"))
+
+from config.llm_catalog import get_effective_llm
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -131,6 +136,9 @@ def analyze_overview(data: dict) -> list[str]:
     sections = set(s["section"] for s in skills.values())
     train_n = stats.get("train_phase", {}).get("total_instances", stats.get("total_instances", "?"))
     train_resolved = stats.get("train_phase", {}).get("resolved_count", stats.get("resolved_count", "?"))
+    llm = config.get("llm", {})
+    agent_llm = get_effective_llm(llm["agent"]) if llm.get("agent") else {}
+    ace_llm = get_effective_llm(llm["ace"]) if llm.get("ace") else {}
 
     lines.append(f"| Metric | Value |")
     lines.append(f"|--------|-------|")
@@ -144,8 +152,8 @@ def analyze_overview(data: dict) -> list[str]:
     lines.append(f"| Dedup enabled | {config.get('experiment', {}).get('skillbook', {}).get('deduplication', {}).get('enabled', '?')} |")
     lines.append(f"| Dedup threshold | {config.get('experiment', {}).get('skillbook', {}).get('deduplication', {}).get('similarity_threshold', '?')} |")
     lines.append(f"| Dedup within-section-only | {config.get('experiment', {}).get('skillbook', {}).get('deduplication', {}).get('within_section_only', '?')} |")
-    lines.append(f"| Agent model | {config.get('llm', {}).get('agent', {}).get('model', '?')} |")
-    lines.append(f"| ACE model | {config.get('llm', {}).get('ace', {}).get('model', '?')} |")
+    lines.append(f"| Agent model | {agent_llm.get('model', '?')} |")
+    lines.append(f"| ACE model | {ace_llm.get('model', '?')} |")
     lines.append("")
 
     return lines
@@ -1071,7 +1079,9 @@ def analyze_token_overhead(data: dict) -> list[str]:
 
     # Usable context from config (matches agent code: context_window - max_tokens - 2000)
     context_window = config.get("agent", {}).get("context", {}).get("context_window", 65536)
-    max_tokens = config.get("llm", {}).get("agent", {}).get("max_tokens", 4096)
+    agent_section = config.get("llm", {}).get("agent", {})
+    agent_llm = get_effective_llm(agent_section) if agent_section else {}
+    max_tokens = agent_llm.get("max_tokens", 4096)
     usable = context_window - max_tokens - 2000
 
     lines.append(f"| Metric | Value |")

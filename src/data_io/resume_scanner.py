@@ -11,11 +11,18 @@ Usage:
 
 import json
 import shutil
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from loguru import logger
+
+_SRC_ROOT = Path(__file__).resolve().parents[1]
+if str(_SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SRC_ROOT))
+
+from config.loader import load_experiment_config
 
 
 @dataclass
@@ -349,22 +356,8 @@ def copy_instance_artifacts(
     logger.debug(f"[resume] Copied iter_0..iter_{up_to_iter} for {instance_id}")
 
 
-def _deep_merge(base: dict, override: dict) -> dict:
-    """Deep merge override into base (returns new dict)."""
-    result = base.copy()
-    for key, val in override.items():
-        if key in result and isinstance(result[key], dict) and isinstance(val, dict):
-            result[key] = _deep_merge(result[key], val)
-        else:
-            result[key] = val
-    return result
-
-
 if __name__ == "__main__":
     import argparse
-    import sys
-
-    import yaml
 
     parser = argparse.ArgumentParser(
         description="Scan resume state for experiment instances",
@@ -374,23 +367,12 @@ if __name__ == "__main__":
     parser.add_argument("--resume-dir", help="Resume directory (overrides config's resume_dirs)")
     args = parser.parse_args()
 
-    # Load base config
     base_config_path = Path("config.yaml")
-    if base_config_path.exists():
-        with open(base_config_path) as f:
-            config = yaml.safe_load(f) or {}
-    else:
-        config = {}
-
-    # Deep-merge override config
     override_path = Path(args.config)
-    if override_path.exists():
-        with open(override_path) as f:
-            override = yaml.safe_load(f) or {}
-        config = _deep_merge(config, override)
-    else:
+    if not override_path.exists():
         print(f"Config not found: {override_path}", file=sys.stderr)
         sys.exit(1)
+    config = load_experiment_config(base_config_path, override_path)
 
     # Extract settings
     benchmark_dataset = config.get("benchmark", {}).get("dataset", "princeton-nlp/SWE-bench_Lite")

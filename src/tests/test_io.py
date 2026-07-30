@@ -289,6 +289,35 @@ class TestWriters:
         assert output_path == run_dir / "config.json"
         assert output_path.exists()
 
+    def test_save_config_preserves_llm_intent_and_effective(self, tmp_path):
+        config = {
+            "llm": {
+                "agent": {
+                    "preset": "qwen",
+                    "overrides": {"temperature": 0.7},
+                    "effective": {
+                        "provider": "hosted_vllm",
+                        "model": "Qwen/test",
+                        "api_base": "http://localhost:8800/v1",
+                        "api_key_env": "HOSTED_VLLM_API_KEY",
+                        "temperature": 0.7,
+                        "max_tokens": 4096,
+                        "extra_kwargs": {},
+                    },
+                }
+            }
+        }
+        run_dir = tmp_path / "run_wrapper"
+        run_dir.mkdir()
+
+        path = writers.save_config(config, run_dir)
+        saved = json.loads(path.read_text())
+
+        assert saved["llm"]["agent"]["preset"] == "qwen"
+        assert saved["llm"]["agent"]["overrides"] == {"temperature": 0.7}
+        assert saved["llm"]["agent"]["effective"]["temperature"] == 0.7
+        assert '"api_key"' not in path.read_text()
+
     def test_save_statistics(self, tmp_path):
         """Test saving run statistics."""
         statistics = {

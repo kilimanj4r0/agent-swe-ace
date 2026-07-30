@@ -24,6 +24,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
+
+from config.loader import deep_merge
+
 CONFIGS_DIR = PROJECT_ROOT / "configs" / "test"
 DATA_DIR = PROJECT_ROOT / "_data"
 TEACHER_TRAJS_DIR = PROJECT_ROOT / "data" / "teacher_trajs" / "v1.16_opus45_verified"
@@ -44,16 +48,6 @@ def _cyan(s): return f"\033[96m{s}\033[0m"
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────
-
-def deep_merge(base: dict, override: dict) -> dict:
-    result = base.copy()
-    for key, value in override.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge(result[key], value)
-        else:
-            result[key] = value
-    return result
-
 
 def load_yaml(path: Path) -> dict:
     import yaml

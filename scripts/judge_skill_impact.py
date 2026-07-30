@@ -183,6 +183,8 @@ def load_run_meta(run_dir: Path) -> dict:
     llm = cfg.get("llm", {})
 
     def _model(d):
+        if isinstance(d.get("effective"), dict):
+            d = d["effective"]
         m = d.get("model", "?")
         return m.split("/")[-1] if "/" in m else m
 
