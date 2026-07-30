@@ -17,6 +17,30 @@ from config.llm_catalog import (
     resolve_llm_section,
 )
 
+ROOT = Path(__file__).resolve().parents[2]
+
+REQUIRED_PRESETS = {
+    "qwen3-coder-30b-local-8000",
+    "qwen3-coder-30b-local-8800",
+    "qwen3-coder-30b-241-8800",
+    "qwen3-coder-30b-241-8801",
+    "qwen3-coder-30b-241-8802",
+    "qwen3-coder-next-local-8800",
+    "qwen3-coder-next-241-8800",
+    "qwen3-coder-next-241-8801",
+    "qwen3-coder-next-241-8802",
+    "zai-glm-4.5-standard",
+    "zai-glm-4.5-coding",
+    "zai-glm-4.7-standard",
+    "zai-glm-4.7-coding",
+    "bigmodel-glm-4.5-coding",
+    "bigmodel-glm-4.7-coding",
+    "iu-qwen36-35b-a3b",
+    "iu-gemma4-31b-it",
+    "iu-gpt-oss-120b",
+    "iu-qwen3-coder-next",
+}
+
 
 def valid_values(**changes):
     values = {
@@ -262,3 +286,26 @@ def test_legacy_flat_mapping_gets_provider_defaults_without_guessing_preset():
 def test_get_effective_llm_rejects_non_mapping():
     with pytest.raises(LLMCatalogError, match="mapping"):
         get_effective_llm("qwen")
+
+
+def test_repository_catalog_has_every_required_preset():
+    catalog = load_llm_catalog(ROOT / "llms.yaml")
+    assert set(catalog) == REQUIRED_PRESETS
+
+
+def test_iu_presets_match_inference_inventory():
+    catalog = load_llm_catalog(ROOT / "llms.yaml")
+    assert catalog["iu-qwen36-35b-a3b"]["api_base"] == "http://10.100.10.70:8123/v1"
+    assert catalog["iu-gemma4-31b-it"]["model"] == "google/gemma-4-31B-it"
+    assert catalog["iu-gpt-oss-120b"]["api_base"] == "http://10.100.10.105:30245/v1"
+    assert catalog["iu-qwen3-coder-next"]["model"] == "Qwen3-Coder-Next"
+    for name in {
+        "iu-qwen36-35b-a3b",
+        "iu-gemma4-31b-it",
+        "iu-gpt-oss-120b",
+        "iu-qwen3-coder-next",
+    }:
+        assert catalog[name]["provider"] == "hosted_vllm"
+        assert catalog[name]["api_key_env"] == "HOSTED_VLLM_API_KEY"
+        assert catalog[name]["temperature"] == 0.0
+        assert catalog[name]["max_tokens"] == 4096
